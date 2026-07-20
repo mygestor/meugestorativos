@@ -252,10 +252,6 @@ export function clearContributions() {
   localStorage.removeItem(APORTE_KEY);
 }
 
-export function clearTrades() {
-  localStorage.removeItem(TRADE_KEY);
-}
-
 export function importFullBackup(data: {
   assets?: Asset[];
   dividends?: DividendRecord[];
@@ -293,6 +289,12 @@ export function importSeedData() {
 // ---- Lot Tracking ----
 
 const LOT_KEY = "gestor-ativos-lotes";
+
+export function clearTrades() {
+  localStorage.removeItem(TRADE_KEY);
+  localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem(LOT_KEY);
+}
 
 export function getLots(): Lot[] {
   return load<Lot>(LOT_KEY);
