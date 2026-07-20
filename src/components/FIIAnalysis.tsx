@@ -316,7 +316,7 @@ export function FIIAnalysis({ fiiAssets, hideValues, onEdit }: Props) {
                 <SortH label="Tipo" field="" current="" asc={false} onClick={() => {}} className="hidden lg:table-cell" />
                 <SortH label="Pag" field="" current="" asc={false} onClick={() => {}} className="hidden lg:table-cell" />
                 <SortH label="Cotação" field="cotacao" current={sortField} asc={sortAsc} onClick={toggleSort} />
-                <SortH label="Dividendo" field="dividendo" current={sortField} asc={sortAsc} onClick={toggleSort} />
+                <SortH label="Dividendo/Cota" field="dividendo" current={sortField} asc={sortAsc} onClick={toggleSort} />
                 <SortH label="DY" field="dy" current={sortField} asc={sortAsc} onClick={toggleSort} />
                 <SortH label="Qtd" field="quantidade" current={sortField} asc={sortAsc} onClick={toggleSort} />
                 <SortH label="Meta" field="meta" current={sortField} asc={sortAsc} onClick={toggleSort} className="hidden lg:table-cell" />
@@ -336,7 +336,7 @@ export function FIIAnalysis({ fiiAssets, hideValues, onEdit }: Props) {
                     <td className="p-2 text-muted hidden lg:table-cell">{r.asset.subtype || r.asset.type}</td>
                     <td className="p-2 text-muted hidden lg:table-cell">{r.asset.paymentDay ? `Dia ${r.asset.paymentDay}` : "-"}</td>
                     <td className="p-2 tabular font-medium">{mask$(r.asset.currentPrice)}</td>
-                    <td className="p-2 tabular">{mask$(r.asset.dividendPerShare)}</td>
+                    <td className="p-2 tabular">{mask$(r.realDivPerShare)}</td>
                     <td className={`p-2 tabular font-medium ${yieldColor(r.divYieldMensal)}`}>{formatPercent(r.divYieldMensal)}</td>
                     <td className="p-2 tabular">{r.asset.quantity}</td>
                     <td className="p-2 tabular hidden lg:table-cell">{r.goalShares > 0 ? r.goalShares : "-"}</td>
@@ -372,7 +372,8 @@ export function FIIAnalysis({ fiiAssets, hideValues, onEdit }: Props) {
               <button onClick={() => onEdit(r.asset)} className="text-xs text-primary hover:underline">Editar Meta</button>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-              <MiniBox label="Dividendo Atual" value={mask$(r.realMonthlyDiv)} color="text-income" />
+              <MiniBox label="Valor Pago/Cota" value={mask$(r.realDivPerShare)} color="text-income" />
+              <MiniBox label="Dividendo/Mês" value={mask$(r.realMonthlyDiv)} color="text-income" />
               <MiniBox label="Retorno Anual" value={mask$(r.realMonthlyDiv * 12)} color="text-income" />
               <MiniBox label="DY Mensal" value={formatPercent(r.divYieldMensal)} color={yieldColor(r.divYieldMensal)} />
               <MiniBox label="DY 12M" value={formatPercent(r.avgYield12m)} color={yieldColor(r.avgYield12m)} />
