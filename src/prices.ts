@@ -203,32 +203,6 @@ export async function updateDividendsFromBrapi(
   return updated;
 }
 
-async function fetchYahooDividends(ticker: string): Promise<{ sum12m: number; price: number } | null> {
-  try {
-    const yahooTicker = `${ticker}.SA`;
-    // query2 + v7 tem menos rate limit que query1 + v8
-    const url = `https://query2.finance.yahoo.com/v7/finance/chart/${yahooTicker}?range=2y&interval=1d&events=dividends`;
-    const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
-    if (!res.ok) return null;
-    const data = await res.json();
-    const result = data?.chart?.result?.[0];
-    if (!result) return null;
-    const price = result.meta?.regularMarketPrice ?? 0;
-    const dividends = result.events?.dividends;
-    if (!dividends) return { sum12m: 0, price };
-    const now = Date.now() / 1000;
-    const oneYearAgo = now - 365 * 24 * 3600;
-    let sum12m = 0;
-    for (const key of Object.keys(dividends)) {
-      const d = dividends[key];
-      if (d.date >= oneYearAgo) sum12m += d.amount;
-    }
-    return { sum12m, price };
-  } catch {
-    return null;
-  }
-}
-
 async function fetchStatusInvestDividends(ticker: string): Promise<{ sum12m: number; price: number } | null> {
   try {
     const url = `https://statusinvest.com.br/fundos-imobiliarios/${ticker.toLowerCase()}`;
@@ -264,53 +238,21 @@ export async function fetchDY12m(tickers: string[]): Promise<Map<string, { dy12m
   const result = new Map<string, { dy12m: number; price: number; last12Sum: number }>();
   const cap = 30;
 
-  const chunkSize = 10;
-
-  // Priority 1: Yahoo Finance (mais confiável, funciona sem token)
+  // Priority 1: investidor10 (mais preciso para FIIs)
   for (const ticker of tickers) {
-    const yh = await fetchYahooDividends(ticker);
-    if (yh && yh.sum12m > 0 && yh.price > 0) {
-      const dy12m = Math.min((yh.sum12m / yh.price) * 100, cap);
-      result.set(ticker.toUpperCase(), { dy12m, price: yh.price, last12Sum: yh.sum12m });
+    const i10 = await fetchDividendFromInvestidor10(ticker);
+    if (i10 && i10.dy > 0) {
+      result.set(ticker.toUpperCase(), { dy12m: Math.min(i10.dy, cap), price: 0, last12Sum: i10.dividendo * 12 });
     }
   }
 
-  // Priority 2: brapi.dev para os que faltam
-  const missing = tickers.filter((t) => !result.has(t.toUpperCase()));
-  for (let i = 0; i < missing.length; i += chunkSize) {
-    const chunk = missing.slice(i, i + chunkSize);
-    try {
-      const quotes = await fetchQuotes(chunk);
-      for (const [ticker, quote] of quotes) {
-        if (result.has(ticker.toUpperCase())) continue;
-        const price = quote.regularMarketPrice ?? 0;
-        let lastDiv = 0;
-        if (quote.dividendsData && quote.dividendsData.length > 0) {
-          lastDiv = quote.dividendsData[quote.dividendsData.length - 1].value;
-        } else if (quote.dividendPerShare != null && quote.dividendPerShare > 0) {
-          lastDiv = quote.dividendPerShare;
-        }
-        const annual = lastDiv * 12;
-        const dy12m = price > 0 && annual > 0 ? Math.min((annual / price) * 100, cap) : 0;
-        result.set(ticker.toUpperCase(), { dy12m, price, last12Sum: annual });
-      }
-    } catch {
-      // ignore
-    }
-  }
-
-  // Priority 3: StatusInvest + investidor10 para os que ainda faltam
+  // Priority 2: StatusInvest para os que faltam
   for (const ticker of tickers) {
     if (result.has(ticker.toUpperCase()) && result.get(ticker.toUpperCase())!.dy12m > 0) continue;
     const si = await fetchStatusInvestDividends(ticker);
     if (si && si.sum12m > 0) {
       const dy12m = si.price > 0 ? Math.min((si.sum12m / si.price) * 100, cap) : 0;
       result.set(ticker.toUpperCase(), { dy12m, price: si.price, last12Sum: si.sum12m });
-    } else {
-      const i10 = await fetchDividendFromInvestidor10(ticker);
-      if (i10 && i10.dy > 0) {
-        result.set(ticker.toUpperCase(), { dy12m: Math.min(i10.dy, cap), price: 0, last12Sum: i10.dividendo * 12 });
-      }
     }
   }
 
@@ -321,44 +263,20 @@ export async function fetchLastDividends(tickers: string[]): Promise<Map<string,
   if (tickers.length === 0) return new Map();
   const result = new Map<string, number>();
 
-  // Priority 1: Yahoo Finance (último dividendo do array events.dividends)
+  // Priority 1: investidor10 (mais preciso para FIIs)
   for (const ticker of tickers) {
-    const yh = await fetchYahooDividends(ticker);
-    if (yh && yh.sum12m > 0) {
-      const lastDiv = yh.sum12m / 12; // aproximação: média mensal
-      if (lastDiv > 0) result.set(ticker.toUpperCase(), lastDiv);
-    }
-  }
-
-  // Priority 2: brapi.dev para os que faltam
-  const missing = tickers.filter((t) => !result.has(t.toUpperCase()) || !result.get(t.toUpperCase()));
-  const chunkSize = 10;
-  for (let i = 0; i < missing.length; i += chunkSize) {
-    const chunk = missing.slice(i, i + chunkSize);
-    try {
-      const quotes = await fetchQuotes(chunk);
-      for (const [ticker, quote] of quotes) {
-        let lastDiv = result.get(ticker.toUpperCase()) || 0;
-        if (lastDiv <= 0) {
-          if (quote.dividendsData && quote.dividendsData.length > 0) {
-            lastDiv = quote.dividendsData[quote.dividendsData.length - 1].value;
-          }
-          if (lastDiv <= 0 && quote.dividendPerShare != null && quote.dividendPerShare > 0) {
-            lastDiv = quote.dividendPerShare;
-          }
-          if (lastDiv > 0) result.set(ticker.toUpperCase(), lastDiv);
-        }
-      }
-    } catch {
-      // ignore
-    }
-  }
-
-  // Priority 3: investidor10 para os que faltam
-  for (const ticker of tickers) {
-    if (result.has(ticker.toUpperCase()) && result.get(ticker.toUpperCase())! > 0) continue;
     const i10 = await fetchDividendFromInvestidor10(ticker);
     if (i10 && i10.dividendo > 0) result.set(ticker.toUpperCase(), i10.dividendo);
+  }
+
+  // Priority 2: StatusInvest para os que faltam
+  for (const ticker of tickers) {
+    if (result.has(ticker.toUpperCase()) && result.get(ticker.toUpperCase())! > 0) continue;
+    const si = await fetchStatusInvestDividends(ticker);
+    if (si && si.sum12m > 0) {
+      const lastDiv = si.sum12m / 12;
+      if (lastDiv > 0) result.set(ticker.toUpperCase(), lastDiv);
+    }
   }
 
   return result;
