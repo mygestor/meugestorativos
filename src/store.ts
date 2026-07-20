@@ -294,6 +294,9 @@ export function clearTrades() {
   localStorage.removeItem(TRADE_KEY);
   localStorage.removeItem(STORAGE_KEY);
   localStorage.removeItem(LOT_KEY);
+  localStorage.removeItem(DIVIDEND_KEY);
+  localStorage.removeItem(APORTE_KEY);
+  localStorage.removeItem("gestor-last-price-update");
 }
 
 export function getLots(): Lot[] {
