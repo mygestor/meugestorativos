@@ -21,9 +21,10 @@ import { IRPFReport } from "./components/IRPFReport";
 import { DividendAlerts } from "./components/DividendAlerts";
 import { DividendCalendar } from "./components/DividendCalendar";
 import { UpdateToast } from "./components/UpdateToast";
-import { TrendingUp, Plus, Upload, Download, Trash2, Eye, EyeOff, LayoutDashboard, Briefcase, HandCoins, PiggyBank, ArrowLeftRight, Target, FileText } from "lucide-react";
+import { FIIAnalysis } from "./components/FIIAnalysis";
+import { TrendingUp, Plus, Upload, Download, Trash2, Eye, EyeOff, LayoutDashboard, Briefcase, HandCoins, PiggyBank, ArrowLeftRight, Target, FileText, Building2 } from "lucide-react";
 
-type Tab = "dashboard" | "assets" | "dividendos" | "aportes" | "trades" | "planejamento";
+type Tab = "dashboard" | "assets" | "dividendos" | "aportes" | "trades" | "planejamento" | "analise-fii";
 
 export default function App() {
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -162,6 +163,8 @@ export default function App() {
   }
 
   const assetTickers = useMemo(() => assets.map((a) => a.ticker), [assets]);
+  const fiiAssets = useMemo(() => assets.filter((a) => a.type === "FII"), [assets]);
+  const stockAssets = useMemo(() => assets.filter((a) => a.type !== "FII"), [assets]);
 
   return (
     <div className="min-h-screen bg-surface">
@@ -229,6 +232,9 @@ export default function App() {
           </TabButton>
           <TabButton active={tab === "trades"} onClick={() => setTab("trades")} icon={ArrowLeftRight}>
             Compra/Venda ({trades.length})
+          </TabButton>
+          <TabButton active={tab === "analise-fii"} onClick={() => setTab("analise-fii")} icon={Building2}>
+            Análise FII ({fiiAssets.length})
           </TabButton>
           <TabButton active={tab === "planejamento"} onClick={() => setTab("planejamento")} icon={Target}>
             Planejamento
@@ -369,6 +375,10 @@ export default function App() {
           <TradeTable trades={trades} hideValues={hideValues} onRefresh={refresh} onEdit={(t) => { setEditTrade(t); setTradeDialogOpen(true); }} />
         )}
 
+        {tab === "analise-fii" && (
+          <FIIAnalysis fiiAssets={fiiAssets} hideValues={hideValues}
+            onEdit={(a) => { setEditAsset(a); setDialogOpen(true); }} onRefresh={refresh} />
+        )}
         {tab === "planejamento" && (
           <PlanningPage assets={assets} dividends={dividends} contributions={contributions} trades={trades} hideValues={hideValues} />
         )}
