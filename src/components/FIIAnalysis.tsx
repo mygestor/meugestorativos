@@ -106,22 +106,24 @@ export function FIIAnalysis({ fiiAssets, hideValues, onEdit, onRefresh }: Props)
   // Calculate rows
   const rows = useMemo(() => {
     return localAssets.map((a) => {
-      // Use real dividend records to calculate monthly dividend
+      // Dividend records ordenados do mais recente
       const allDivs = allDividends
-        .filter((d) => d.ticker === a.ticker)
+        .filter((d) => d.ticker.toUpperCase() === a.ticker.toUpperCase())
         .sort((a, b) => b.payment.localeCompare(a.payment));
       const divs12m = allDivs.slice(0, 12);
       const totalDivs12m = divs12m.reduce((s, d) => s + d.totalValue, 0);
 
-      // Dividend per share: prefer the stored value (updated by API), fallback to records
-      const divPerShare = (a.dividendPerShare || 0) > 0
-        ? a.dividendPerShare
-        : (divs12m.length > 0 ? totalDivs12m / divs12m.length / (a.quantity || 1) : 0);
+      // Dividendo por cota: usa o ÚLTIMO dividendo real registrado
+      // Último registro: allDivs[0] tem o payment mais recente
+      const ultimoRegistro = allDivs[0];
+      const divPerShare = ultimoRegistro && a.quantity > 0
+        ? +(ultimoRegistro.totalValue / a.quantity).toFixed(6)
+        : a.dividendPerShare || 0;
 
-      // Monthly dividend
-      const realMonthlyDiv = divPerShare > 0
-        ? divPerShare * a.quantity
-        : (divs12m.length > 0 ? totalDivs12m / Math.min(divs12m.length, 12) : 0);
+      // Dividendo mensal total: usa a média dos últimos 12 meses se disponível
+      const realMonthlyDiv = divs12m.length > 0
+        ? totalDivs12m / Math.min(divs12m.length, 12)
+        : divPerShare * a.quantity;
 
       const divYieldMensal = a.currentPrice > 0 && divPerShare > 0 ? (divPerShare / a.currentPrice) * 100 : 0;
       const avgYield12m = a.currentPrice > 0 && a.quantity > 0 ? (totalDivs12m / (a.quantity || 1) / a.currentPrice) * 100 : 0;
@@ -395,7 +397,7 @@ export function FIIAnalysis({ fiiAssets, hideValues, onEdit, onRefresh }: Props)
                     <td className="p-2 text-muted hidden lg:table-cell">{r.asset.subtype || r.asset.type}</td>
                     <td className="p-2 text-muted hidden lg:table-cell">{r.asset.paymentDay ? `Dia ${r.asset.paymentDay}` : "-"}</td>
                     <td className="p-2 tabular font-medium">{mask$(r.asset.currentPrice)}</td>
-                    <td className="p-2 tabular">{mask$(r.asset.dividendPerShare)}</td>
+                    <td className="p-2 tabular">{mask$(r.realDivPerShare)}</td>
                     <td className={`p-2 tabular font-medium ${yieldColor(r.divYieldMensal)}`}>{formatPercent(r.divYieldMensal)}</td>
                     <td className="p-2 tabular">{r.asset.quantity}</td>
                     <td className="p-2 tabular hidden lg:table-cell">{r.goalShares > 0 ? r.goalShares : "-"}</td>
@@ -431,7 +433,7 @@ export function FIIAnalysis({ fiiAssets, hideValues, onEdit, onRefresh }: Props)
               <button onClick={() => onEdit(r.asset)} className="text-xs text-primary hover:underline">Editar Meta</button>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-              <MiniBox label="Valor Pago/Cota" value={mask$(r.asset.dividendPerShare)} color="text-income" />
+              <MiniBox label="Valor Pago/Cota" value={mask$(r.realDivPerShare)} color="text-income" />
               <MiniBox label="Dividendo/Mês" value={mask$(r.realMonthlyDiv)} color="text-income" />
               <MiniBox label="Retorno Anual" value={mask$(r.realMonthlyDiv * 12)} color="text-income" />
               <MiniBox label="DY Mensal" value={formatPercent(r.divYieldMensal)} color={yieldColor(r.divYieldMensal)} />
