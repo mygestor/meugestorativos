@@ -249,43 +249,44 @@ export async function fetchDY12m(tickers: string[]): Promise<Map<string, { dy12m
   if (tickers.length === 0) return new Map();
   const result = new Map<string, { dy12m: number; price: number; last12Sum: number }>();
   const chunkSize = 10;
+  const cap = 30;
 
-  // Try brapi.dev first
   for (let i = 0; i < tickers.length; i += chunkSize) {
     const chunk = tickers.slice(i, i + chunkSize);
     try {
       const quotes = await fetchQuotes(chunk);
       for (const [ticker, quote] of quotes) {
         const price = quote.regularMarketPrice ?? 0;
-        let last12Sum = 0;
+        let lastDiv = 0;
         if (quote.dividendsData && quote.dividendsData.length > 0) {
-          const last12 = quote.dividendsData.slice(-12);
-          last12Sum = last12.reduce((s, d) => s + d.value, 0);
+          lastDiv = quote.dividendsData[quote.dividendsData.length - 1].value;
+        } else if (quote.dividendPerShare != null && quote.dividendPerShare > 0) {
+          lastDiv = quote.dividendPerShare;
         }
-        const dy12m = price > 0 && last12Sum > 0 ? (last12Sum / price) * 100 : 0;
-        result.set(ticker, { dy12m, price, last12Sum });
+        const annual = lastDiv * 12;
+        const dy12m = price > 0 && annual > 0 ? Math.min((annual / price) * 100, cap) : 0;
+        result.set(ticker, { dy12m, price, last12Sum: annual });
       }
     } catch {
       // ignore
     }
   }
 
-  // Fallback for tickers not found by brapi
   for (const ticker of tickers) {
-    if (result.has(ticker) && result.get(ticker)!.last12Sum > 0) continue;
+    if (result.has(ticker) && result.get(ticker)!.dy12m > 0) continue;
     const res = await fetchYahooDividends(ticker);
     if (res && res.sum12m > 0) {
-      const dy12m = res.price > 0 ? (res.sum12m / res.price) * 100 : 0;
+      const dy12m = res.price > 0 ? Math.min((res.sum12m / res.price) * 100, cap) : 0;
       if (!result.has(ticker)) result.set(ticker, { dy12m, price: res.price, last12Sum: res.sum12m });
-      else if (result.get(ticker)!.last12Sum <= 0) {
+      else if (result.get(ticker)!.dy12m <= 0) {
         result.set(ticker, { dy12m, price: res.price, last12Sum: res.sum12m });
       }
     } else {
       const res2 = await fetchStatusInvestDividends(ticker);
       if (res2 && res2.sum12m > 0) {
-        const dy12m = res2.price > 0 ? (res2.sum12m / res2.price) * 100 : 0;
+        const dy12m = res2.price > 0 ? Math.min((res2.sum12m / res2.price) * 100, cap) : 0;
         if (!result.has(ticker)) result.set(ticker, { dy12m, price: res2.price, last12Sum: res2.sum12m });
-        else if (result.get(ticker)!.last12Sum <= 0) {
+        else if (result.get(ticker)!.dy12m <= 0) {
           result.set(ticker, { dy12m, price: res2.price, last12Sum: res2.sum12m });
         }
       }

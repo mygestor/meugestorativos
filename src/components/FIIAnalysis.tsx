@@ -160,7 +160,12 @@ export function FIIAnalysis({ fiiAssets, hideValues, onEdit, onRefresh }: Props)
       const magicNumber = divPerShare > 0 ? Math.ceil(settings.desiredDividend / divPerShare) : 0;
       const magicPrice = a.avgPrice > 0 ? a.avgPrice : a.currentPrice;
 
-      const dyB3 = dyB3Map.get(a.ticker.toUpperCase()) || 0;
+      // DY anual: usa último dividendo por cota × 12 ÷ preço (mais confiável que soma 12 meses da API)
+      const apiDiv = apiDivPerShare.get(a.ticker.toUpperCase());
+      const dyAnual = apiDiv && apiDiv > 0 && a.currentPrice > 0
+        ? Math.min((apiDiv * 12 / a.currentPrice) * 100, 30)
+        : dyB3Map.get(a.ticker.toUpperCase()) || 0;
+      const dyB3 = dyAnual;
 
       return {
         asset: a,
