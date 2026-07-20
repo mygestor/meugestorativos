@@ -61,26 +61,7 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades }
 
   const maxDividend = topAssets.length > 0 ? topAssets[0].currentDividend : 0;
 
-  const totalInvestedFromTrades = useMemo(() => {
-    const byTicker: Record<string, { shares: number; invested: number }> = {};
-    const sorted = [...trades].sort((a, b) => (a.date + a.id).localeCompare(b.date + b.id));
-    for (const t of sorted) {
-      const qty = t.quantity;
-      const isBuy = qty > 0;
-      const absQty = Math.abs(qty);
-      const totalOp = absQty * t.price;
-      const prev = byTicker[t.ticker] ?? { shares: 0, invested: 0 };
-      if (isBuy) {
-        byTicker[t.ticker] = { shares: prev.shares + absQty, invested: prev.invested + totalOp + t.fees };
-      } else {
-        const proportion = prev.shares > 0 ? absQty / prev.shares : 0;
-        byTicker[t.ticker] = { shares: Math.max(0, prev.shares - absQty), invested: prev.invested - prev.invested * proportion };
-      }
-    }
-    return Object.values(byTicker).reduce((s, v) => s + v.invested, 0);
-  }, [trades]);
-
-  const realInvested = totalInvestedFromTrades > 0 ? totalInvestedFromTrades : summary.totalInvested;
+  const realInvested = summary.totalInvested;
   const diff = summary.totalCurrentValue - realInvested;
   const rentPct = realInvested > 0 ? (diff / realInvested) * 100 : 0;
 

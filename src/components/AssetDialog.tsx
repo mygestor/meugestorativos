@@ -77,7 +77,7 @@ export function AssetDialog({ asset, onClose }: Props) {
       const qty = parseFloat(next.quantity) || 0;
       const price = parseFloat(next.currentPrice) || 0;
       const divPerShare = parseFloat(next.dividendPerShare) || 0;
-      const avgP = parseFloat(next.avgPrice) || 0;
+      const avgP = parseFloat(next.avgPrice) || price;
       const totalTarget = parseFloat(next.targetTotal) || 0;
       const invested = avgP * qty;
 
@@ -101,24 +101,32 @@ export function AssetDialog({ asset, onClose }: Props) {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    const currentPrice = parseFloat(form.currentPrice) || 0;
+    const dividendPerShare = parseFloat(form.dividendPerShare) || 0;
+    const avgPriceValue = parseFloat(form.avgPrice) || currentPrice;
+    const quantity = parseFloat(form.quantity) || 0;
+    const investedAmountValue = avgPriceValue * quantity;
+    const currentDividendValue = quantity * dividendPerShare;
+    const annualReturnValue = currentDividendValue * 12;
+
     const data = {
       ticker: form.ticker.toUpperCase().trim(),
       type: form.type,
       subtype: form.subtype.trim(),
       sector: form.sector.trim(),
       paymentDay: form.paymentDay ? parseInt(form.paymentDay) : null,
-      currentPrice: parseFloat(form.currentPrice) || 0,
-      dividendPerShare: parseFloat(form.dividendPerShare) || 0,
-      dividendYield: form.currentPrice ? ((parseFloat(form.dividendPerShare) || 0) / (parseFloat(form.currentPrice) || 1)) * 100 : 0,
+      currentPrice,
+      dividendPerShare,
+      dividendYield: currentPrice > 0 ? (dividendPerShare / currentPrice) * 100 : 0,
       targetTotal: parseFloat(form.targetTotal) || 0,
       sharesNeeded: parseFloat(form.sharesNeeded) || 0,
-      avgPrice: parseFloat(form.avgPrice) || 0,
-      quantity: parseFloat(form.quantity) || 0,
+      avgPrice: avgPriceValue,
+      quantity,
       goal: form.goal || "PAUSAR",
-      investedAmount: parseFloat(form.investedAmount) || 0,
-      missing: parseFloat(form.missing) || 0,
-      currentDividend: parseFloat(form.currentDividend) || 0,
-      annualReturn: parseFloat(form.annualReturn) || 0,
+      investedAmount: investedAmountValue,
+      missing: parseFloat(form.missing) || Math.max(0, (parseFloat(form.targetTotal) || 0) - investedAmountValue),
+      currentDividend: currentDividendValue,
+      annualReturn: annualReturnValue,
       magicMonth: parseFloat(form.magicMonth) || 0,
       magicNumber: parseFloat(form.magicNumber) || 0,
       divYield12m: form.divYield12m ? parseFloat(form.divYield12m) : null,

@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import type { Asset, DividendRecord, ContributionRecord, TradeRecord } from "./types";
-import { getAssets, getDividends, getContributions, getTrades, calculateSummary, addAsset, cleanupOrphanAssets } from "./store";
-import { createSeedData } from "./seed";
+import { getAssets, getDividends, getContributions, getTrades, calculateSummary, addAsset, cleanupOrphanAssets, clearAll } from "./store";
 import { Dashboard } from "./components/Dashboard";
 import { AssetTable } from "./components/AssetTable";
 import { AssetDialog } from "./components/AssetDialog";
@@ -82,10 +81,7 @@ export default function App() {
 
   function handleClear() {
     if (confirm("Tem certeza? Todos os dados (ativos + dividendos) serão perdidos!")) {
-      localStorage.removeItem("gestor-ativos-data");
-      localStorage.removeItem("gestor-ativos-dividendos");
-      localStorage.removeItem("gestor-ativos-aportes");
-      localStorage.removeItem("gestor-ativos-trades");
+      clearAll();
       refresh();
     }
   }
