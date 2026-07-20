@@ -48,7 +48,7 @@ export function DividendCalendar({ assets }: Props) {
       }
       if (a.currentDividend <= 0) continue;
       if (!events[a.paymentDay]) events[a.paymentDay] = [];
-      events[a.paymentDay].push({ ticker: a.ticker, value: a.currentDividend, isProjected: !isFuture });
+      events[a.paymentDay].push({ ticker: a.ticker, value: a.currentDividend, isProjected: isFuture });
     }
 
     return events;
