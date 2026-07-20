@@ -190,6 +190,31 @@ export async function updateDividendsFromBrapi(
   return updated;
 }
 
+export async function fetchLastDividends(tickers: string[]): Promise<Map<string, number>> {
+  if (tickers.length === 0) return new Map();
+  const result = new Map<string, number>();
+  const chunkSize = 10;
+  for (let i = 0; i < tickers.length; i += chunkSize) {
+    const chunk = tickers.slice(i, i + chunkSize);
+    try {
+      const quotes = await fetchQuotes(chunk);
+      for (const [ticker, quote] of quotes) {
+        let lastDiv = 0;
+        if (quote.dividendsData && quote.dividendsData.length > 0) {
+          lastDiv = quote.dividendsData[quote.dividendsData.length - 1].value;
+        }
+        if (lastDiv <= 0 && quote.dividendPerShare != null && quote.dividendPerShare > 0) {
+          lastDiv = quote.dividendPerShare;
+        }
+        result.set(ticker, lastDiv);
+      }
+    } catch {
+      // ignore
+    }
+  }
+  return result;
+}
+
 // Legacy - kept for backward compat
 export async function updateDividendsFromInvestidor10(
   tickers: string[],

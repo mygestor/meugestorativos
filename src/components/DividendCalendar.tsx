@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
-import type { Asset, DividendRecord } from "../types";
+import { useMemo, useState, useEffect } from "react";
+import type { Asset } from "../types";
 import { formatCurrency } from "../format";
 import { getDividends } from "../store";
-import { ChevronLeft, ChevronRight, CalendarDays } from "lucide-react";
+import { fetchLastDividends } from "../prices";
+import { ChevronLeft, ChevronRight, CalendarDays, RefreshCw } from "lucide-react";
 
 interface Props {
   assets: Asset[];
@@ -16,12 +17,29 @@ export function DividendCalendar({ assets }: Props) {
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth());
+  const [divData, setDivData] = useState<Map<string, number>>(new Map());
+  const [loading, setLoading] = useState(false);
 
-  // Build events for the month: past payments + projected from paymentDay
+  useEffect(() => {
+    const tickers = [...new Set(assets.map((a) => a.ticker))];
+    if (tickers.length === 0) return;
+    setLoading(true);
+    fetchLastDividends(tickers).then((map) => {
+      setDivData(map);
+      setLoading(false);
+    });
+  }, [assets]);
+
+  function getProjectedValue(a: Asset): number {
+    const apiDiv = divData.get(a.ticker.toUpperCase());
+    if (apiDiv && apiDiv > 0) return apiDiv * a.quantity;
+    if (a.dividendPerShare && a.dividendPerShare > 0) return a.dividendPerShare * a.quantity;
+    return a.currentDividend;
+  }
+
   const monthEvents = useMemo(() => {
     const events: Record<number, { ticker: string; value: number; isProjected: boolean }[]> = {};
 
-    // Past real dividends
     for (const d of dividends) {
       const [y, m, day] = d.payment.split("-").map(Number);
       if (y === viewYear && m === viewMonth + 1) {
@@ -30,31 +48,28 @@ export function DividendCalendar({ assets }: Props) {
       }
     }
 
-    // Projected dividends from paymentDay
     const now = new Date();
     for (const a of assets) {
       if (!a.paymentDay || a.paymentDay < 1 || a.paymentDay > 31) continue;
-      // Only project if the date is in the future
       const projDate = new Date(viewYear, viewMonth, a.paymentDay);
       const isFuture = projDate > now;
-      // Also show if it's current month and already happened (was projected)
       if (!isFuture && viewYear < now.getFullYear()) continue;
-      if (!isFuture && viewYear === now.getFullYear() && viewMonth <= now.getMonth() && a.paymentDay < now.getDate()) {
-        // Already past in current month - show only if there's an actual dividend
+      if (!isFuture && viewYear === now.getFullYear() && viewMonth < now.getMonth()) continue;
+      if (!isFuture && viewYear === now.getFullYear() && viewMonth === now.getMonth() && a.paymentDay < now.getDate()) {
         const hasActual = dividends.some(
           (d) => d.ticker === a.ticker && d.payment === `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}-${String(a.paymentDay).padStart(2, "0")}`
         );
         if (hasActual) continue;
       }
-      if (a.currentDividend <= 0) continue;
+      const projValue = getProjectedValue(a);
+      if (projValue <= 0) continue;
       if (!events[a.paymentDay]) events[a.paymentDay] = [];
-      events[a.paymentDay].push({ ticker: a.ticker, value: a.currentDividend, isProjected: isFuture });
+      events[a.paymentDay].push({ ticker: a.ticker, value: projValue, isProjected: !!isFuture });
     }
 
     return events;
-  }, [assets, dividends, viewYear, viewMonth]);
+  }, [viewYear, viewMonth, assets, dividends, divData]);
 
-  // Generate calendar grid
   const calendar = useMemo(() => {
     const firstDay = new Date(viewYear, viewMonth, 1).getDay();
     const daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
@@ -65,12 +80,10 @@ export function DividendCalendar({ assets }: Props) {
     return days;
   }, [viewYear, viewMonth]);
 
-  // Next 5 upcoming payments
   const upcoming = useMemo(() => {
     const now = new Date();
     const list: { date: Date; ticker: string; value: number; isProjected: boolean }[] = [];
 
-    // From real dividends
     for (const d of dividends) {
       const dt = new Date(d.payment + "T12:00:00");
       if (dt > now) {
@@ -78,22 +91,23 @@ export function DividendCalendar({ assets }: Props) {
       }
     }
 
-    // From projected paymentDays
     for (const a of assets) {
-      if (!a.paymentDay || a.currentDividend <= 0) continue;
+      if (!a.paymentDay) continue;
+      const projValue = getProjectedValue(a);
+      if (projValue <= 0) continue;
       for (let m = 0; m < 12; m++) {
         const dt = new Date(now.getFullYear(), now.getMonth() + m, a.paymentDay);
         if (dt <= now) continue;
         const key = `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, "0")}-${String(a.paymentDay).padStart(2, "0")}`;
         const hasReal = dividends.some((d) => d.ticker === a.ticker && d.payment === key);
         if (!hasReal) {
-          list.push({ date: dt, ticker: a.ticker, value: a.currentDividend, isProjected: true });
+          list.push({ date: dt, ticker: a.ticker, value: projValue, isProjected: true });
         }
       }
     }
 
     return list.sort((a, b) => a.date.getTime() - b.date.getTime()).slice(0, 8);
-  }, [assets, dividends]);
+  }, [assets, dividends, divData]);
 
   function prevMonth() {
     if (viewMonth === 0) { setViewYear(viewYear - 1); setViewMonth(11); }
@@ -116,9 +130,9 @@ export function DividendCalendar({ assets }: Props) {
           <CalendarDays className="size-4 text-primary" />
           Calendário de Proventos
         </h3>
+        {loading && <RefreshCw className="size-3.5 text-muted animate-spin" />}
       </div>
 
-      {/* Upcoming next */}
       <div className="bg-surface rounded-xl p-3 mb-4">
         <p className="text-xs text-muted font-medium mb-2">Próximos Pagamentos</p>
         {upcoming.length === 0 ? (
@@ -139,7 +153,6 @@ export function DividendCalendar({ assets }: Props) {
         )}
       </div>
 
-      {/* Month navigation */}
       <div className="flex items-center justify-between mb-3">
         <button onClick={prevMonth} className="p-1.5 rounded-lg hover:bg-card-hover text-muted transition-colors">
           <ChevronLeft className="size-4" />
@@ -152,7 +165,6 @@ export function DividendCalendar({ assets }: Props) {
         </button>
       </div>
 
-      {/* Calendar grid */}
       <div className="grid grid-cols-7 gap-px bg-border rounded-xl overflow-hidden">
         {WEEKDAYS.map((wd) => (
           <div key={wd} className="bg-surface px-1.5 py-1.5 text-center text-[10px] text-muted font-medium">
@@ -198,7 +210,6 @@ export function DividendCalendar({ assets }: Props) {
         })}
       </div>
 
-      {/* Legend */}
       <div className="flex items-center gap-4 mt-3 text-xs text-muted">
         <div className="flex items-center gap-1.5">
           <span className="size-2 rounded-sm bg-income/60" />
