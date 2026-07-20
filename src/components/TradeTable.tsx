@@ -1,8 +1,8 @@
 import { useState, useMemo } from "react";
 import type { TradeRecord } from "../types";
 import { formatCurrency, formatDate } from "../format";
-import { deleteTrade, recalculateAndSaveTrades, getTrades } from "../store";
-import { Trash2, ChevronDown, ChevronUp, RefreshCw, Pencil } from "lucide-react";
+import { deleteTrade, recalculateAndSaveTrades, getTrades, clearTrades } from "../store";
+import { Trash2, ChevronDown, ChevronUp, RefreshCw, Pencil, AlertTriangle } from "lucide-react";
 import { AssetLogo } from "./AssetLogo";
 
 interface Props {
@@ -117,6 +117,15 @@ export function TradeTable({ trades, hideValues, onRefresh, onEdit }: Props) {
     onRefresh();
   }
 
+  function handleClearAll() {
+    if (confirm("Tem certeza? Todas as operações de compra e venda serão excluídas permanentemente.")) {
+      if (confirm("CONFIRMAÇÃO FINAL: Esta ação não pode ser desfeita. Excluir tudo?")) {
+        clearTrades();
+        onRefresh();
+      }
+    }
+  }
+
   const summary = useMemo(() => {
     const byTicker: Record<string, { shares: number; avgPrice: number }> = {};
     calculated.forEach((t) => {
@@ -157,13 +166,22 @@ export function TradeTable({ trades, hideValues, onRefresh, onEdit }: Props) {
             <option value="">Todos os ativos</option>
             {tickers.map((t) => <option key={t} value={t}>{t}</option>)}
           </select>
-          <button
-            onClick={handleRecalc}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface text-muted hover:text-foreground text-xs transition-colors"
-            title="Recalcular todos os trades"
-          >
-            <RefreshCw className="size-3.5" /> Recalcular
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleRecalc}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface text-muted hover:text-foreground text-xs transition-colors"
+              title="Recalcular todos os trades"
+            >
+              <RefreshCw className="size-3.5" /> Recalcular
+            </button>
+            <button
+              onClick={handleClearAll}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-expense/10 text-expense hover:bg-expense/20 text-xs transition-colors"
+              title="Excluir todas as operações"
+            >
+              <Trash2 className="size-3.5" /> Limpar Tudo
+            </button>
+          </div>
         </div>
 
         {sorted.length === 0 ? (

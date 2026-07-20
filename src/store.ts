@@ -252,6 +252,10 @@ export function clearContributions() {
   localStorage.removeItem(APORTE_KEY);
 }
 
+export function clearTrades() {
+  localStorage.removeItem(TRADE_KEY);
+}
+
 export function importFullBackup(data: {
   assets?: Asset[];
   dividends?: DividendRecord[];
