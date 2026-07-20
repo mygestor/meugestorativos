@@ -1,5 +1,12 @@
 const BRAPI_BASE = "https://brapi.dev/api";
 
+interface BrapiDividend {
+  value: number;
+  date: string;
+  type: string;
+  yield?: number;
+}
+
 interface BrapiQuote {
   symbol: string;
   regularMarketPrice: number | null;
@@ -7,6 +14,7 @@ interface BrapiQuote {
   regularMarketChangePercent: number | null;
   dividendYield: number | null;
   dividendPerShare: number | null;
+  dividendsData?: BrapiDividend[];
 }
 
 interface BrapiResponse {
@@ -47,7 +55,15 @@ export async function updatePrices(
           const updates: Record<string, number> = {
             currentPrice: quote.regularMarketPrice,
           };
-          if (quote.dividendPerShare != null && quote.dividendPerShare > 0) {
+          // Try last entry in dividendsData (most accurate)
+          let divValue = 0;
+          if (quote.dividendsData && quote.dividendsData.length > 0) {
+            const last = quote.dividendsData[quote.dividendsData.length - 1];
+            if (last.value > 0) divValue = last.value;
+          }
+          if (divValue > 0) {
+            updates.dividendPerShare = divValue;
+          } else if (quote.dividendPerShare != null && quote.dividendPerShare > 0) {
             updates.dividendPerShare = quote.dividendPerShare;
           }
           updateAsset(asset.id, updates);
@@ -72,6 +88,19 @@ export async function fetchDividendFromBrapi(ticker: string): Promise<{ dividend
     const quotes = await fetchQuotes([ticker]);
     const quote = quotes.get(ticker.toUpperCase());
     if (!quote) return null;
+
+    // priority 1: last actual dividend from dividendsData array
+    if (quote.dividendsData && quote.dividendsData.length > 0) {
+      const last = quote.dividendsData[quote.dividendsData.length - 1];
+      if (last.value > 0) {
+        return {
+          dividendo: last.value,
+          yield: (quote.dividendYield ?? 0) * 100,
+          preco: quote.regularMarketPrice ?? 0,
+        };
+      }
+    }
+
     return {
       dividendo: quote.dividendPerShare ?? 0,
       yield: (quote.dividendYield ?? 0) * 100,
