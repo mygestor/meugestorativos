@@ -190,10 +190,67 @@ export async function updateDividendsFromBrapi(
   return updated;
 }
 
+async function fetchYahooDividends(ticker: string): Promise<{ sum12m: number; price: number } | null> {
+  try {
+    const yahooTicker = `${ticker}.SA`;
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${yahooTicker}?range=2y&interval=1d&events=dividends`;
+    const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const result = data?.chart?.result?.[0];
+    if (!result) return null;
+    const price = result.meta?.regularMarketPrice ?? 0;
+    const dividends = result.events?.dividends;
+    if (!dividends) return { sum12m: 0, price };
+    const now = Date.now() / 1000;
+    const oneYearAgo = now - 365 * 24 * 3600;
+    let sum12m = 0;
+    for (const key of Object.keys(dividends)) {
+      const d = dividends[key];
+      if (d.date >= oneYearAgo) sum12m += d.amount;
+    }
+    return { sum12m, price };
+  } catch {
+    return null;
+  }
+}
+
+async function fetchStatusInvestDividends(ticker: string): Promise<{ sum12m: number; price: number } | null> {
+  try {
+    const url = `https://statusinvest.com.br/fundos-imobiliarios/${ticker.toLowerCase()}`;
+    const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
+    if (!res.ok) return null;
+    const html = await res.text();
+    // Extract current price from the page
+    const priceMatch = html.match(/"currentPrice":\s*"?(\d+[.,]\d+)"?/);
+    const price = priceMatch ? parseFloat(priceMatch[1].replace(",", ".")) : 0;
+    // Extract last 12 dividends from proventos section
+    const provMatch = html.match(/"proventos"\s*:\s*\[([\s\S]*?)\]/);
+    if (!provMatch) return { sum12m: 0, price };
+    let sum12m = 0;
+    const now = new Date();
+    const oneYearAgo = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+    try {
+      const proventos = JSON.parse(`[${provMatch[1]}]`);
+      for (const p of proventos) {
+        if (p.dataPagamento) {
+          const dt = new Date(p.dataPagamento);
+          if (dt >= oneYearAgo) sum12m += p.valor || 0;
+        }
+      }
+    } catch { /* ignore parse errors */ }
+    return { sum12m, price };
+  } catch {
+    return null;
+  }
+}
+
 export async function fetchDY12m(tickers: string[]): Promise<Map<string, { dy12m: number; price: number; last12Sum: number }>> {
   if (tickers.length === 0) return new Map();
   const result = new Map<string, { dy12m: number; price: number; last12Sum: number }>();
   const chunkSize = 10;
+
+  // Try brapi.dev first
   for (let i = 0; i < tickers.length; i += chunkSize) {
     const chunk = tickers.slice(i, i + chunkSize);
     try {
@@ -212,6 +269,29 @@ export async function fetchDY12m(tickers: string[]): Promise<Map<string, { dy12m
       // ignore
     }
   }
+
+  // Fallback for tickers not found by brapi
+  for (const ticker of tickers) {
+    if (result.has(ticker) && result.get(ticker)!.last12Sum > 0) continue;
+    const res = await fetchYahooDividends(ticker);
+    if (res && res.sum12m > 0) {
+      const dy12m = res.price > 0 ? (res.sum12m / res.price) * 100 : 0;
+      if (!result.has(ticker)) result.set(ticker, { dy12m, price: res.price, last12Sum: res.sum12m });
+      else if (result.get(ticker)!.last12Sum <= 0) {
+        result.set(ticker, { dy12m, price: res.price, last12Sum: res.sum12m });
+      }
+    } else {
+      const res2 = await fetchStatusInvestDividends(ticker);
+      if (res2 && res2.sum12m > 0) {
+        const dy12m = res2.price > 0 ? (res2.sum12m / res2.price) * 100 : 0;
+        if (!result.has(ticker)) result.set(ticker, { dy12m, price: res2.price, last12Sum: res2.sum12m });
+        else if (result.get(ticker)!.last12Sum <= 0) {
+          result.set(ticker, { dy12m, price: res2.price, last12Sum: res2.sum12m });
+        }
+      }
+    }
+  }
+
   return result;
 }
 
