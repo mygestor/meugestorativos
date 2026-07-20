@@ -1,11 +1,12 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import type { DividendRecord } from "../types";
 import { formatCurrency } from "../format";
+import { fetchDY12m } from "../prices";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell
 } from "recharts";
-import { X } from "lucide-react";
+import { X, RefreshCw } from "lucide-react";
 import { AssetLogo } from "./AssetLogo";
 
 interface Props {
@@ -25,6 +26,18 @@ export function DividendDashboard({ dividends, hideValues, onRefresh }: Props) {
   const [filterType, setFilterType] = useState("");
   const [filterYears, setFilterYears] = useState<number[]>([]);
   const [selectedTicker, setSelectedTicker] = useState("");
+  const [dyData, setDyData] = useState<Map<string, { dy12m: number; price: number; last12Sum: number }>>(new Map());
+  const [loadingDy, setLoadingDy] = useState(false);
+
+  useEffect(() => {
+    const tickers = [...new Set(dividends.map((d) => d.ticker))];
+    if (tickers.length === 0) return;
+    setLoadingDy(true);
+    fetchDY12m(tickers).then((map) => {
+      setDyData(map);
+      setLoadingDy(false);
+    });
+  }, [dividends]);
 
   const availableTypes = useMemo(() => {
     return Array.from(new Set(dividends.map((d) => d.type))).sort();
@@ -115,6 +128,18 @@ export function DividendDashboard({ dividends, hideValues, onRefresh }: Props) {
           <p className="text-xs text-muted mt-1">do total geral {mask(totalDividends, hideValues)}</p>
         </div>
 
+        {/* DY 12m card */}
+        <div className="bg-card border border-border rounded-2xl p-5">
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-xs text-muted font-medium uppercase tracking-wider">DY 12m (B3)</p>
+            {loadingDy && <RefreshCw className="size-3 text-muted animate-spin" />}
+          </div>
+          <p className="text-2xl font-bold tabular text-primary">
+            {dyData.size === 0 ? "-" : `${(Array.from(dyData.values()).reduce((s, d) => s + d.dy12m, 0) / dyData.size).toFixed(2)}%`}
+          </p>
+          <p className="text-xs text-muted mt-1">médio dos ativos em carteira</p>
+        </div>
+
         {/* Filter: Tipo */}
         <div className="bg-card border border-border rounded-2xl p-4">
           <div className="flex items-center justify-between mb-2">
@@ -185,20 +210,24 @@ export function DividendDashboard({ dividends, hideValues, onRefresh }: Props) {
         <div className="bg-card border border-border rounded-2xl p-4">
           <p className="text-xs text-muted font-medium uppercase tracking-wider mb-2">Ativos</p>
           <div className="space-y-0.5 max-h-64 overflow-y-auto">
-            {availableTickers.map((ticker) => (
-              <button
-                key={ticker}
-                onClick={() => setSelectedTicker(selectedTicker === ticker ? "" : ticker)}
-                className={`w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${
-                  selectedTicker === ticker
-                    ? "bg-primary/10 text-primary font-medium"
-                    : "hover:bg-card-hover text-muted hover:text-foreground"
-                }`}
-              >
-                <AssetLogo ticker={ticker} size={16} />
-                {ticker}
-              </button>
-            ))}
+            {availableTickers.map((ticker) => {
+              const dy = dyData.get(ticker.toUpperCase());
+              return (
+                <button
+                  key={ticker}
+                  onClick={() => setSelectedTicker(selectedTicker === ticker ? "" : ticker)}
+                  className={`w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                    selectedTicker === ticker
+                      ? "bg-primary/10 text-primary font-medium"
+                      : "hover:bg-card-hover text-muted hover:text-foreground"
+                  }`}
+                >
+                  <AssetLogo ticker={ticker} size={16} />
+                  <span className="flex-1 text-left">{ticker}</span>
+                  {dy && <span className="text-xs text-income tabular">{dy.dy12m.toFixed(2)}%</span>}
+                </button>
+              );
+            })}
             {availableTickers.length === 0 && (
               <p className="text-xs text-muted py-2">Nenhum ativo encontrado</p>
             )}

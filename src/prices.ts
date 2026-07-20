@@ -190,6 +190,31 @@ export async function updateDividendsFromBrapi(
   return updated;
 }
 
+export async function fetchDY12m(tickers: string[]): Promise<Map<string, { dy12m: number; price: number; last12Sum: number }>> {
+  if (tickers.length === 0) return new Map();
+  const result = new Map<string, { dy12m: number; price: number; last12Sum: number }>();
+  const chunkSize = 10;
+  for (let i = 0; i < tickers.length; i += chunkSize) {
+    const chunk = tickers.slice(i, i + chunkSize);
+    try {
+      const quotes = await fetchQuotes(chunk);
+      for (const [ticker, quote] of quotes) {
+        const price = quote.regularMarketPrice ?? 0;
+        let last12Sum = 0;
+        if (quote.dividendsData && quote.dividendsData.length > 0) {
+          const last12 = quote.dividendsData.slice(-12);
+          last12Sum = last12.reduce((s, d) => s + d.value, 0);
+        }
+        const dy12m = price > 0 && last12Sum > 0 ? (last12Sum / price) * 100 : 0;
+        result.set(ticker, { dy12m, price, last12Sum });
+      }
+    } catch {
+      // ignore
+    }
+  }
+  return result;
+}
+
 export async function fetchLastDividends(tickers: string[]): Promise<Map<string, number>> {
   if (tickers.length === 0) return new Map();
   const result = new Map<string, number>();
