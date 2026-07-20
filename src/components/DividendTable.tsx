@@ -58,7 +58,7 @@ export function DividendTable({ dividends, hideValues, onRefresh }: Props) {
         ? String(av).localeCompare(String(bv))
         : String(bv).localeCompare(String(av));
     });
-  }, [dividends, sortField, sortAsc, filterMonth, filterYear]);
+  }, [dividends, sortField, sortAsc, filterMonth, filterYear, filterTicker]);
 
   function toggleSort(field: keyof DividendRecord) {
     if (sortField === field) setSortAsc(!sortAsc);
