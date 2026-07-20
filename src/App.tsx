@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import type { Asset, DividendRecord, ContributionRecord, TradeRecord } from "./types";
-import { getAssets, getDividends, getContributions, getTrades, calculateSummary, addAsset } from "./store";
+import { getAssets, getDividends, getContributions, getTrades, calculateSummary, addAsset, cleanupOrphanAssets } from "./store";
 import { createSeedData } from "./seed";
 import { Dashboard } from "./components/Dashboard";
 import { AssetTable } from "./components/AssetTable";
@@ -15,7 +15,8 @@ import { ContributionDialog } from "./components/ContributionDialog";
 import { ContributionImport } from "./components/ContributionImport";
 import { TradeTable } from "./components/TradeTable";
 import { TradeDialog } from "./components/TradeDialog";
-import { BarChart3, Plus, Upload, Download, Trash2, Eye, EyeOff, HandCoins, PiggyBank, ArrowLeftRight } from "lucide-react";
+import { TradeImport } from "./components/TradeImport";
+import { TrendingUp, Plus, Upload, Download, Trash2, Eye, EyeOff, LayoutDashboard, Briefcase, HandCoins, PiggyBank, ArrowLeftRight } from "lucide-react";
 
 type Tab = "dashboard" | "assets" | "dividendos" | "aportes" | "trades";
 
@@ -33,12 +34,14 @@ export default function App() {
   const [aportDialogOpen, setAportDialogOpen] = useState(false);
   const [aportCsvOpen, setAportCsvOpen] = useState(false);
   const [tradeDialogOpen, setTradeDialogOpen] = useState(false);
+  const [tradeImportOpen, setTradeImportOpen] = useState(false);
   const [divSubTab, setDivSubTab] = useState<"historico" | "dashboard">("dashboard");
   const [hideValues, setHideValues] = useState(false);
 
   const summary = useMemo(() => calculateSummary(assets), [assets]);
 
   function refresh() {
+    cleanupOrphanAssets();
     setAssets([...getAssets()]);
     setDividends([...getDividends()]);
     setContributions([...getContributions()]);
@@ -46,10 +49,6 @@ export default function App() {
   }
 
   useEffect(() => {
-    const existing = getAssets();
-    if (existing.length === 0) {
-      createSeedData().forEach((a) => addAsset(a));
-    }
     refresh();
   }, []);
 
@@ -98,8 +97,11 @@ export default function App() {
       <header className="border-b border-border bg-card sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <BarChart3 className="size-5 text-primary" />
-            <h1 className="font-bold text-base">Gestor de Ativos</h1>
+            <TrendingUp className="size-5 text-primary" />
+            <div>
+              <h1 className="font-bold text-base leading-tight">Gestor de Ativos</h1>
+              <p className="text-xs text-muted leading-tight">Portfólio de Investimentos</p>
+            </div>
           </div>
           <div className="flex items-center gap-1">
             <button
@@ -120,20 +122,21 @@ export default function App() {
       </header>
 
       <div className="max-w-7xl mx-auto px-4 py-4">
-        <div className="flex items-center gap-2 mb-6 overflow-x-auto pb-1">
-          <TabButton active={tab === "dashboard"} onClick={() => setTab("dashboard")}>
+        <div className="relative mb-6">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+          <TabButton active={tab === "dashboard"} onClick={() => setTab("dashboard")} icon={LayoutDashboard}>
             Dashboard
           </TabButton>
-          <TabButton active={tab === "assets"} onClick={() => setTab("assets")}>
+          <TabButton active={tab === "assets"} onClick={() => setTab("assets")} icon={Briefcase}>
             Ativos ({assets.length})
           </TabButton>
-          <TabButton active={tab === "dividendos"} onClick={() => setTab("dividendos")}>
+          <TabButton active={tab === "dividendos"} onClick={() => setTab("dividendos")} icon={HandCoins}>
             Dividendos ({dividends.length})
           </TabButton>
-          <TabButton active={tab === "aportes"} onClick={() => setTab("aportes")}>
+          <TabButton active={tab === "aportes"} onClick={() => setTab("aportes")} icon={PiggyBank}>
             Aportes ({contributions.length})
           </TabButton>
-          <TabButton active={tab === "trades"} onClick={() => setTab("trades")}>
+          <TabButton active={tab === "trades"} onClick={() => setTab("trades")} icon={ArrowLeftRight}>
             Compra/Venda ({trades.length})
           </TabButton>
           <div className="flex-1 min-w-4" />
@@ -178,6 +181,12 @@ export default function App() {
           {tab === "trades" && (
             <div className="flex items-center gap-2 shrink-0">
               <button
+                onClick={() => setTradeImportOpen(true)}
+                className="flex items-center gap-2 px-3 py-2 bg-card text-muted hover:text-foreground rounded-xl text-sm font-medium border border-border transition-colors"
+              >
+                <Upload className="size-4" /> Importar
+              </button>
+              <button
                 onClick={() => setTradeDialogOpen(true)}
                 className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary-dark transition-colors"
               >
@@ -193,9 +202,12 @@ export default function App() {
               <Upload className="size-4" /> Importar Ativos
             </button>
           )}
+          </div>
+          <div className="pointer-events-none absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-surface to-transparent sm:hidden" />
+          <div className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-surface to-transparent sm:hidden" />
         </div>
 
-        {tab === "dashboard" && <Dashboard summary={summary} assets={assets} hideValues={hideValues} />}
+        {tab === "dashboard" && <Dashboard summary={summary} assets={assets} hideValues={hideValues} contributions={contributions} trades={trades} />}
 
         {tab === "assets" && (
           <AssetTable assets={assets} hideValues={hideValues} onEdit={handleEdit} onRefresh={refresh} />
@@ -206,16 +218,16 @@ export default function App() {
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setDivSubTab("dashboard")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                  divSubTab === "dashboard" ? "bg-primary/20 text-primary" : "bg-surface text-muted hover:text-foreground"
+                className={`px-4 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                  divSubTab === "dashboard" ? "bg-primary text-white" : "bg-card text-muted hover:text-foreground"
                 }`}
               >
                 Dashboard
               </button>
               <button
                 onClick={() => setDivSubTab("historico")}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-                  divSubTab === "historico" ? "bg-primary/20 text-primary" : "bg-surface text-muted hover:text-foreground"
+                className={`px-4 py-1.5 rounded-full text-xs font-medium transition-colors ${
+                  divSubTab === "historico" ? "bg-primary text-white" : "bg-card text-muted hover:text-foreground"
                 }`}
               >
                 Histórico
@@ -238,6 +250,12 @@ export default function App() {
         )}
       </div>
 
+      <footer className="border-t border-border mt-8">
+        <div className="max-w-7xl mx-auto px-4 py-4 text-center text-xs text-muted">
+          Gestor de Ativos v1.0
+        </div>
+      </footer>
+
       {dialogOpen && <AssetDialog asset={editAsset} onClose={handleClose} />}
       {csvOpen && <CSVImport onClose={() => { setCsvOpen(false); refresh(); }} />}
       {divDialogOpen && <DividendDialog onClose={() => { setDivDialogOpen(false); refresh(); }} tickers={assetTickers} />}
@@ -245,18 +263,20 @@ export default function App() {
       {aportDialogOpen && <ContributionDialog onClose={() => { setAportDialogOpen(false); refresh(); }} />}
       {aportCsvOpen && <ContributionImport onClose={() => { setAportCsvOpen(false); refresh(); }} />}
       {tradeDialogOpen && <TradeDialog onClose={() => { setTradeDialogOpen(false); refresh(); }} tickers={assetTickers} />}
+      {tradeImportOpen && <TradeImport onClose={() => { setTradeImportOpen(false); refresh(); }} />}
     </div>
   );
 }
 
-function TabButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+function TabButton({ active, onClick, icon: Icon, children }: { active: boolean; onClick: () => void; icon: React.ComponentType<{ className?: string }>; children: React.ReactNode }) {
   return (
     <button
       onClick={onClick}
-      className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors shrink-0 ${
+      className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-colors shrink-0 ${
         active ? "bg-primary text-white" : "bg-card text-muted hover:text-foreground"
       }`}
     >
+      <Icon className="size-4" />
       {children}
     </button>
   );

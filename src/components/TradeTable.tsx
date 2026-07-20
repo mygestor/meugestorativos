@@ -16,7 +16,7 @@ function mask(v: number, hidden: boolean) {
 
 export function TradeTable({ trades, hideValues, onRefresh }: Props) {
   const [sortField, setSortField] = useState<keyof TradeRecord>("date");
-  const [sortAsc, setSortAsc] = useState(true);
+  const [sortAsc, setSortAsc] = useState(false);
   const [filterTicker, setFilterTicker] = useState("");
 
   const calculated = useMemo(() => {
@@ -76,6 +76,11 @@ export function TradeTable({ trades, hideValues, onRefresh }: Props) {
       if (typeof av === "number" && typeof bv === "number") {
         return sortAsc ? av - bv : bv - av;
       }
+      if (sortField === "date") {
+        const da = String(av).replace(/\D/g, "");
+        const db = String(bv).replace(/\D/g, "");
+        return sortAsc ? da.localeCompare(db) : db.localeCompare(da);
+      }
       return sortAsc
         ? String(av).localeCompare(String(bv))
         : String(bv).localeCompare(String(av));
@@ -90,9 +95,10 @@ export function TradeTable({ trades, hideValues, onRefresh }: Props) {
   function SortHeader({ field, label }: { field: keyof TradeRecord; label: string }) {
     const active = sortField === field;
     return (
-      <button onClick={() => toggleSort(field)} className="flex items-center gap-1 hover:text-foreground transition-colors whitespace-nowrap">
+      <button onClick={() => toggleSort(field)} className={`flex items-center gap-1 transition-colors whitespace-nowrap ${active ? "text-primary" : "hover:text-foreground"}`}>
         <span className="text-xs font-medium">{label}</span>
         {active && (sortAsc ? <ChevronUp className="size-3" /> : <ChevronDown className="size-3" />)}
+        {!active && <ChevronUp className="size-3 text-transparent" />}
       </button>
     );
   }

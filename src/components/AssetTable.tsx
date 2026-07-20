@@ -1,8 +1,9 @@
 import type { Asset } from "../types";
 import { formatCurrency, formatPercent } from "../format";
 import { deleteAsset } from "../store";
-import { Pencil, Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import { Pencil, Trash2, ChevronDown, ChevronUp, RefreshCw } from "lucide-react";
 import { useState } from "react";
+import { PriceUpdateDialog } from "./PriceUpdateDialog";
 
 interface Props {
   assets: Asset[];
@@ -19,6 +20,7 @@ export function AssetTable({ assets, hideValues, onEdit, onRefresh }: Props) {
   const [sortField, setSortField] = useState<keyof Asset>("currentDividend");
   const [sortAsc, setSortAsc] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [priceOpen, setPriceOpen] = useState(false);
 
   const sorted = [...assets].sort((a, b) => {
     const av = a[sortField] ?? 0;
@@ -34,9 +36,10 @@ export function AssetTable({ assets, hideValues, onEdit, onRefresh }: Props) {
   function SortHeader({ field, label, className }: { field: keyof Asset; label: string; className?: string }) {
     const active = sortField === field;
     return (
-      <button onClick={() => toggleSort(field)} className={`flex items-center gap-1 hover:text-foreground transition-colors ${className}`}>
+      <button onClick={() => toggleSort(field)} className={`flex items-center gap-1 transition-colors whitespace-nowrap ${active ? "text-primary" : "hover:text-foreground"} ${className}`}>
         <span className="text-xs font-medium">{label}</span>
         {active && (sortAsc ? <ChevronUp className="size-3" /> : <ChevronDown className="size-3" />)}
+        {!active && <ChevronUp className="size-3 text-transparent" />}
       </button>
     );
   }
@@ -46,6 +49,12 @@ export function AssetTable({ assets, hideValues, onEdit, onRefresh }: Props) {
       deleteAsset(id);
       onRefresh();
     }
+  }
+
+  function yieldColor(pct: number) {
+    if (pct > 1) return "text-green-500";
+    if (pct > 0.5) return "text-yellow-500";
+    return "text-red-500";
   }
 
   if (assets.length === 0) {
@@ -58,31 +67,43 @@ export function AssetTable({ assets, hideValues, onEdit, onRefresh }: Props) {
   }
 
   return (
-    <div className="bg-card border border-border rounded-2xl overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-border">
-              <th className="p-3 text-left"><SortHeader field="ticker" label="Ativo" /></th>
-              <th className="p-3 text-left hidden sm:table-cell"><SortHeader field="type" label="Tipo" /></th>
-              <th className="p-3 text-right"><SortHeader field="currentPrice" label="Cotação" /></th>
-              <th className="p-3 text-right"><SortHeader field="dividendPerShare" label="Dividendo" /></th>
-              <th className="p-3 text-right"><SortHeader field="quantity" label="Qtd" /></th>
-              <th className="p-3 text-right hidden md:table-cell"><SortHeader field="investedAmount" label="Investido" /></th>
-              <th className="p-3 text-right"><SortHeader field="currentDividend" label="Dividendo/Mês" /></th>
-              <th className="p-3 text-right hidden lg:table-cell"><SortHeader field="annualReturn" label="Retorno/Ano" /></th>
-              <th className="p-3 text-center"><SortHeader field="goal" label="Meta" /></th>
-              <th className="p-3 text-right w-20" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-border">
+    <>
+      <div className="bg-card border border-border rounded-2xl overflow-hidden">
+        <div className="flex items-center justify-between p-3 border-b border-border">
+          <p className="text-xs text-muted font-medium uppercase tracking-wider">{assets.length} ativos</p>
+          <button
+            onClick={() => setPriceOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface text-muted hover:text-foreground text-xs transition-colors"
+            title="Atualizar cotações ao vivo"
+          >
+            <RefreshCw className="size-3.5" /> Atualizar Preços
+          </button>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-border">
+                <th className="p-3 text-left"><SortHeader field="ticker" label="Ativo" /></th>
+                <th className="p-3 text-left hidden sm:table-cell"><SortHeader field="type" label="Tipo" /></th>
+                <th className="p-3 text-right"><SortHeader field="currentPrice" label="Cotação" /></th>
+                <th className="p-3 text-right"><SortHeader field="dividendPerShare" label="Dividendo" /></th>
+                <th className="p-3 text-right"><SortHeader field="quantity" label="Qtd" /></th>
+                <th className="p-3 text-right hidden md:table-cell"><SortHeader field="investedAmount" label="Investido" /></th>
+                <th className="p-3 text-right"><SortHeader field="currentDividend" label="Dividendo/Mês" /></th>
+                <th className="p-3 text-right hidden lg:table-cell"><SortHeader field="annualReturn" label="Retorno/Ano" /></th>
+                <th className="p-3 text-center"><SortHeader field="goal" label="Meta" /></th>
+                <th className="p-3 text-right w-20" />
+              </tr>
+            </thead>
             {sorted.map((a) => {
               const isExpanded = expanded === a.id;
               const yieldPct = a.currentPrice > 0 ? (a.dividendPerShare / a.currentPrice) * 100 : 0;
+              const goalProgress = a.investedAmount > 0 && a.targetTotal > 0 ? Math.min(100, (a.investedAmount / a.targetTotal) * 100) : 0;
+              const currentValue = a.currentPrice * a.quantity;
+              const valueColor = currentValue >= a.investedAmount ? "text-income" : "text-expense";
               return (
-                <>
+                <tbody key={a.id} className="even:bg-surface/30">
                   <tr
-                    key={a.id}
                     className="hover:bg-card-hover transition-colors cursor-pointer"
                     onClick={() => setExpanded(isExpanded ? null : a.id)}
                   >
@@ -98,7 +119,7 @@ export function AssetTable({ assets, hideValues, onEdit, onRefresh }: Props) {
                     <td className="p-3 text-right tabular font-medium">{mask(a.currentPrice, hideValues)}</td>
                     <td className="p-3 text-right tabular">
                       <p className="font-medium">{mask(a.dividendPerShare, hideValues)}</p>
-                      <p className="text-xs text-muted">{yieldPct >= 0 ? `${yieldPct.toFixed(2)}%` : ""}</p>
+                      <p className={`text-xs ${yieldPct >= 0 ? yieldColor(yieldPct) : ""}`}>{yieldPct >= 0 ? `${yieldPct.toFixed(2)}%` : ""}</p>
                     </td>
                     <td className="p-3 text-right tabular">{a.quantity}</td>
                     <td className="p-3 text-right tabular hidden md:table-cell">{mask(a.investedAmount, hideValues)}</td>
@@ -130,7 +151,7 @@ export function AssetTable({ assets, hideValues, onEdit, onRefresh }: Props) {
                     </td>
                   </tr>
                   {isExpanded && (
-                    <tr key={`${a.id}-detail`}>
+                    <tr>
                       <td colSpan={10} className="p-4 bg-surface/50">
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
                           <DetailItem label="Preço Médio" value={mask(a.avgPrice, hideValues)} />
@@ -139,27 +160,42 @@ export function AssetTable({ assets, hideValues, onEdit, onRefresh }: Props) {
                           <DetailItem label="Falta" value={mask(a.missing, hideValues)} />
                           <DetailItem label="DY (12M)" value={a.divYield12m ? `${a.divYield12m.toFixed(2)}%` : "-"} />
                           <DetailItem label="Dia Pagamento" value={a.paymentDay ? `Dia ${a.paymentDay}` : "-"} />
-                          <DetailItem label="Valor Atual" value={mask(a.currentPrice * a.quantity, hideValues)} />
+                          <div>
+                            <p className="text-muted mb-0.5">Valor Atual</p>
+                            <p className={`font-medium tabular ${valueColor}`}>{mask(currentValue, hideValues)}</p>
+                          </div>
                           <DetailItem
                             label="Retorno s/ Investido"
                             value={a.investedAmount > 0
-                              ? formatPercent(((a.currentPrice * a.quantity - a.investedAmount) / a.investedAmount) * 100)
+                              ? formatPercent(((currentValue - a.investedAmount) / a.investedAmount) * 100)
                               : "-"}
                           />
                         </div>
                         {a.status && (
                           <p className="text-xs text-muted mt-3">Status: {a.status}</p>
                         )}
+                        {a.targetTotal > 0 && (
+                          <div className="mt-3">
+                            <div className="flex items-center justify-between text-xs text-muted mb-1">
+                              <span>Progresso</span>
+                              <span>{goalProgress.toFixed(0)}%</span>
+                            </div>
+                            <div className="w-full h-2 bg-surface rounded-full overflow-hidden">
+                              <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${goalProgress}%` }} />
+                            </div>
+                          </div>
+                        )}
                       </td>
                     </tr>
                   )}
-                </>
+                </tbody>
               );
             })}
-          </tbody>
-        </table>
+          </table>
+        </div>
       </div>
-    </div>
+      {priceOpen && <PriceUpdateDialog assets={assets} onClose={() => setPriceOpen(false)} onComplete={onRefresh} />}
+    </>
   );
 }
 

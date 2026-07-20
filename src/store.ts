@@ -63,6 +63,13 @@ export function importAssets(assets: Omit<Asset, "id" | "createdAt" | "updatedAt
   saveAssets(merged);
 }
 
+export function cleanupOrphanAssets(): number {
+  const assets = loadAssets();
+  const kept = assets.filter((a) => a.quantity > 0 || a.investedAmount > 0 || a.currentDividend > 0);
+  saveAssets(kept);
+  return assets.length - kept.length;
+}
+
 export function exportAssets(): Asset[] {
   return loadAssets();
 }

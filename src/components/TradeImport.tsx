@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import * as XLSX from "xlsx";
-import { importAssets } from "../store";
+import { addTrade } from "../store";
 import { X, Upload, FileText, AlertTriangle, Check, FileSpreadsheet, Download } from "lucide-react";
 
 interface Props {
@@ -9,7 +9,7 @@ interface Props {
 
 type RowData = Record<string, string>;
 
-export function CSVImport({ onClose }: Props) {
+export function TradeImport({ onClose }: Props) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [text, setText] = useState("");
   const [preview, setPreview] = useState<RowData[] | null>(null);
@@ -44,7 +44,7 @@ export function CSVImport({ onClose }: Props) {
   }
 
   function isDateCol(header: string) {
-    return header === "DATA" || header === "PAGAMENTO" || header === "DATA_PAGAMENTO";
+    return header === "DATA" || header === "PAGAMENTO" || header === "DATA_PAGAMENTO" || header === "DATA PAGAMENTO";
   }
 
   function excelSerialToDate(serial: number): string {
@@ -105,70 +105,63 @@ export function CSVImport({ onClose }: Props) {
     return parseFloat(s.replace(/\./g, "").replace(",", ".")) || 0;
   }
 
+  function parseDate(d: string): string {
+    if (!d) return new Date().toISOString().slice(0, 10);
+    const parts = d.split("/");
+    if (parts.length === 3) return `${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}`;
+    if (d.includes("-") && d.length === 10) return d;
+    return new Date().toISOString().slice(0, 10);
+  }
+
   function handleImport() {
     if (!preview || preview.length === 0) return;
 
-    const assets = preview.map((row) => {
-      const ticker = findCol(row, "CODIGO", "CÓDIGO", "TICKER", "ATIVO", "DESCRICAO");
-      const type = findCol(row, "TIPO");
-      const sector = findCol(row, "SETOR", "SETORES", "SECTOR");
-      const subtype = findCol(row, "SUBTIPO");
-      const currentPrice = parseBRL(findCol(row, "COTACAO_ATUAL", "COTACAO", "PRECO_ATUAL", "PRECO"));
-      const dividendPerShare = parseBRL(findCol(row, "DIVIDENDO"));
-      const avgPrice = parseBRL(findCol(row, "PRECO_MEDIO_ATUAL", "PRECO_MEDIO", "VALOR_MEDIO_COMPRADO"));
-      const quantity = parseFloat(findCol(row, "COTAS_ATUAIS", "QUANT", "QT", "QTD", "QUANTIDADE").replace(",", ".")) || 0;
-      const targetTotal = parseBRL(findCol(row, "TOTAL_NECESSARIO", "TOTAL_NECESSARIO", "TOTAL"));
-      const investedAmount = parseBRL(findCol(row, "VALOR_INVESTIDO", "TOTAL_EM_COMPRA", "INVESTIDO"));
-      const paymentDay = parseInt(findCol(row, "DIA_PAGAMENTO", "DIA")) || null;
-      const status = findCol(row, "SITUACAO", "STATUS");
-      const goal = findCol(row, "META") || "PAUSAR";
-      const divYield12m = findCol(row, "DY_12M", "DY12M", "DIV_YIELD_12M");
-      const divYieldNumeric = divYield12m ? parseFloat(divYield12m.replace("%", "").replace(",", ".")) : null;
+    preview.forEach((row) => {
+      const date = findCol(row, "DATA", "DATA ");
+      const ticker = findCol(row, "CODIGO", "CÓDIGO", "TICKER", "ATIVO");
+      const qtyRaw = findCol(row, "QTDE", "QUANTIDADE", "QTD", "QT");
+      const priceRaw = findCol(row, "PRECO", "PREÇO", "PRECO ");
+      const opRaw = findCol(row, "OPERACAO", "OPERAÇÃO", "OPERACAO ", "OP");
 
-      const tickerUpper = ticker.toUpperCase().trim();
-      if (!tickerUpper) return null;
+      const qty = parseFloat(qtyRaw.replace(",", ".")) || 0;
+      const price = parseBRL(priceRaw);
+      const op = opRaw.toUpperCase().trim();
+      const isVenda = op === "VENDA" || op === "V" || qty < 0;
 
-      return {
-        ticker: tickerUpper,
-        type: (type || "FII").toUpperCase().trim(),
-        subtype,
-        sector: sector.trim(),
-        paymentDay,
-        currentPrice,
-        dividendPerShare,
-        dividendYield: currentPrice > 0 ? (dividendPerShare / currentPrice) * 100 : 0,
-        targetTotal,
-        sharesNeeded: targetTotal > 0 && currentPrice > 0 ? Math.ceil(targetTotal / currentPrice) : 0,
-        avgPrice,
-        quantity,
-        goal,
-        investedAmount: investedAmount || (avgPrice * quantity),
-        missing: Math.max(0, targetTotal - (investedAmount || (avgPrice * quantity))),
-        currentDividend: quantity * dividendPerShare,
-        annualReturn: quantity * dividendPerShare * 12,
-        magicMonth: 0,
-        magicNumber: currentPrice,
-        divYield12m: divYieldNumeric,
-        representation: 0,
-        percentInPortfolio: 0,
-        status,
-      };
-    }).filter((a): a is NonNullable<typeof a> => a !== null && !!a.ticker);
+      if (!ticker || qty === 0 || price <= 0) return;
 
-    if (assets.length === 0) { setError("Nenhum ativo válido encontrado"); return; }
-    importAssets(assets);
+      const absQty = Math.abs(qty);
+      const finalQty = isVenda ? -absQty : absQty;
+      const totalOp = absQty * price;
+      const irrf = isVenda ? +(totalOp * 0.0005).toFixed(2) : 0;
+
+      addTrade({
+        date: parseDate(date),
+        ticker: ticker.toUpperCase().trim(),
+        quantity: finalQty,
+        price,
+        fees: 0,
+        irrf,
+        totalWithoutFees: totalOp,
+        totalWithFees: totalOp,
+        priceWithFees: price,
+        totalShares: 0,
+        avgPrice: 0,
+        operation: isVenda ? "VENDA" : "COMPRA",
+      });
+    });
+
     onClose();
   }
 
   function downloadTemplate() {
-    const headers = ["CÓDIGO", "TIPO", "SETOR", "SUBTIPO", "COTAÇÃO ATUAL", "DIVIDENDO", "PREÇO MÉDIO ATUAL", "COTAS ATUAIS", "TOTAL NECESSÁRIO", "VALOR INVESTIDO", "DIA PAGAMENTO", "META"];
-    const fii = ["ALZR11", "FII", "LAJES CORPORATIVAS", "LAJES CORPORATIVAS", "97,50", "0,85", "95,00", "100", "12000", "9500", "15", "ACUMULAR"];
-    const stock = ["PETR4", "AÇÃO", "PETRÓLEO E GÁS", "PETRÓLEO E GÁS", "38,25", "2,10", "36,50", "200", "8000", "7300", "25", "ACUMULAR"];
-    const etf = ["BOVA11", "ETF", "ÍNDICE", "ÍNDICE", "125,30", "0", "120,00", "50", "7000", "6000", "5", "ACUMULAR"];
+    const headers = ["DATA", "CÓDIGO", "QTDE", "PREÇO", "OPERAÇÃO"];
+    const example = ["01/01/2026", "ALZR11", "100", "9,97", "COMPRA"];
+    const example2 = ["15/06/2026", "ALZR11", "-50", "10,50", "VENDA"];
     const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.aoa_to_sheet([headers, fii, stock, etf]);
-    XLSX.utils.book_append_sheet(wb, ws, "Ativos");
-    XLSX.writeFile(wb, "modelo-importacao-ativos.xlsx");
+    const ws = XLSX.utils.aoa_to_sheet([headers, example, example2]);
+    XLSX.utils.book_append_sheet(wb, ws, "Operações");
+    XLSX.writeFile(wb, "modelo-compra-venda.xlsx");
   }
 
   return (
@@ -177,7 +170,7 @@ export function CSVImport({ onClose }: Props) {
         <div className="flex items-center justify-between p-5 border-b border-border sticky top-0 bg-card z-10">
           <div className="flex items-center gap-2">
             <Upload className="size-4 text-primary" />
-            <h2 className="font-semibold">Importar Ativos</h2>
+            <h2 className="font-semibold">Importar Operações</h2>
           </div>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-card-hover text-muted transition-colors">
             <X className="size-4" />
@@ -211,7 +204,8 @@ export function CSVImport({ onClose }: Props) {
                 Modelo
               </button>
             </div>
-            <p className="text-xs text-muted mt-2">Colunas: CÓDIGO, TIPO, SETOR, SUBTIPO, COTAÇÃO ATUAL, DIVIDENDO, PREÇO MÉDIO ATUAL, COTAS ATUAIS, TOTAL NECESSÁRIO, VALOR INVESTIDO, DIA PAGAMENTO, META</p>
+            <p className="text-xs text-muted mt-2">Colunas: DATA, CÓDIGO, QTDE, PREÇO, OPERAÇÃO</p>
+            <p className="text-xs text-muted">OPERAÇÃO: COMPRA (qtde positiva) ou VENDA (qtde negativa)</p>
           </div>
 
           <div className="flex items-center gap-3">
@@ -223,8 +217,8 @@ export function CSVImport({ onClose }: Props) {
           <textarea
             value={text}
             onChange={(e) => { setText(e.target.value); parseCSV(e.target.value); }}
-            placeholder="CÓDIGO;TIPO;SETOR;SUBTIPO;COTAÇÃO ATUAL;DIVIDENDO;PREÇO MÉDIO ATUAL;COTAS ATUAIS;TOTAL NECESSÁRIO;VALOR INVESTIDO;DIA PAGAMENTO;META"
-            className="w-full h-40 px-4 py-3 bg-surface border border-border rounded-xl text-sm focus:outline-none focus:border-primary transition-colors resize-none"
+            placeholder="DATA;CÓDIGO;QTDE;PREÇO;OPERAÇÃO"
+            className="w-full h-28 px-4 py-3 bg-surface border border-border rounded-xl text-sm focus:outline-none focus:border-primary transition-colors resize-none"
           />
 
           {error && (
@@ -245,29 +239,27 @@ export function CSVImport({ onClose }: Props) {
             <div className="bg-surface rounded-xl p-4">
               <div className="flex items-center gap-2 text-sm text-primary mb-3">
                 <Check className="size-4" />
-                <span className="font-medium">{preview.length} ativos encontrados</span>
+                <span className="font-medium">{preview.length} operações encontradas</span>
               </div>
-              <div className="flex flex-wrap gap-2">
-                {preview.slice(0, 10).map((row, i) => {
-                  const ticker = findCol(row, "CODIGO", "TICKER", "ATIVO", "DESCRICAO") || `Ativo ${i + 1}`;
+              <div className="max-h-32 overflow-y-auto space-y-1 text-xs">
+                {preview.slice(0, 20).map((row, i) => {
+                  const ticker = findCol(row, "CODIGO", "TICKER", "ATIVO") || `#${i + 1}`;
+                  const qty = findCol(row, "QTDE", "QUANTIDADE");
                   return (
-                    <span key={i} className="px-3 py-1.5 bg-card rounded-lg text-xs font-medium flex items-center gap-1.5">
-                      <FileText className="size-3 text-muted" />
-                      {ticker}
-                    </span>
+                    <div key={i} className="flex items-center justify-between px-2 py-1 bg-card rounded-lg">
+                      <span className="font-medium">{ticker}</span>
+                      <span className="text-muted">{qty || "-"}</span>
+                    </div>
                   );
                 })}
-                {preview.length > 10 && (
-                  <span className="px-3 py-1.5 text-xs text-muted">+{preview.length - 10} outros</span>
-                )}
+                {preview.length > 20 && <p className="text-muted text-center pt-1">+{preview.length - 20} outros</p>}
               </div>
-
               <div className="flex items-center gap-3 mt-4 pt-4 border-t border-border">
                 <button onClick={onClose} className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium bg-surface text-muted hover:text-foreground transition-colors">
                   Cancelar
                 </button>
                 <button onClick={handleImport} className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium bg-primary text-white hover:bg-primary-dark transition-colors">
-                  Importar {preview.length} ativos
+                  Importar {preview.length} operações
                 </button>
               </div>
             </div>
