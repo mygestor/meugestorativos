@@ -195,6 +195,12 @@ export async function updateDividendsFromBrapi(
           continue;
         }
       }
+      // Limpa dado obsoleto quando ambas fontes falham
+      const { updateAsset, getAssets } = await import('./store');
+      const asset = getAssets().find((a) => a.ticker.toUpperCase() === ticker.toUpperCase());
+      if (asset && asset.dividendPerShare > 0) {
+        updateAsset(asset.id, { dividendPerShare: 0 });
+      }
       onProgress(ticker, 'error');
     } catch {
       onProgress(ticker, 'error');

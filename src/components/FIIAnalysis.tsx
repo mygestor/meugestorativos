@@ -131,10 +131,13 @@ export function FIIAnalysis({ fiiAssets, hideValues, onEdit, onRefresh }: Props)
       const divs12m = allDivs.slice(0, 12);
       const totalDivs12m = divs12m.reduce((s, d) => s + d.totalValue, 0);
 
-      // Dividendo por cota: usa API ou valor armazenado (NUNCA divide totalValue por quantity, pois quantity muda)
+      // Dividendo por cota: API → registros reais (ignora dividendPerShare obsoleto)
       const apiVal = apiDivPerShare.get(a.ticker.toUpperCase());
+      const recordsAvg = divs12m.length > 0 && a.quantity > 0
+        ? totalDivs12m / Math.min(divs12m.length, 12) / a.quantity
+        : 0;
       const divPerShare = apiVal && apiVal > 0 ? apiVal
-        : a.dividendPerShare && a.dividendPerShare > 0 ? a.dividendPerShare
+        : recordsAvg > 0 ? recordsAvg
         : 0;
 
       // Dividendo mensal total: usa a média dos últimos 12 meses se disponível
