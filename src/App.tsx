@@ -55,7 +55,7 @@ export default function App() {
     localStorage.setItem("gestor-theme", theme);
   }, [theme]);
 
-  const summary = useMemo(() => calculateSummary(assets), [assets]);
+  const summary = useMemo(() => calculateSummary(assets, dividends), [assets, dividends]);
 
   function refresh() {
     syncAssetsFromTrades();

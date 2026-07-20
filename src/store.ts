@@ -345,16 +345,33 @@ export function clearAll() {
   localStorage.removeItem("gestor-last-price-update");
 }
 
-export function calculateSummary(assets: Asset[]): PortfolioSummary {
+export function calculateSummary(assets: Asset[], dividends?: DividendRecord[]): PortfolioSummary {
   const totalInvested = assets.reduce((s, a) => s + a.investedAmount, 0);
   const totalCurrentValue = assets.reduce((s, a) => s + a.currentPrice * a.quantity, 0);
-  const monthlyDividend = assets.reduce((s, a) => {
+
+  // Calculate monthly dividend from real records (last 12 months) if available
+  let monthlyFromRecords = 0;
+  if (dividends && dividends.length > 0) {
+    const sorted = [...dividends].sort((a, b) => b.payment.localeCompare(a.payment));
+    const last12 = sorted.slice(0, 12);
+    const byMonth: Record<string, number> = {};
+    for (const d of last12) {
+      byMonth[d.monthYear] = (byMonth[d.monthYear] ?? 0) + d.totalValue;
+    }
+    const monthKeys = Object.keys(byMonth);
+    if (monthKeys.length > 0) {
+      monthlyFromRecords = monthKeys.reduce((s, k) => s + byMonth[k], 0) / monthKeys.length;
+    }
+  }
+
+  const monthlyDividend = monthlyFromRecords > 0 ? monthlyFromRecords : assets.reduce((s, a) => {
     const divPerShare = a.dividendPerShare || 0;
     return s + (divPerShare > 0 ? divPerShare * a.quantity : a.currentDividend);
   }, 0);
+
   const annualDividend = monthlyDividend * 12;
 
-  const projectedMonthlyDividend = assets.reduce((s, a) => {
+  const projectedMonthlyDividend = monthlyFromRecords > 0 ? monthlyFromRecords : assets.reduce((s, a) => {
     const divPerShare = a.dividendPerShare || 0;
     if (divPerShare <= 0) return s + a.currentDividend;
     if (a.targetTotal > 0 && a.avgPrice > 0) {
