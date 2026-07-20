@@ -44,7 +44,8 @@ export function DividendImport({ onClose }: Props) {
   }
 
   function isDateCol(header: string) {
-    return header === "DATA" || header === "PAGAMENTO" || header === "DATA_PAGAMENTO" || header === "DATA PAGAMENTO" || header === "DATA_PAGTO";
+    const h = header.toUpperCase();
+    return h.includes("DATA") || h.includes("PAGAMENTO") || h.includes("PAGTO");
   }
 
   function excelSerialToDate(serial: number): string {
@@ -105,9 +106,38 @@ export function DividendImport({ onClose }: Props) {
     return parseFloat(s.replace(/\./g, "").replace(",", ".")) || 0;
   }
 
+  function extractPaymentDate(raw: string): { payment: string; month: number; year: number } {
+    const d = new Date();
+    if (!raw) return { payment: d.toISOString().slice(0, 10), month: d.getMonth() + 1, year: d.getFullYear() };
+
+    let yyyy: number, mm: number, dd: number;
+
+    // ISO YYYY-MM-DD
+    const iso = raw.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (iso) { yyyy = +iso[1]; mm = +iso[2]; dd = +iso[3]; }
+    else {
+      // Brazilian DD/MM/YYYY
+      const br = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+      if (br) { dd = +br[1]; mm = +br[2]; yyyy = +br[3]; }
+      else {
+        // Single number (serial)
+        const serial = parseInt(raw);
+        if (!isNaN(serial) && serial > 40000) {
+          const utc = new Date(Date.UTC(1899, 11, 30 + serial));
+          yyyy = utc.getUTCFullYear(); mm = utc.getUTCMonth() + 1; dd = utc.getUTCDate();
+        } else {
+          return { payment: raw, month: d.getMonth() + 1, year: d.getFullYear() };
+        }
+      }
+    }
+
+    const payment = `${yyyy}-${String(mm).padStart(2, "0")}-${String(dd).padStart(2, "0")}`;
+    return { payment, month: mm, year: yyyy };
+  }
+
   function downloadTemplate() {
-    const headers = ["TICKER", "TIPO", "MÊS/ANO", "MÊS", "ANO", "NOME", "PAGAMENTO", "TIPO DE MOVIMENTO", "VALOR TOTAL LIQ."];
-    const example = ["ALZR11", "FII", "01/2026", "1", "2026", "ALZR11", "15/01/2026", "DIVIDENDO", "100,00"];
+    const headers = ["TICKER", "TIPO", "NOME", "PAGAMENTO", "TIPO DE MOVIMENTO", "VALOR TOTAL LIQ."];
+    const example = ["ALZR11", "FII", "ALZR11", "15/01/2026", "DIVIDENDO", "100,00"];
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet([headers, example]);
     XLSX.utils.book_append_sheet(wb, ws, "Dividendos");
@@ -119,36 +149,22 @@ export function DividendImport({ onClose }: Props) {
     const rows = preview.map((row) => {
       const ticker = findCol(row, "TICKER", "ATIVO");
       const type = findCol(row, "TIPO");
-      const monthYear = findCol(row, "MES_ANO", "MÊS/ANO", "MESANO", "COMPETENCIA");
-      const month = findCol(row, "MES", "MÊS");
-      const year = findCol(row, "ANO");
       const name = findCol(row, "NOME");
-      const payment = findCol(row, "PAGAMENTO", "DATA", "DATA_PAGAMENTO", "DATA PAGAMENTO");
+      const paymentRaw = findCol(row, "PAGAMENTO", "DATA");
       const movementType = findCol(row, "TIPO_DE_MOVIMENTO", "TIPO MOVIMENTO", "MOVIMENTO");
       const totalValue = findCol(row, "VALOR_TOTAL_LIQ", "VALOR TOTAL LIQ.", "VALOR LIQ", "VALOR");
 
-      let m = parseInt(month);
-      let y = parseInt(year);
-      if ((!m || !y) && monthYear) {
-        const parts = monthYear.split(/[/-]/);
-        if (parts.length >= 2) { m = parseInt(parts[0]); y = parseInt(parts[1]); if (y < 100) y += 2000; }
-      }
       const tickerName = ticker.toUpperCase().trim();
-
-      let paymentDate = payment;
-      if (paymentDate && !paymentDate.includes("-")) {
-        const parts = paymentDate.split("/");
-        if (parts.length === 3) paymentDate = `${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}`;
-      }
+      const { payment, month, year } = extractPaymentDate(paymentRaw);
 
       return {
         ticker: tickerName,
         type: type || "FII",
-        monthYear: `${String(m).padStart(2, "0")}/${y}`,
-        month: m || 1,
-        year: y || new Date().getFullYear(),
+        monthYear: `${String(month).padStart(2, "0")}/${year}`,
+        month,
+        year,
         name: name || tickerName,
-        payment: paymentDate || new Date().toISOString().slice(0, 10),
+        payment,
         movementType: movementType.toUpperCase().trim() || "DIVIDENDO",
         totalValue: parseBRL(totalValue),
       };
@@ -198,7 +214,7 @@ export function DividendImport({ onClose }: Props) {
                 Modelo
               </button>
             </div>
-            <p className="text-xs text-muted mt-2">Colunas: TICKER, TIPO, MÊS/ANO, MÊS, ANO, NOME, PAGAMENTO, TIPO DE MOVIMENTO, VALOR TOTAL LIQ.</p>
+            <p className="text-xs text-muted mt-2">Colunas: TICKER, TIPO, NOME, PAGAMENTO, TIPO DE MOVIMENTO, VALOR TOTAL LIQ. (Mês/Ano extraídos do Pagamento)</p>
           </div>
 
           <div className="flex items-center gap-3">
@@ -210,7 +226,7 @@ export function DividendImport({ onClose }: Props) {
           <textarea
             value={text}
             onChange={(e) => { setText(e.target.value); parseCSV(e.target.value); }}
-            placeholder="TICKER;TIPO;MÊS/ANO;MÊS;ANO;NOME;PAGAMENTO;TIPO DE MOVIMENTO;VALOR TOTAL LIQ."
+            placeholder="TICKER;TIPO;NOME;PAGAMENTO;TIPO DE MOVIMENTO;VALOR TOTAL LIQ."
             className="w-full h-28 px-4 py-3 bg-surface border border-border rounded-xl text-sm focus:outline-none focus:border-primary transition-colors resize-none"
           />
 

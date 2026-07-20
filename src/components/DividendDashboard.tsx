@@ -3,25 +3,28 @@ import type { DividendRecord } from "../types";
 import { formatCurrency } from "../format";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  PieChart, Pie, Cell, Legend
+  PieChart, Pie, Cell
 } from "recharts";
+import { X } from "lucide-react";
+import { AssetLogo } from "./AssetLogo";
 
 interface Props {
   dividends: DividendRecord[];
   hideValues: boolean;
+  onRefresh?: () => void;
 }
 
 const COLORS = ["#10b981", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#14b8a6", "#f97316"];
-const MONTHS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dev"];
+const MONTHS = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
 
 function mask(v: number, hidden: boolean) {
   return hidden ? "R$ ••••" : formatCurrency(v);
 }
 
-export function DividendDashboard({ dividends, hideValues }: Props) {
+export function DividendDashboard({ dividends, hideValues, onRefresh }: Props) {
   const [filterType, setFilterType] = useState("");
-  const [filterYear, setFilterYear] = useState("");
-  const [filterTicker, setFilterTicker] = useState("");
+  const [filterYears, setFilterYears] = useState<number[]>([]);
+  const [selectedTicker, setSelectedTicker] = useState("");
 
   const availableTypes = useMemo(() => {
     return Array.from(new Set(dividends.map((d) => d.type))).sort();
@@ -34,28 +37,32 @@ export function DividendDashboard({ dividends, hideValues }: Props) {
   const availableTickers = useMemo(() => {
     let filtered = dividends;
     if (filterType) filtered = filtered.filter((d) => d.type === filterType);
-    if (filterYear) filtered = filtered.filter((d) => d.year === Number(filterYear));
+    if (filterYears.length > 0) filtered = filtered.filter((d) => filterYears.includes(d.year));
     return Array.from(new Set(filtered.map((d) => d.ticker))).sort();
-  }, [dividends, filterType, filterYear]);
+  }, [dividends, filterType, filterYears]);
 
   const filtered = useMemo(() => {
     let f = dividends;
     if (filterType) f = f.filter((d) => d.type === filterType);
-    if (filterYear) f = f.filter((d) => d.year === Number(filterYear));
-    if (filterTicker) f = f.filter((d) => d.ticker === filterTicker);
+    if (filterYears.length > 0) f = f.filter((d) => filterYears.includes(d.year));
+    if (selectedTicker) f = f.filter((d) => d.ticker === selectedTicker);
     return f;
-  }, [dividends, filterType, filterYear, filterTicker]);
+  }, [dividends, filterType, filterYears, selectedTicker]);
 
-  // Summary by type
+  const totalDividends = useMemo(() => {
+    return dividends.reduce((s, d) => s + d.totalValue, 0);
+  }, [dividends]);
+
+  const totalFiltered = useMemo(() => {
+    return filtered.reduce((s, d) => s + d.totalValue, 0);
+  }, [filtered]);
+
   const byType = useMemo(() => {
     const map: Record<string, number> = {};
     filtered.forEach((d) => { map[d.type] = (map[d.type] ?? 0) + d.totalValue; });
     return Object.entries(map).map(([name, value]) => ({ name, value: Math.round(value * 100) / 100 }));
   }, [filtered]);
 
-  const totalFiltered = byType.reduce((s, t) => s + t.value, 0);
-
-  // By month (for selected year)
   const byMonth = useMemo(() => {
     const map: Record<number, number> = {};
     filtered.forEach((d) => { map[d.month] = (map[d.month] ?? 0) + d.totalValue; });
@@ -65,110 +72,242 @@ export function DividendDashboard({ dividends, hideValues }: Props) {
     }));
   }, [filtered]);
 
-  // By year
   const byYear = useMemo(() => {
     const map: Record<number, number> = {};
-    filtered.forEach((d) => { map[d.year] = (map[d.year] ?? 0) + d.totalValue; });
+    filtered.forEach((d) => {
+      const y = typeof d.year === "number" && !isNaN(d.year) ? d.year : 0;
+      map[y] = (map[y] ?? 0) + d.totalValue;
+    });
     return Object.entries(map)
-      .map(([year, value]) => ({ year, value: Math.round(value * 100) / 100 }))
-      .sort((a, b) => Number(a.year) - Number(b.year));
+      .filter(([y]) => Number(y) > 2000)
+      .map(([year, value]) => ({ year: Number(year), value: Math.round(value * 100) / 100 }))
+      .sort((a, b) => a.year - b.year);
   }, [filtered]);
 
-  return (
-    <div className="space-y-5">
-      {/* Filters */}
-      <div className="bg-card border border-border rounded-2xl p-4">
-        <div className="flex flex-wrap items-end gap-3">
-          <FilterSelect label="Tipo" value={filterType} onChange={setFilterType} options={availableTypes} placeholder="Todos" />
-          <FilterSelect label="Ano" value={filterYear} onChange={setFilterYear} options={availableYears.map(String)} placeholder="Todos" />
-          <FilterSelect label="Ticker" value={filterTicker} onChange={setFilterTicker} options={availableTickers} placeholder="Todos" />
-          <button
-            onClick={() => { setFilterType(""); setFilterYear(""); setFilterTicker(""); }}
-            className="px-3 py-2 bg-surface text-muted hover:text-foreground rounded-xl text-xs transition-colors"
-          >
-            Limpar Filtros
-          </button>
-        </div>
-      </div>
+  function toggleYear(y: number) {
+    setFilterYears((prev) =>
+      prev.includes(y) ? prev.filter((v) => v !== y) : [...prev, y]
+    );
+  }
 
-      {/* Cards by type */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {byType.map((t, i) => (
-          <div key={t.name} className="bg-card border border-border rounded-2xl p-4">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="size-3 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-              <p className="text-xs text-muted font-medium">{t.name}</p>
-            </div>
-            <p className="text-lg font-bold tabular">{mask(t.value, hideValues)}</p>
+  function handleClearFilters() {
+    setFilterType("");
+    setFilterYears([]);
+    setSelectedTicker("");
+  }
+
+  function handleClearType() {
+    setFilterType("");
+  }
+
+  const hasActiveFilters = filterType || filterYears.length > 0 || selectedTicker;
+
+  return (
+    <div className="flex flex-col lg:flex-row gap-5">
+      {/* Left sidebar */}
+      <div className="w-full lg:w-64 space-y-4 shrink-0">
+        {/* Total card */}
+        <div className="bg-card border border-border rounded-2xl p-5">
+          <p className="text-xs text-muted font-medium uppercase tracking-wider mb-1">
+            Total de Dividendos
+          </p>
+          <p className="text-2xl font-bold tabular text-income">{mask(totalFiltered, hideValues)}</p>
+          <p className="text-xs text-muted mt-1">do total geral {mask(totalDividends, hideValues)}</p>
+        </div>
+
+        {/* Filter: Tipo */}
+        <div className="bg-card border border-border rounded-2xl p-4">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs text-muted font-medium uppercase tracking-wider">Tipo de Ativo</p>
+            {filterType && (
+              <button onClick={handleClearType} className="text-muted hover:text-foreground transition-colors">
+                <X className="size-3" />
+              </button>
+            )}
           </div>
-        ))}
-        {byType.length === 0 && (
-          <div className="col-span-full text-center py-6 text-sm text-muted">
-            Nenhum dividendo encontrado com os filtros atuais
+          <div className="space-y-0.5">
+            {availableTypes.length === 0 ? (
+              <p className="text-xs text-muted py-1">Nenhum tipo encontrado</p>
+            ) : (
+              availableTypes.map((type) => (
+                <button
+                  key={type}
+                  onClick={() => setFilterType(filterType === type ? "" : type)}
+                  className={`w-full text-left px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                    filterType === type
+                      ? "bg-primary/10 text-primary font-medium"
+                      : "hover:bg-card-hover text-muted hover:text-foreground"
+                  }`}
+                >
+                  {type}
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Filter: Ano */}
+        {availableYears.length > 0 && (
+          <div className="bg-card border border-border rounded-2xl p-4">
+            <p className="text-xs text-muted font-medium uppercase tracking-wider mb-2">Ano</p>
+            <div className="space-y-1 max-h-48 overflow-y-auto">
+              {availableYears.map((y) => (
+                <label
+                  key={y}
+                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm cursor-pointer transition-colors ${
+                    filterYears.includes(y)
+                      ? "bg-primary/5 text-primary font-medium"
+                      : "hover:bg-card-hover text-muted hover:text-foreground"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={filterYears.includes(y)}
+                    onChange={() => toggleYear(y)}
+                    className="accent-primary size-3.5 rounded"
+                  />
+                  {y}
+                </label>
+              ))}
+            </div>
+            {filterYears.length > 0 && (
+              <button
+                onClick={() => setFilterYears([])}
+                className="mt-2 text-xs text-muted hover:text-foreground transition-colors underline underline-offset-2"
+              >
+                Limpar seleção
+              </button>
+            )}
           </div>
         )}
+
+        {/* Ativos list */}
+        <div className="bg-card border border-border rounded-2xl p-4">
+          <p className="text-xs text-muted font-medium uppercase tracking-wider mb-2">Ativos</p>
+          <div className="space-y-0.5 max-h-64 overflow-y-auto">
+            {availableTickers.map((ticker) => (
+              <button
+                key={ticker}
+                onClick={() => setSelectedTicker(selectedTicker === ticker ? "" : ticker)}
+                className={`w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${
+                  selectedTicker === ticker
+                    ? "bg-primary/10 text-primary font-medium"
+                    : "hover:bg-card-hover text-muted hover:text-foreground"
+                }`}
+              >
+                <AssetLogo ticker={ticker} size={16} />
+                {ticker}
+              </button>
+            ))}
+            {availableTickers.length === 0 && (
+              <p className="text-xs text-muted py-2">Nenhum ativo encontrado</p>
+            )}
+          </div>
+        </div>
+
+        {/* Action buttons */}
+        {hasActiveFilters && (
+          <button
+            onClick={handleClearFilters}
+            className="w-full px-4 py-2.5 bg-surface border border-border rounded-xl text-sm text-muted hover:text-foreground transition-colors"
+          >
+            Limpar todos os filtros
+          </button>
+        )}
+        <button
+          onClick={onRefresh}
+          className="w-full px-4 py-2.5 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary-dark transition-colors"
+        >
+          Atualizar
+        </button>
       </div>
 
-      {filtered.length > 0 && (
-        <>
-          {/* Charts row */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            {/* Dividends by month */}
-            <div className="bg-card border border-border rounded-2xl p-5 lg:col-span-1">
-              <h3 className="font-semibold text-sm mb-4">
-                Dividendos por Mês {filterYear ? `(${filterYear})` : ""}
-              </h3>
-              <div className="h-60">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={byMonth}>
-                    <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} />
-                    <Tooltip
-                      contentStyle={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 12, fontSize: 13 }}
-                      formatter={(v: number) => formatCurrency(v)}
-                    />
-                    <Bar dataKey="value" fill="#10b981" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+      {/* Main content */}
+      <div className="flex-1 min-w-0">
+        {filtered.length === 0 ? (
+          <div className="bg-card border border-border rounded-2xl p-12 text-center">
+            <p className="text-muted">Nenhum dividendo encontrado</p>
+            <p className="text-xs text-muted mt-1">Importe dividendos ou ajuste os filtros</p>
+          </div>
+        ) : (
+          <div className="space-y-5">
+            {/* Active filters summary */}
+            {hasActiveFilters && (
+              <div className="flex flex-wrap items-center gap-2 mb-4">
+                <span className="text-xs text-muted">Filtros ativos:</span>
+                {filterType && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-primary/10 text-primary rounded-full text-xs font-medium">
+                    {filterType}
+                    <button onClick={handleClearType} className="hover:text-primary/70"><X className="size-3" /></button>
+                  </span>
+                )}
+                {filterYears.length > 0 && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-primary/10 text-primary rounded-full text-xs font-medium">
+                    {filterYears.length} ano{filterYears.length > 1 ? "s" : ""}
+                    <button onClick={() => setFilterYears([])} className="hover:text-primary/70"><X className="size-3" /></button>
+                  </span>
+                )}
+                {selectedTicker && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-primary/10 text-primary rounded-full text-xs font-medium">
+                    {selectedTicker}
+                    <button onClick={() => setSelectedTicker("")} className="hover:text-primary/70"><X className="size-3" /></button>
+                  </span>
+                )}
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* % by class */}
+              <div className="bg-card border border-border rounded-2xl p-5">
+                <h3 className="font-semibold text-sm mb-4">Dividendos por Classe de Ativo</h3>
+                <div className="h-60">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={byType}
+                        dataKey="value"
+                        nameKey="name"
+                        cx="50%" cy="50%"
+                        outerRadius={72} innerRadius={46}
+                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      >
+                        {byType.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                      </Pie>
+                      <Tooltip
+                        contentStyle={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 12, fontSize: 13 }}
+                        formatter={(v: number) => formatCurrency(v)}
+                      />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Dividends by month */}
+              <div className="bg-card border border-border rounded-2xl p-5">
+                <h3 className="font-semibold text-sm mb-4">Dividendos por Mês</h3>
+                <div className="h-60">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={byMonth}>
+                      <XAxis dataKey="month" tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} />
+                      <Tooltip
+                        contentStyle={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 12, fontSize: 13 }}
+                        formatter={(v: number) => formatCurrency(v)}
+                      />
+                      <Bar dataKey="value" fill="#10b981" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
             </div>
 
-            {/* Percentage by class */}
-            <div className="bg-card border border-border rounded-2xl p-5 lg:col-span-1">
-              <h3 className="font-semibold text-sm mb-4">% por Classe de Ativo</h3>
-              <div className="h-60">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={byType}
-                      dataKey="value"
-                      nameKey="name"
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={70}
-                      innerRadius={45}
-                      label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                    >
-                      {byType.map((_, i) => (
-                        <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      contentStyle={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 12, fontSize: 13 }}
-                      formatter={(v: number) => formatCurrency(v)}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-
-            {/* Total by year */}
-            <div className="bg-card border border-border rounded-2xl p-5 lg:col-span-1">
-              <h3 className="font-semibold text-sm mb-4">Total de Dividendos por Ano</h3>
-              <div className="h-60">
+            {/* Dividends by year - full width below */}
+            <div className="bg-card border border-border rounded-2xl p-5">
+              <h3 className="font-semibold text-sm mb-4">Dividendos por Ano</h3>
+              <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={byYear}>
-                    <XAxis dataKey="year" tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} />
+                    <XAxis dataKey="year" tickFormatter={(v: number) => String(v)} tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} />
                     <YAxis tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} />
                     <Tooltip
                       contentStyle={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 12, fontSize: 13 }}
@@ -180,51 +319,8 @@ export function DividendDashboard({ dividends, hideValues }: Props) {
               </div>
             </div>
           </div>
-
-          {/* Year-by-year detail table */}
-          <div className="bg-card border border-border rounded-2xl p-5">
-            <h3 className="font-semibold text-sm mb-3">Detalhamento por Ano</h3>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border text-xs text-muted">
-                    <th className="p-2 text-left font-medium">Ano</th>
-                    <th className="p-2 text-right font-medium">Total</th>
-                    <th className="p-2 text-right font-medium">Média/Mês</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {byYear.map((y) => (
-                    <tr key={y.year} className="hover:bg-card-hover transition-colors">
-                      <td className="p-2 font-medium">{y.year}</td>
-                      <td className="p-2 text-right tabular">{mask(y.value, hideValues)}</td>
-                      <td className="p-2 text-right tabular text-muted">{mask(y.value / 12, hideValues)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
-
-function FilterSelect({ label, value, onChange, options, placeholder }: {
-  label: string; value: string; onChange: (v: string) => void; options: string[]; placeholder: string;
-}) {
-  return (
-    <div className="space-y-1 min-w-28">
-      <label className="text-xs text-muted font-medium">{label}</label>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full px-3 py-2 bg-surface border border-border rounded-xl text-sm focus:outline-none focus:border-primary transition-colors"
-      >
-        <option value="">{placeholder}</option>
-        {options.map((o) => <option key={o} value={o}>{o}</option>)}
-      </select>
+        )}
+      </div>
     </div>
   );
 }

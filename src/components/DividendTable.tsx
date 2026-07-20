@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import type { DividendRecord } from "../types";
-import { formatCurrency } from "../format";
+import { formatCurrency, formatDate } from "../format";
 import { deleteDividend, getDividendStats } from "../store";
 import { Trash2, Download, ChevronDown, ChevronUp } from "lucide-react";
 
@@ -24,12 +24,16 @@ export function DividendTable({ dividends, hideValues, onRefresh }: Props) {
 
   const months = useMemo(() => {
     const set = new Set(dividends.map((d) => d.monthYear));
-    return Array.from(set).sort();
+    return Array.from(set).sort((a, b) => {
+      const [mA, yA] = a.split("/").map(Number);
+      const [mB, yB] = b.split("/").map(Number);
+      return yA - yB || mA - mB;
+    });
   }, [dividends]);
 
   const years = useMemo(() => {
-    const set = new Set(dividends.map((d) => String(d.year)));
-    return Array.from(set).sort();
+    const set = new Set(dividends.map((d) => d.year));
+    return Array.from(set).sort((a, b) => a - b);
   }, [dividends]);
 
   const sorted = useMemo(() => {
@@ -125,7 +129,7 @@ export function DividendTable({ dividends, hideValues, onRefresh }: Props) {
             >
               <option value="">Todos os anos</option>
               {years.map((y) => (
-                <option key={y} value={y}>{y}</option>
+                <option key={y} value={String(y)}>{y}</option>
               ))}
             </select>
           </div>
@@ -161,7 +165,7 @@ export function DividendTable({ dividends, hideValues, onRefresh }: Props) {
                     <td className="p-3 text-xs text-muted">{d.type}</td>
                     <td className="p-3 text-xs">{d.monthYear}</td>
                     <td className="p-3 text-xs text-muted max-w-32 truncate">{d.name}</td>
-                    <td className="p-3 text-xs tabular">{d.payment}</td>
+                    <td className="p-3 text-xs tabular">{formatDate(d.payment)}</td>
                     <td className="p-3 text-xs">
                       <MovementBadge type={d.movementType} />
                     </td>

@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import type { Asset, PortfolioSummary, ContributionRecord, TradeRecord } from "../types";
 import { formatCurrency, formatCompact, formatPercent } from "../format";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, AreaChart, Area, XAxis, YAxis } from "recharts";
+import { AssetLogo } from "./AssetLogo";
 
 interface Props {
   summary: PortfolioSummary;
@@ -170,12 +171,7 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades }
                 return (
                   <div key={a.id}>
                     <div className="flex items-center gap-3 mb-1">
-                      <div
-                        className="size-8 rounded-lg grid place-items-center font-bold text-xs text-white"
-                        style={{ backgroundColor: avatarColor }}
-                      >
-                        {a.ticker.slice(0, 3)}
-                      </div>
+                      <AssetLogo ticker={a.ticker} size={32} />
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{a.ticker}</p>
                         <p className="text-xs text-muted">{a.type} • {a.quantity} cotas</p>

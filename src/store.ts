@@ -1,4 +1,6 @@
-import type { Asset, PortfolioSummary, DividendRecord, ContributionRecord, TradeRecord } from "./types";
+import type { Asset, PortfolioSummary, DividendRecord, ContributionRecord, TradeRecord, Lot } from "./types";
+import { createSeedData } from "./seed";
+import { detectAssetType } from "./detectType";
 
 const STORAGE_KEY = "gestor-ativos-data";
 const DIVIDEND_KEY = "gestor-ativos-dividendos";
@@ -242,11 +244,105 @@ export function recalculateAndSaveTrades(trades: TradeRecord[]) {
   save(TRADE_KEY, recalculateTrades(trades));
 }
 
+export function clearDividends() {
+  localStorage.removeItem(DIVIDEND_KEY);
+}
+
+export function clearContributions() {
+  localStorage.removeItem(APORTE_KEY);
+}
+
+export function importFullBackup(data: {
+  assets?: Asset[];
+  dividends?: DividendRecord[];
+  contributions?: ContributionRecord[];
+  trades?: TradeRecord[];
+}) {
+  if (data.assets) saveAssets(data.assets);
+  if (data.dividends) save(DIVIDEND_KEY, data.dividends);
+  if (data.contributions) save(APORTE_KEY, data.contributions);
+  if (data.trades) save(TRADE_KEY, data.trades);
+}
+
+export function reclassifyAssets(): number {
+  const assets = loadAssets();
+  let changed = 0;
+  const updated = assets.map((a) => {
+    const info = detectAssetType(a.ticker);
+    if (a.type !== info.type) {
+      changed++;
+      return { ...a, type: info.type, sector: info.sector, updatedAt: new Date().toISOString() };
+    }
+    return a;
+  });
+  saveAssets(updated);
+  return changed;
+}
+
+export function importSeedData() {
+  const seed = createSeedData();
+  const now = new Date().toISOString();
+  const assets = seed.map((a: any) => ({ ...a, id: generateId(), createdAt: now, updatedAt: now }));
+  saveAssets(assets);
+}
+
+// ---- Lot Tracking ----
+
+const LOT_KEY = "gestor-ativos-lotes";
+
+export function getLots(): Lot[] {
+  return load<Lot>(LOT_KEY);
+}
+
+export function addLot(data: Omit<Lot, "id" | "createdAt">): Lot {
+  const list = getLots();
+  const lot: Lot = { id: generateId(), ...data, createdAt: new Date().toISOString() };
+  list.push(lot);
+  save(LOT_KEY, list);
+  return lot;
+}
+
+export function consumeLots(ticker: string, quantity: number): number {
+  // FIFO: consume oldest lots first, return the cost basis (total invested of consumed shares)
+  const lots = getLots()
+    .filter((l) => l.ticker.toUpperCase() === ticker.toUpperCase() && l.remaining > 0)
+    .sort((a, b) => a.purchaseDate.localeCompare(b.purchaseDate));
+
+  let remaining = quantity;
+  let totalInvested = 0;
+
+  for (const lot of lots) {
+    if (remaining <= 0) break;
+    const consume = Math.min(lot.remaining, remaining);
+    totalInvested += (lot.price + lot.fees / lot.quantity) * consume;
+    remaining -= consume;
+    lot.remaining -= consume;
+  }
+
+  save(LOT_KEY, lots);
+  return totalInvested;
+}
+
+export function getRemainingLots(ticker: string): Lot[] {
+  return getLots()
+    .filter((l) => l.ticker.toUpperCase() === ticker.toUpperCase() && l.remaining > 0)
+    .sort((a, b) => a.purchaseDate.localeCompare(b.purchaseDate));
+}
+
+export function importLots(lots: Omit<Lot, "id" | "createdAt">[]) {
+  const existing = getLots();
+  const now = new Date().toISOString();
+  const merged = [...existing, ...lots.map((l) => ({ ...l, id: generateId(), createdAt: now }))];
+  save(LOT_KEY, merged);
+}
+
 export function clearAll() {
   localStorage.removeItem(STORAGE_KEY);
   localStorage.removeItem(DIVIDEND_KEY);
   localStorage.removeItem(APORTE_KEY);
   localStorage.removeItem(TRADE_KEY);
+  localStorage.removeItem(LOT_KEY);
+  localStorage.removeItem("gestor-last-price-update");
 }
 
 export function calculateSummary(assets: Asset[]): PortfolioSummary {

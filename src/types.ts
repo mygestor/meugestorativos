@@ -66,6 +66,17 @@ export interface ContributionRecord {
   createdAt: string;
 }
 
+export interface Lot {
+  id: string;
+  ticker: string;
+  purchaseDate: string;
+  quantity: number;
+  price: number;
+  fees: number;
+  remaining: number;
+  createdAt: string;
+}
+
 export interface PortfolioSummary {
   totalInvested: number;
   totalCurrentValue: number;

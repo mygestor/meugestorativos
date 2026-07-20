@@ -1,19 +1,23 @@
 import { useState } from "react";
-import { addTrade, getTrades, recalculateAndSaveTrades } from "../store";
+import { addTrade, getTrades, deleteTrade } from "../store";
 import { X } from "lucide-react";
+import type { TradeRecord } from "../types";
 
 interface Props {
   onClose: () => void;
   tickers: string[];
+  editTrade?: TradeRecord | null;
 }
 
-export function TradeDialog({ onClose, tickers }: Props) {
+export function TradeDialog({ onClose, tickers, editTrade }: Props) {
   const [form, setForm] = useState({
-    date: new Date().toISOString().slice(0, 10),
-    ticker: tickers[0] ?? "",
-    quantity: "",
-    price: "",
+    date: editTrade?.date ?? new Date().toISOString().slice(0, 10),
+    ticker: editTrade?.ticker ?? tickers[0] ?? "",
+    quantity: editTrade ? String(editTrade.quantity) : "",
+    price: editTrade ? String(editTrade.price) : "",
   });
+
+  const isEditing = !!editTrade;
 
   function update(field: string, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -30,11 +34,12 @@ export function TradeDialog({ onClose, tickers }: Props) {
     const absQty = Math.abs(qty);
     const totalOp = absQty * price;
     const isBuy = qty > 0;
+    const operationType = isBuy ? "COMPRA" as const : "VENDA" as const;
     const irrf = isBuy ? 0 : +(totalOp * 0.0005).toFixed(2);
 
-    // Calculate running totals
     const existing = getTrades();
-    const sorted = [...existing].sort((a, b) => (a.date + a.id).localeCompare(b.date + b.id));
+    const other = editTrade ? existing.filter((t) => t.id !== editTrade.id) : existing;
+    const sorted = [...other].sort((a, b) => (a.date + a.id).localeCompare(b.date + b.id));
     const byTicker: Record<string, { shares: number; invested: number }> = {};
     sorted.forEach((t) => {
       const q = t.quantity;
@@ -65,6 +70,8 @@ export function TradeDialog({ onClose, tickers }: Props) {
       avgPrice = newShares > 0 ? +(newInvested / newShares).toFixed(2) : 0;
     }
 
+    if (editTrade) deleteTrade(editTrade.id);
+
     addTrade({
       date: form.date,
       ticker,
@@ -77,7 +84,7 @@ export function TradeDialog({ onClose, tickers }: Props) {
       priceWithFees: price,
       totalShares: newShares,
       avgPrice,
-      operation: isBuy ? "COMPRA" : "VENDA",
+      operation: operationType,
     });
 
     onClose();
@@ -87,7 +94,7 @@ export function TradeDialog({ onClose, tickers }: Props) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="bg-card border border-border rounded-2xl w-full max-w-md mx-4">
         <div className="flex items-center justify-between p-5 border-b border-border">
-          <h2 className="font-semibold">Nova Operação</h2>
+          <h2 className="font-semibold">{isEditing ? "Editar Operação" : "Nova Operação"}</h2>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-card-hover text-muted transition-colors">
             <X className="size-4" />
           </button>
@@ -132,7 +139,7 @@ export function TradeDialog({ onClose, tickers }: Props) {
                 type="number"
                 value={form.quantity}
                 onChange={(e) => update("quantity", e.target.value)}
-                placeholder="100 ou -50"
+                placeholder="100"
                 step="any"
                 required
                 className="w-full px-3 py-2 bg-surface border border-border rounded-xl text-sm focus:outline-none focus:border-primary transition-colors"
@@ -161,7 +168,7 @@ export function TradeDialog({ onClose, tickers }: Props) {
               Cancelar
             </button>
             <button type="submit" className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium bg-primary text-white hover:bg-primary-dark transition-colors">
-              Adicionar
+              {isEditing ? "Salvar" : "Adicionar"}
             </button>
           </div>
         </form>

@@ -2,19 +2,21 @@ import { useState, useMemo } from "react";
 import type { TradeRecord } from "../types";
 import { formatCurrency, formatDate } from "../format";
 import { deleteTrade, recalculateAndSaveTrades, getTrades } from "../store";
-import { Trash2, ChevronDown, ChevronUp, RefreshCw } from "lucide-react";
+import { Trash2, ChevronDown, ChevronUp, RefreshCw, Pencil } from "lucide-react";
+import { AssetLogo } from "./AssetLogo";
 
 interface Props {
   trades: TradeRecord[];
   hideValues: boolean;
   onRefresh: () => void;
+  onEdit: (trade: TradeRecord) => void;
 }
 
 function mask(v: number, hidden: boolean) {
   return hidden ? "R$ ••••" : formatCurrency(v);
 }
 
-export function TradeTable({ trades, hideValues, onRefresh }: Props) {
+export function TradeTable({ trades, hideValues, onRefresh, onEdit }: Props) {
   const [sortField, setSortField] = useState<keyof TradeRecord>("date");
   const [sortAsc, setSortAsc] = useState(false);
   const [filterTicker, setFilterTicker] = useState("");
@@ -133,7 +135,10 @@ export function TradeTable({ trades, hideValues, onRefresh }: Props) {
           <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-2">
             {summary.map((s) => (
               <div key={s.ticker} className="bg-surface rounded-xl px-3 py-2">
-                <p className="font-semibold text-sm">{s.ticker}</p>
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  <AssetLogo ticker={s.ticker} size={14} />
+                  <p className="font-semibold text-sm">{s.ticker}</p>
+                </div>
                 <p className="text-xs text-muted tabular">{s.shares} cotas</p>
                 <p className="text-xs tabular text-income">{mask(s.avgPrice, hideValues)}</p>
               </div>
@@ -181,7 +186,7 @@ export function TradeTable({ trades, hideValues, onRefresh }: Props) {
                   <th className="p-2 text-right hidden md:table-cell"><SortHeader field="totalWithFees" label="Total c/ Taxas" /></th>
                   <th className="p-2 text-right hidden lg:table-cell"><SortHeader field="totalShares" label="Cotas Acum." /></th>
                   <th className="p-2 text-right hidden lg:table-cell"><SortHeader field="avgPrice" label="Preço Médio" /></th>
-                  <th className="p-2 text-right w-10" />
+                  <th className="p-2 text-right w-16" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -203,14 +208,22 @@ export function TradeTable({ trades, hideValues, onRefresh }: Props) {
                     <td className="p-2 text-right tabular hidden md:table-cell">{mask(t.totalWithFees, hideValues)}</td>
                     <td className="p-2 text-right tabular hidden lg:table-cell">{t.totalShares}</td>
                     <td className="p-2 text-right tabular hidden lg:table-cell">{mask(t.avgPrice, hideValues)}</td>
-                    <td className="p-2 text-right">
-                      <button
-                        onClick={() => handleDelete(t.id)}
-                        className="p-1 rounded-lg hover:bg-surface text-muted hover:text-expense transition-colors"
-                      >
-                        <Trash2 className="size-3.5" />
-                      </button>
-                    </td>
+                     <td className="p-2 text-right flex gap-1 justify-end">
+                       <button
+                         onClick={() => onEdit(t)}
+                         className="p-1 rounded-lg hover:bg-surface text-muted hover:text-primary transition-colors"
+                         title="Editar"
+                       >
+                         <Pencil className="size-3.5" />
+                       </button>
+                       <button
+                         onClick={() => handleDelete(t.id)}
+                         className="p-1 rounded-lg hover:bg-surface text-muted hover:text-expense transition-colors"
+                         title="Excluir"
+                       >
+                         <Trash2 className="size-3.5" />
+                       </button>
+                     </td>
                   </tr>
                 ))}
               </tbody>

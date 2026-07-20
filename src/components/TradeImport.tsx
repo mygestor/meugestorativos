@@ -15,6 +15,7 @@ export function TradeImport({ onClose }: Props) {
   const [preview, setPreview] = useState<RowData[] | null>(null);
   const [error, setError] = useState("");
   const [fileName, setFileName] = useState("");
+  const [result, setResult] = useState("");
 
   function normalizeHeader(h: string) {
     return h.trim().toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[\s./]+/g, "_");
@@ -44,7 +45,8 @@ export function TradeImport({ onClose }: Props) {
   }
 
   function isDateCol(header: string) {
-    return header === "DATA" || header === "PAGAMENTO" || header === "DATA_PAGAMENTO" || header === "DATA PAGAMENTO";
+    const h = header.toUpperCase();
+    return h.includes("DATA") || h.includes("PAGAMENTO") || h.includes("PAGTO");
   }
 
   function excelSerialToDate(serial: number): string {
@@ -101,8 +103,20 @@ export function TradeImport({ onClose }: Props) {
 
   function parseBRL(v: string): number {
     const s = v.replace("R$", "").trim();
-    if (/^\d+\.\d+$/.test(s)) return parseFloat(s) || 0;
-    return parseFloat(s.replace(/\./g, "").replace(",", ".")) || 0;
+    const isNegative = s.startsWith("(") && s.endsWith(")");
+    const cleaned = isNegative ? s.slice(1, -1) : s;
+    if (/^\d+\.\d+$/.test(cleaned)) return (isNegative ? -1 : 1) * (parseFloat(cleaned) || 0);
+    const result = parseFloat(cleaned.replace(/\./g, "").replace(",", ".")) || 0;
+    return isNegative ? -result : result;
+  }
+
+  function parseQty(v: string): number {
+    const s = v.trim();
+    const isNegative = s.startsWith("(") && s.endsWith(")") || s.startsWith("-");
+    const cleaned = isNegative ? s.replace(/^\(?/, "").replace(/\)?$/, "") : s;
+    if (/^-?\d+\.?\d*$/.test(cleaned) || /^\d+\.?\d*$/.test(cleaned)) return (isNegative ? -1 : 1) * (parseFloat(cleaned) || 0);
+    const result = parseFloat(cleaned.replace(/\./g, "").replace(",", ".")) || 0;
+    return isNegative ? -result : result;
   }
 
   function parseDate(d: string): string {
@@ -116,25 +130,31 @@ export function TradeImport({ onClose }: Props) {
   function handleImport() {
     if (!preview || preview.length === 0) return;
 
-    preview.forEach((row) => {
-      const date = findCol(row, "DATA", "DATA ");
-      const ticker = findCol(row, "CODIGO", "CÓDIGO", "TICKER", "ATIVO");
-      const qtyRaw = findCol(row, "QTDE", "QUANTIDADE", "QTD", "QT");
-      const priceRaw = findCol(row, "PRECO", "PREÇO", "PRECO ");
-      const opRaw = findCol(row, "OPERACAO", "OPERAÇÃO", "OPERACAO ", "OP");
+    let imported = 0, skipped = 0, skippedNoTicker = 0, skippedQty = 0, skippedPrice = 0;
 
-      const qty = parseFloat(qtyRaw.replace(",", ".")) || 0;
-      const price = parseBRL(priceRaw);
+    preview.forEach((row) => {
+      const date = findCol(row, "DATA");
+      const ticker = findCol(row, "CODIGO", "CÓDIGO", "TICKER", "ATIVO", "CODNEG");
+      const qtyRaw = findCol(row, "QTDE", "QUANTIDADE", "QTD", "QT");
+      const priceRaw = findCol(row, "PRECO", "PREÇO");
+      const opRaw = findCol(row, "OPERACAO", "OPERAÇÃO", "TIPO", "MOVIMENTO", "MOV", "TP");
+
+      const qty = parseQty(qtyRaw);
+      const rawPrice = parseBRL(priceRaw);
+      const price = Math.abs(rawPrice);
       const op = opRaw.toUpperCase().trim();
       const isVenda = op === "VENDA" || op === "V" || qty < 0;
 
-      if (!ticker || qty === 0 || price <= 0) return;
+      if (!ticker) { skipped++; skippedNoTicker++; console.log("IGNORADO (sem ticker):", { date, qtyRaw, priceRaw, opRaw }); return; }
+      if (qty === 0) { skipped++; skippedQty++; console.log("IGNORADO (Qtd=0):", { date, ticker, qtyRaw, priceRaw, opRaw }); return; }
+      if (price <= 0) { skipped++; skippedPrice++; console.log("IGNORADO (Preço=0):", { date, ticker, qtyRaw, priceRaw, opRaw }); return; }
 
       const absQty = Math.abs(qty);
       const finalQty = isVenda ? -absQty : absQty;
       const totalOp = absQty * price;
       const irrf = isVenda ? +(totalOp * 0.0005).toFixed(2) : 0;
 
+      imported++;
       addTrade({
         date: parseDate(date),
         ticker: ticker.toUpperCase().trim(),
@@ -151,7 +171,9 @@ export function TradeImport({ onClose }: Props) {
       });
     });
 
-    onClose();
+    const totalLinhas = preview.length;
+    const msg = `Importadas ${imported} de ${totalLinhas} linhas. Ignoradas: ${skipped} (${skippedNoTicker} sem ticker, ${skippedQty} Qtd=0, ${skippedPrice} Preço=0).`;
+    setResult(msg);
   }
 
   function downloadTemplate() {
@@ -235,7 +257,17 @@ export function TradeImport({ onClose }: Props) {
             </div>
           )}
 
-          {preview && preview.length > 0 && (
+          {result && (
+            <div className="bg-surface rounded-xl p-4 text-center">
+              <Check className="size-8 text-primary mx-auto mb-2" />
+              <p className="text-sm font-medium text-foreground">{result}</p>
+              <button onClick={onClose} className="mt-4 px-6 py-2.5 rounded-xl text-sm font-medium bg-primary text-white hover:bg-primary-dark transition-colors">
+                Fechar
+              </button>
+            </div>
+          )}
+
+          {!result && preview && preview.length > 0 && (
             <div className="bg-surface rounded-xl p-4">
               <div className="flex items-center gap-2 text-sm text-primary mb-3">
                 <Check className="size-4" />

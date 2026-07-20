@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import * as XLSX from "xlsx";
 import { importAssets } from "../store";
+import { detectAssetType } from "../detectType";
 import { X, Upload, FileText, AlertTriangle, Check, FileSpreadsheet, Download } from "lucide-react";
 
 interface Props {
@@ -44,7 +45,8 @@ export function CSVImport({ onClose }: Props) {
   }
 
   function isDateCol(header: string) {
-    return header === "DATA" || header === "PAGAMENTO" || header === "DATA_PAGAMENTO";
+    const h = header.toUpperCase();
+    return h.includes("DATA") || h.includes("PAGAMENTO") || h.includes("PAGTO");
   }
 
   function excelSerialToDate(serial: number): string {
@@ -128,9 +130,10 @@ export function CSVImport({ onClose }: Props) {
       const tickerUpper = ticker.toUpperCase().trim();
       if (!tickerUpper) return null;
 
+      const info = detectAssetType(tickerUpper);
       return {
         ticker: tickerUpper,
-        type: (type || "FII").toUpperCase().trim(),
+        type: (type || info.type).toUpperCase().trim(),
         subtype,
         sector: sector.trim(),
         paymentDay,

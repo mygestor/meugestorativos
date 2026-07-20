@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import type { Asset } from "../types";
 import { addAsset, updateAsset } from "../store";
+import { detectAssetType } from "../detectType";
 import { X } from "lucide-react";
 
 interface Props {
@@ -155,7 +156,14 @@ export function AssetDialog({ asset, onClose }: Props) {
 
         <form onSubmit={handleSubmit} className="p-5 space-y-5">
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Ticker" value={form.ticker} onChange={(v) => update("ticker", v)} placeholder="ALZR11" required />
+            <Field label="Ticker" value={form.ticker} onChange={(v) => {
+              update("ticker", v);
+              if (!asset && v.length >= 4) {
+                const info = detectAssetType(v);
+                update("type", info.type);
+                update("sector", info.sector);
+              }
+            }} placeholder="ALZR11" required />
             <SelectField
               label="Tipo"
               value={form.type}

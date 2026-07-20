@@ -1,9 +1,12 @@
 import type { Asset } from "../types";
 import { formatCurrency, formatPercent } from "../format";
-import { deleteAsset } from "../store";
-import { Pencil, Trash2, ChevronDown, ChevronUp, RefreshCw } from "lucide-react";
+import { deleteAsset, getDividends, getTrades } from "../store";
+import { Pencil, Trash2, ChevronDown, ChevronUp, RefreshCw, Layers } from "lucide-react";
 import { useState } from "react";
 import { PriceUpdateDialog } from "./PriceUpdateDialog";
+import { AssetLogo } from "./AssetLogo";
+import { AssetDetailPanel } from "./AssetDetailPanel";
+import { LotsView } from "./LotsView";
 
 interface Props {
   assets: Asset[];
@@ -21,6 +24,8 @@ export function AssetTable({ assets, hideValues, onEdit, onRefresh }: Props) {
   const [sortAsc, setSortAsc] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [priceOpen, setPriceOpen] = useState(false);
+  const [detailAsset, setDetailAsset] = useState<Asset | null>(null);
+  const [lotAsset, setLotAsset] = useState<Asset | null>(null);
 
   const sorted = [...assets].sort((a, b) => {
     const av = a[sortField] ?? 0;
@@ -89,6 +94,7 @@ export function AssetTable({ assets, hideValues, onEdit, onRefresh }: Props) {
                 <th className="p-3 text-right"><SortHeader field="dividendPerShare" label="Dividendo" /></th>
                 <th className="p-3 text-right"><SortHeader field="quantity" label="Qtd" /></th>
                 <th className="p-3 text-right hidden md:table-cell"><SortHeader field="investedAmount" label="Investido" /></th>
+                <th className="p-3 text-right hidden lg:table-cell"><span className="text-xs font-medium">Ganho/Perda</span></th>
                 <th className="p-3 text-right"><SortHeader field="currentDividend" label="Dividendo/Mês" /></th>
                 <th className="p-3 text-right hidden lg:table-cell"><SortHeader field="annualReturn" label="Retorno/Ano" /></th>
                 <th className="p-3 text-center"><SortHeader field="goal" label="Meta" /></th>
@@ -106,11 +112,15 @@ export function AssetTable({ assets, hideValues, onEdit, onRefresh }: Props) {
                   <tr
                     className="hover:bg-card-hover transition-colors cursor-pointer"
                     onClick={() => setExpanded(isExpanded ? null : a.id)}
+                    onDoubleClick={() => setDetailAsset(a)}
                   >
                     <td className="p-3">
-                      <div>
-                        <p className="font-semibold text-sm">{a.ticker}</p>
-                        <p className="text-xs text-muted hidden sm:block">{a.sector}</p>
+                      <div className="flex items-center gap-2">
+                        <AssetLogo ticker={a.ticker} />
+                        <div>
+                          <p className="font-semibold text-sm">{a.ticker}</p>
+                          <p className="text-xs text-muted hidden sm:block">{a.sector}</p>
+                        </div>
                       </div>
                     </td>
                     <td className="p-3 hidden sm:table-cell">
@@ -123,6 +133,14 @@ export function AssetTable({ assets, hideValues, onEdit, onRefresh }: Props) {
                     </td>
                     <td className="p-3 text-right tabular">{a.quantity}</td>
                     <td className="p-3 text-right tabular hidden md:table-cell">{mask(a.investedAmount, hideValues)}</td>
+                    <td className="p-3 text-right tabular hidden lg:table-cell">
+                      <p className={`font-medium ${currentValue >= a.investedAmount ? "text-income" : "text-expense"}`}>
+                        {hideValues ? "••••" : `${currentValue >= 0 ? "+" : ""}${formatCurrency(currentValue - a.investedAmount)}`}
+                      </p>
+                      <p className={`text-xs ${a.investedAmount > 0 ? (currentValue >= a.investedAmount ? "text-income" : "text-expense") : "text-muted"}`}>
+                        {a.investedAmount > 0 ? formatPercent(((currentValue - a.investedAmount) / a.investedAmount) * 100) : ""}
+                      </p>
+                    </td>
                     <td className="p-3 text-right tabular font-medium text-income">{mask(a.currentDividend, hideValues)}</td>
                     <td className="p-3 text-right tabular hidden lg:table-cell">
                       <p className="font-medium">{mask(a.annualReturn, hideValues)}</p>
@@ -171,6 +189,12 @@ export function AssetTable({ assets, hideValues, onEdit, onRefresh }: Props) {
                               : "-"}
                           />
                         </div>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setLotAsset(a); }}
+                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-surface text-muted hover:text-foreground text-xs transition-colors"
+                        >
+                          <Layers className="size-3.5" /> Lotes
+                        </button>
                         {a.status && (
                           <p className="text-xs text-muted mt-3">Status: {a.status}</p>
                         )}
@@ -195,6 +219,17 @@ export function AssetTable({ assets, hideValues, onEdit, onRefresh }: Props) {
         </div>
       </div>
       {priceOpen && <PriceUpdateDialog assets={assets} onClose={() => setPriceOpen(false)} onComplete={onRefresh} />}
+      {detailAsset && (
+        <AssetDetailPanel
+          asset={detailAsset}
+          dividends={getDividends()}
+          trades={getTrades()}
+          onClose={() => setDetailAsset(null)}
+        />
+      )}
+      {lotAsset && (
+        <LotsView asset={lotAsset} onClose={() => setLotAsset(null)} />
+      )}
     </>
   );
 }

@@ -1,84 +1,119 @@
-import { getAssets, addAsset, getTrades } from "./store";
+import { getAssets, updateAsset, addAsset, deleteAsset, getTrades, addLot, consumeLots, getLots } from "./store";
 import type { Asset } from "./types";
+import { detectAssetType } from "./detectType";
 
-export function ensureAssetForTicker(
-  ticker: string,
-  tradePrice?: number
-): void {
-  const assets = getAssets();
-  const exists = assets.some((a) => a.ticker.toUpperCase() === ticker.toUpperCase());
-  if (exists) return;
+export function syncAssetsFromTrades(): void {
+  const trades = getTrades();
 
-  const upper = ticker.toUpperCase();
-  let type = "FII";
-  let sector = "";
+  // Rebuild lots from trades
+  const existingLots = getLots();
+  const lotTickerSet = new Set(existingLots.map((l) => l.ticker.toUpperCase()));
+  const sorted = [...trades].sort((a, b) => {
+    const dateCmp = a.date.localeCompare(b.date);
+    if (dateCmp !== 0) return dateCmp;
+    const aIsBuy = a.quantity > 0 ? 0 : 1;
+    const bIsBuy = b.quantity > 0 ? 0 : 1;
+    if (aIsBuy !== bIsBuy) return aIsBuy - bIsBuy;
+    return a.id.localeCompare(b.id);
+  });
 
-  if (upper.endsWith("11")) {
-    type = "FII";
-    sector = "A DEFINIR";
-  } else if (upper.endsWith("3") || upper.endsWith("4") || upper.endsWith("5") || upper.endsWith("6")) {
-    type = "AÇÃO";
-    sector = "A DEFINIR";
-  } else {
-    type = "ETF";
-    sector = "ETF";
+  // If no lots exist yet, create them from buy trades
+  if (existingLots.length === 0) {
+    for (const t of sorted) {
+      if (t.quantity > 0) {
+        addLot({
+          ticker: t.ticker.toUpperCase(),
+          purchaseDate: t.date,
+          quantity: Math.abs(t.quantity),
+          price: t.price,
+          fees: t.fees,
+          remaining: Math.abs(t.quantity),
+        });
+      }
+    }
   }
 
-  // Calculate actual quantity and invested amount from existing trades
-  const allTrades = getTrades()
-    .filter((t) => t.ticker.toUpperCase() === upper)
-    .sort((a, b) => (a.date + a.id).localeCompare(b.date + b.id));
-
-  let shares = 0;
-  let invested = 0;
-  let avgPrice = tradePrice || 0;
-
-  for (const t of allTrades) {
+  // Calculate running position per ticker from all trades (using lots for sells)
+  const byTicker: Record<string, { shares: number; invested: number }> = {};
+  for (const t of sorted) {
     const qty = t.quantity;
     const isBuy = qty > 0;
     const absQty = Math.abs(qty);
     const totalOp = absQty * t.price;
+    const prev = byTicker[t.ticker] ?? { shares: 0, invested: 0 };
 
     if (isBuy) {
-      shares += absQty;
-      invested += totalOp + t.fees;
-      avgPrice = shares > 0 ? invested / shares : 0;
+      byTicker[t.ticker] = { shares: prev.shares + absQty, invested: prev.invested + totalOp + t.fees };
     } else {
-      const proportion = shares > 0 ? absQty / shares : 0;
-      invested -= invested * proportion;
-      shares = Math.max(0, shares - absQty);
-      avgPrice = shares > 0 ? invested / shares : avgPrice;
+      const costBasis = consumeLots(t.ticker, absQty);
+      byTicker[t.ticker] = {
+        shares: Math.max(0, prev.shares - absQty),
+        invested: prev.invested - (costBasis || prev.invested * (absQty / prev.shares)),
+      };
     }
   }
 
-  const price = tradePrice || avgPrice || 0;
-  const currentDividend = 0; // no dividend data from trades
+  // Remove assets that have zero shares AND no current dividend (truly orphaned)
+  const existing = getAssets();
+  const tickersWithTrades = new Set(trades.map((t) => t.ticker.toUpperCase()));
 
-  const asset: Omit<Asset, "id" | "createdAt" | "updatedAt"> = {
-    ticker: upper,
-    type,
-    subtype: "",
-    sector,
-    paymentDay: type === "FII" ? 14 : null,
-    currentPrice: price,
-    dividendPerShare: 0,
-    dividendYield: 0,
-    targetTotal: 0,
-    sharesNeeded: 0,
-    avgPrice,
-    quantity: shares,
-    goal: "PAUSAR",
-    investedAmount: invested,
-    missing: 0,
-    currentDividend,
-    annualReturn: 0,
-    magicMonth: 0,
-    magicNumber: price,
-    divYield12m: null,
-    representation: 0,
-    percentInPortfolio: 0,
-    status: "",
-  };
+  for (const a of existing) {
+    const pos = byTicker[a.ticker.toUpperCase()];
+    if (pos && pos.shares > 0) {
+      // Update existing asset from trade data
+      const avgPrice = +((pos.invested / pos.shares).toFixed(2));
+      const info = detectAssetType(a.ticker);
+      updateAsset(a.id, {
+        type: info.type,
+        sector: info.sector,
+        avgPrice,
+        quantity: pos.shares,
+        investedAmount: +pos.invested.toFixed(2),
+        currentPrice: avgPrice,
+        currentDividend: pos.shares * (a.dividendPerShare || 0),
+        annualReturn: pos.shares * (a.dividendPerShare || 0) * 12,
+      });
+    } else if (pos && pos.shares <= 0 && a.investedAmount <= 0) {
+      // Sold all shares and no investment -> safe to remove
+      deleteAsset(a.id);
+    }
+    // Keep assets that have no trades at all (manually added)
+  }
 
-  addAsset(asset);
+  // Create assets only for tickers with shares > 0 that don't exist yet
+  const existingTickers = new Set(getAssets().map((a) => a.ticker.toUpperCase()));
+  for (const [ticker, pos] of Object.entries(byTicker)) {
+    if (pos.shares <= 0) continue;
+    if (existingTickers.has(ticker.toUpperCase())) continue;
+
+    const info = detectAssetType(ticker);
+    const avgPrice = +((pos.invested / pos.shares).toFixed(2));
+
+    const asset: Omit<Asset, "id" | "createdAt" | "updatedAt"> = {
+      ticker: ticker.toUpperCase(),
+      type: info.type,
+      subtype: "",
+      sector: info.sector,
+      paymentDay: info.type === "FII" ? 14 : null,
+      currentPrice: avgPrice,
+      dividendPerShare: 0,
+      dividendYield: 0,
+      targetTotal: 0,
+      sharesNeeded: 0,
+      avgPrice,
+      quantity: pos.shares,
+      goal: "PAUSAR",
+      investedAmount: +pos.invested.toFixed(2),
+      missing: 0,
+      currentDividend: 0,
+      annualReturn: 0,
+      magicMonth: 0,
+      magicNumber: avgPrice,
+      divYield12m: null,
+      representation: 0,
+      percentInPortfolio: 0,
+      status: "",
+    };
+    addAsset(asset);
+  }
 }
