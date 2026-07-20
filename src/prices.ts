@@ -112,41 +112,54 @@ export async function fetchDividendFromBrapi(ticker: string): Promise<{ dividend
 }
 
 // Fetch dividend per share from investidor10.com.br (fallback)
-const CORS_PROXY = "https://api.allorigins.win/raw?url=";
+const CORS_PROXIES = [
+  "https://api.allorigins.win/raw?url=",
+  "https://corsproxy.io/?",
+  "https://api.codetabs.com/v1/proxy?quest=",
+];
 
-export async function fetchDividendFromInvestidor10(ticker: string): Promise<{ dividendo: number } | null> {
+async function fetchViaProxy(url: string, timeout = 10000): Promise<string | null> {
+  for (const proxy of CORS_PROXIES) {
+    try {
+      const res = await fetch(proxy + encodeURIComponent(url), { signal: AbortSignal.timeout(timeout) });
+      if (res.ok) return await res.text();
+    } catch {
+      continue;
+    }
+  }
+  return null;
+}
+
+export async function fetchDividendFromInvestidor10(ticker: string): Promise<{ dividendo: number; dy: number } | null> {
   try {
-    const url = `${CORS_PROXY}${encodeURIComponent(`https://investidor10.com.br/fiis/${ticker.toLowerCase()}/`)}`;
-    const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
-    if (!res.ok) return null;
-    const html = await res.text();
+    const html = await fetchViaProxy(`https://investidor10.com.br/fiis/${ticker.toLowerCase()}/`);
+    if (!html) return null;
 
-    // Try multiple patterns to find "Último Dividendo" value
-    let value = 0;
+    let dividendo = 0;
+    let dy = 0;
 
-    // Pattern 1: "Último Dividendo" followed by a value
-    const patterns = [
-      /Último\s*Dividendo[^]*?R?\$?\s*([\d.,]+)/i,
-      /Dividendo[^]*?R?\$?\s*([\d.,]+)/i,
-      /card-dividendos[^]*?R?\$?\s*([\d.,]+)/i,
-      /"value"[^>]*>R?\$?\s*([\d.,]+)</i,
-      /R?\$?\s*([\d.,]+)\s*<\/[^>]*>\s*<[^>]*class="[^"]*(?:value|dividend)[^"]*"/i,
-      /data-value="([\d.]+)"/i,
-    ];
-
-    for (const p of patterns) {
-      const m = html.match(p);
-      if (m) {
-        const v = parseFloat((m[1] || "").replace(/\./g, "").replace(",", "."));
-        if (!isNaN(v) && v > 0) {
-          value = v;
-          break;
-        }
-      }
+    // Extract "Último Dividendo" value - R$ 0,90 pattern
+    const divMatch = html.match(/<div[^>]*>*\s*Último\s+Dividendo\s*<\/div>\s*<div[^>]*>\s*R?\$?\s*([\d.,]+)/i)
+      || html.match(/Último\s+Dividendo[^]*?R?\$?\s*([\d.,]+)/i)
+      || html.match(/"lastDividend"[^>]*>\s*R?\$?\s*([\d.,]+)/i)
+      || html.match(/card-dividendos[^]*?R?\$?\s*([\d.,]+)/i);
+    if (divMatch) {
+      const v = parseFloat(divMatch[1].replace(/\./g, "").replace(",", "."));
+      if (!isNaN(v) && v > 0) dividendo = v;
     }
 
-    if (value <= 0) return null;
-    return { dividendo: value };
+    // Extract "Dividend Yield" percentage - 12,34% pattern
+    const dyMatch = html.match(/<div[^>]*>*\s*Dividend\s+Yield\s*<\/div>\s*<div[^>]*>\s*([\d.,]+)\s*%/i)
+      || html.match(/Dividend\s+Yield[^]*?([\d.,]+)\s*%/i)
+      || html.match(/dy["'\]]*[^>]*>\s*([\d.,]+)\s*%/i)
+      || html.match(/"dy"[^>]*>\s*([\d.,]+)\s*%/i);
+    if (dyMatch) {
+      const v = parseFloat(dyMatch[1].replace(/\./g, "").replace(",", "."));
+      if (!isNaN(v) && v > 0) dy = v;
+    }
+
+    if (dividendo <= 0 && dy <= 0) return null;
+    return { dividendo, dy };
   } catch {
     return null;
   }
@@ -291,6 +304,17 @@ export async function fetchDY12m(tickers: string[]): Promise<Map<string, { dy12m
         }
       }
     }
+    // Fallback investidor10
+    if (!result.has(ticker) || result.get(ticker)!.dy12m <= 0) {
+      const i10 = await fetchDividendFromInvestidor10(ticker);
+      if (i10) {
+        const price = 0;
+        const last12Sum = i10.dividendo * 12;
+        const dy12m = i10.dy > 0 ? Math.min(i10.dy, cap) : (last12Sum > 0 ? Math.min((last12Sum / 1) * 100, cap) : 0);
+        if (!result.has(ticker)) result.set(ticker, { dy12m, price, last12Sum });
+        else if (result.get(ticker)!.dy12m <= 0) result.set(ticker, { dy12m, price, last12Sum });
+      }
+    }
   }
 
   return result;
@@ -317,6 +341,12 @@ export async function fetchLastDividends(tickers: string[]): Promise<Map<string,
     } catch {
       // ignore
     }
+  }
+  // Fallback to investidor10 for tickers without data
+  for (const ticker of tickers) {
+    if (result.get(ticker.toUpperCase()) && result.get(ticker.toUpperCase())! > 0) continue;
+    const i10 = await fetchDividendFromInvestidor10(ticker);
+    if (i10 && i10.dividendo > 0) result.set(ticker.toUpperCase(), i10.dividendo);
   }
   return result;
 }
