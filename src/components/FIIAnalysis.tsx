@@ -127,12 +127,12 @@ export function FIIAnalysis({ fiiAssets, hideValues, onEdit, onRefresh }: Props)
       const divs12m = allDivs.slice(0, 12);
       const totalDivs12m = divs12m.reduce((s, d) => s + d.totalValue, 0);
 
-      // Dividendo por cota: usa o ÚLTIMO dividendo real registrado
-      // Último registro: allDivs[0] tem o payment mais recente
-      const ultimoRegistro = allDivs[0];
-      const divPerShare = ultimoRegistro && a.quantity > 0
-        ? +(ultimoRegistro.totalValue / a.quantity).toFixed(6)
-        : a.dividendPerShare || 0;
+      // Dividendo por cota: prioriza dado da API (dividendPerShare), depois registro real
+      const divPerShare = a.dividendPerShare && a.dividendPerShare > 0
+        ? a.dividendPerShare
+        : a.quantity > 0 && allDivs[0]
+          ? +(allDivs[0].totalValue / a.quantity).toFixed(6)
+          : 0;
 
       // Dividendo mensal total: usa a média dos últimos 12 meses se disponível
       const realMonthlyDiv = divs12m.length > 0
