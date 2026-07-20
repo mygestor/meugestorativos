@@ -16,6 +16,8 @@ interface FIIRow {
   asset: Asset;
   dividends12m: DividendRecord[];
   totalDividends12m: number;
+  realDivPerShare: number;
+  realMonthlyDiv: number;
   divYieldMensal: number;
   avgYield12m: number;
   goalShares: number;
@@ -67,14 +69,26 @@ export function FIIAnalysis({ fiiAssets, hideValues, onEdit }: Props) {
   // Calculate rows
   const rows = useMemo(() => {
     return fiiAssets.map((a) => {
-      const divs12m = allDividends
+      // Use real dividend records to calculate monthly dividend
+      const allDivs = allDividends
         .filter((d) => d.ticker === a.ticker)
-        .sort((a, b) => b.payment.localeCompare(a.payment))
-        .slice(0, 12);
+        .sort((a, b) => b.payment.localeCompare(a.payment));
+      const divs12m = allDivs.slice(0, 12);
       const totalDivs12m = divs12m.reduce((s, d) => s + d.totalValue, 0);
-      const avgDiv = a.quantity > 0 ? totalDivs12m / a.quantity : a.dividendPerShare;
-      const divYieldMensal = a.currentPrice > 0 ? ((a.dividendPerShare || avgDiv) / a.currentPrice) * 100 : 0;
-      const avgYield12m = a.currentPrice > 0 && a.quantity > 0 ? (totalDivs12m / a.quantity / a.currentPrice) * 100 : 0;
+
+      // Average dividend per share from actual payments (last 12)
+      const divCount = divs12m.length;
+      const realDivPerShare = divCount > 0
+        ? totalDivs12m / divCount / (a.quantity || 1)
+        : a.dividendPerShare || 0;
+
+      // Monthly dividend: from real records if available, else from asset fields
+      const realMonthlyDiv = divCount > 0
+        ? totalDivs12m / Math.min(divCount, 12)
+        : (a.currentDividend || a.quantity * (a.dividendPerShare || 0));
+
+      const divYieldMensal = a.currentPrice > 0 ? (realDivPerShare / a.currentPrice) * 100 : 0;
+      const avgYield12m = a.currentPrice > 0 && a.quantity > 0 ? (totalDivs12m / (a.quantity || 1) / a.currentPrice) * 100 : 0;
 
       const goalShares = Number(a.goal) || 0;
       const goalValue = goalShares > 0 ? goalShares * a.avgPrice : a.targetTotal;
@@ -84,17 +98,18 @@ export function FIIAnalysis({ fiiAssets, hideValues, onEdit }: Props) {
       const gainLoss = currentValue - investedValue;
       const gainPct = investedValue > 0 ? (gainLoss / investedValue) * 100 : 0;
 
-      const monthlyDiv = a.currentDividend || (a.quantity * a.dividendPerShare);
-      const monthsToTarget = monthlyDiv > 0 && settings.desiredDividend > monthlyDiv
-        ? Math.ceil((settings.desiredDividend - monthlyDiv) / monthlyDiv)
+      const monthsToTarget = realMonthlyDiv > 0 && settings.desiredDividend > realMonthlyDiv
+        ? Math.ceil((settings.desiredDividend - realMonthlyDiv) / realMonthlyDiv)
         : 0;
-      const magicNumber = a.dividendPerShare > 0 ? Math.ceil(settings.desiredDividend / a.dividendPerShare) : 0;
+      const magicNumber = realDivPerShare > 0 ? Math.ceil(settings.desiredDividend / realDivPerShare) : 0;
       const magicPrice = a.avgPrice > 0 ? a.avgPrice : a.currentPrice;
 
       return {
         asset: a,
         dividends12m: divs12m,
         totalDividends12m: totalDivs12m,
+        realDivPerShare,
+        realMonthlyDiv: realMonthlyDiv,
         divYieldMensal,
         avgYield12m,
         goalShares,
@@ -115,7 +130,7 @@ export function FIIAnalysis({ fiiAssets, hideValues, onEdit }: Props) {
   const summary = useMemo(() => {
     const totalInvested = rows.reduce((s, r) => s + r.investedValue, 0);
     const totalCurrent = rows.reduce((s, r) => s + r.currentValue, 0);
-    const monthlyDivs = rows.reduce((s, r) => s + (r.asset.currentDividend || r.asset.quantity * r.asset.dividendPerShare), 0);
+    const monthlyDivs = rows.reduce((s, r) => s + r.realMonthlyDiv, 0);
     const totalGoal = rows.reduce((s, r) => s + r.goalValue, 0);
     const totalMissing = rows.reduce((s, r) => s + r.missingValue, 0);
     const annualDivs = monthlyDivs * 12;
@@ -146,15 +161,15 @@ export function FIIAnalysis({ fiiAssets, hideValues, onEdit }: Props) {
       switch (sortField) {
         case "ticker": return sortAsc ? a.asset.ticker.localeCompare(b.asset.ticker) : b.asset.ticker.localeCompare(a.asset.ticker);
         case "dy": av = a.divYieldMensal; bv = b.divYieldMensal; break;
-        case "dividendo": av = a.asset.dividendPerShare; bv = b.asset.dividendPerShare; break;
+        case "dividendo": av = a.realDivPerShare; bv = b.realDivPerShare; break;
         case "cotacao": av = a.asset.currentPrice; bv = b.asset.currentPrice; break;
         case "quantidade": av = a.asset.quantity; bv = b.asset.quantity; break;
         case "investido": av = a.investedValue; bv = b.investedValue; break;
         case "meta": av = a.goalValue; bv = b.goalValue; break;
         case "falta": av = a.missingValue; bv = b.missingValue; break;
-        case "dividendo_mensal": av = a.asset.currentDividend || a.asset.quantity * a.asset.dividendPerShare; bv = b.asset.currentDividend || b.asset.quantity * b.asset.dividendPerShare; break;
-        case "dividendo_anual": av = (a.asset.currentDividend || a.asset.quantity * a.asset.dividendPerShare) * 12; bv = (b.asset.currentDividend || b.asset.quantity * b.asset.dividendPerShare) * 12; break;
-        default: av = a.asset.currentDividend; bv = b.asset.currentDividend;
+        case "dividendo_mensal": av = a.realMonthlyDiv; bv = b.realMonthlyDiv; break;
+        case "dividendo_anual": av = a.realMonthlyDiv * 12; bv = b.realMonthlyDiv * 12; break;
+        default: av = a.realMonthlyDiv; bv = b.realMonthlyDiv;
       }
       return sortAsc ? (av > bv ? 1 : -1) : av > bv ? -1 : 1;
     });
@@ -314,8 +329,6 @@ export function FIIAnalysis({ fiiAssets, hideValues, onEdit }: Props) {
             <tbody>
               {filtered.map((r) => {
                 const isExpanded = expanded === r.asset.id;
-                const monthlyDiv = r.asset.currentDividend || r.asset.quantity * r.asset.dividendPerShare;
-                const annualDiv = monthlyDiv * 12;
                 return (
                   <tr key={r.asset.id} className="border-b border-border hover:bg-card-hover transition-colors cursor-pointer"
                     onClick={() => setExpanded(isExpanded ? null : r.asset.id)}>
@@ -335,7 +348,7 @@ export function FIIAnalysis({ fiiAssets, hideValues, onEdit }: Props) {
                         <span className="text-green-500">OK</span>
                       )}
                     </td>
-                    <td className="p-2 tabular text-income font-medium hidden lg:table-cell">{mask$(monthlyDiv)}</td>
+                    <td className="p-2 tabular text-income font-medium hidden lg:table-cell">{mask$(r.realMonthlyDiv)}</td>
                     <td className="p-2">
                       <div className={`h-1.5 rounded-full ${progressColor(r.missingValue)}`} style={{ width: `${r.goalValue > 0 ? Math.min(100, (r.investedValue / r.goalValue) * 100) : 0}%` }} />
                     </td>
@@ -351,8 +364,6 @@ export function FIIAnalysis({ fiiAssets, hideValues, onEdit }: Props) {
       {expanded && (() => {
         const r = rows.find((row) => row.asset.id === expanded);
         if (!r) return null;
-        const monthlyDiv = r.asset.currentDividend || r.asset.quantity * r.asset.dividendPerShare;
-        const annualDiv = monthlyDiv * 12;
         const pctCarteira = summary.totalInvested > 0 ? (r.investedValue / summary.totalInvested) * 100 : 0;
         return (
           <div className="bg-card border border-border rounded-2xl p-5 space-y-4">
@@ -361,8 +372,8 @@ export function FIIAnalysis({ fiiAssets, hideValues, onEdit }: Props) {
               <button onClick={() => onEdit(r.asset)} className="text-xs text-primary hover:underline">Editar Meta</button>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-              <MiniBox label="Dividendo Atual" value={mask$(monthlyDiv)} color="text-income" />
-              <MiniBox label="Retorno Anual" value={mask$(annualDiv)} color="text-income" />
+              <MiniBox label="Dividendo Atual" value={mask$(r.realMonthlyDiv)} color="text-income" />
+              <MiniBox label="Retorno Anual" value={mask$(r.realMonthlyDiv * 12)} color="text-income" />
               <MiniBox label="DY Mensal" value={formatPercent(r.divYieldMensal)} color={yieldColor(r.divYieldMensal)} />
               <MiniBox label="DY 12M" value={formatPercent(r.avgYield12m)} color={yieldColor(r.avgYield12m)} />
               <MiniBox label="Valor Atual" value={mask$(r.currentValue)}
@@ -371,7 +382,7 @@ export function FIIAnalysis({ fiiAssets, hideValues, onEdit }: Props) {
                 color={r.gainLoss >= 0 ? "text-income" : "text-expense"} />
               <MiniBox label="% Carteira" value={formatPercent(pctCarteira)} />
               <MiniBox label="Dias para Render" value={r.asset.paymentDay ? `${r.asset.paymentDay}º dia` : "-"} />
-              <MiniBox label="Anos p/ R$ 100/mês" value={monthlyDiv > 0 ? (settings.desiredDividend / monthlyDiv / 12).toFixed(1) : "-"} />
+              <MiniBox label="Anos p/ R$ 100/mês" value={r.realMonthlyDiv > 0 ? (settings.desiredDividend / r.realMonthlyDiv / 12).toFixed(1) : "-"} />
               <MiniBox label="Número Mágico" value={String(r.magicNumber)} />
               <MiniBox label="Magic Price" value={mask$(r.magicPrice)} />
               <MiniBox label="Falta p/ Meta" value={mask$(r.missingValue)} color={r.missingValue > 0 ? "text-expense" : "text-income"} />
@@ -463,14 +474,13 @@ export function FIIAnalysis({ fiiAssets, hideValues, onEdit }: Props) {
           <h3 className="font-semibold text-sm mb-4">Maiores Pagadores de Dividendos</h3>
           <div className="space-y-3">
             {topDividendPayers.map((r) => {
-              const monthlyDiv = r.asset.currentDividend || r.asset.quantity * r.asset.dividendPerShare;
-              const maxDiv = topDividendPayers[0] ? (topDividendPayers[0].asset.currentDividend || topDividendPayers[0].asset.quantity * topDividendPayers[0].asset.dividendPerShare) : 1;
-              const barPct = (monthlyDiv / maxDiv) * 100;
+              const maxDiv = topDividendPayers[0] ? topDividendPayers[0].realMonthlyDiv : 1;
+              const barPct = maxDiv > 0 ? (r.realMonthlyDiv / maxDiv) * 100 : 0;
               return (
                 <div key={r.asset.id}>
                   <div className="flex items-center justify-between text-xs mb-1">
                     <span className="font-medium">{r.asset.ticker}</span>
-                    <span className="text-income font-medium tabular">{mask$(monthlyDiv)}</span>
+                    <span className="text-income font-medium tabular">{mask$(r.realMonthlyDiv)}</span>
                   </div>
                   <div className="h-2 bg-surface rounded-full overflow-hidden">
                     <div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${barPct}%` }} />
