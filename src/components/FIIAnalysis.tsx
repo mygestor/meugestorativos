@@ -20,7 +20,6 @@ interface FIIRow {
   realDivPerShare: number;
   realMonthlyDiv: number;
   divYieldMensal: number;
-  avgYield12m: number;
   dyB3: number;
   goalShares: number;
   goalValue: number;
@@ -131,22 +130,16 @@ export function FIIAnalysis({ fiiAssets, hideValues, onEdit, onRefresh }: Props)
       const divs12m = allDivs.slice(0, 12);
       const totalDivs12m = divs12m.reduce((s, d) => s + d.totalValue, 0);
 
-      // Dividendo por cota: API → registros reais (ignora dividendPerShare obsoleto)
+      // Dividendo por cota: apenas API Yahoo (ignora registros do historico e dividendPerShare obsoleto)
       const apiVal = apiDivPerShare.get(a.ticker.toUpperCase());
-      const recordsAvg = divs12m.length > 0 && a.quantity > 0
-        ? totalDivs12m / Math.min(divs12m.length, 12) / a.quantity
-        : 0;
-      const divPerShare = apiVal && apiVal > 0 ? apiVal
-        : recordsAvg > 0 ? recordsAvg
-        : 0;
+      const divPerShare = apiVal && apiVal > 0 ? apiVal : 0;
 
-      // Dividendo mensal total: usa a média dos últimos 12 meses se disponível
+      // Dividendo mensal total: registros ou fallback via API
       const realMonthlyDiv = divs12m.length > 0
         ? totalDivs12m / Math.min(divs12m.length, 12)
         : divPerShare * a.quantity;
 
       const divYieldMensal = a.currentPrice > 0 && divPerShare > 0 ? (divPerShare / a.currentPrice) * 100 : 0;
-      const avgYield12m = a.currentPrice > 0 && a.quantity > 0 ? (totalDivs12m / (a.quantity || 1) / a.currentPrice) * 100 : 0;
 
       const goalShares = Number(a.goal) || 0;
       const goalValue = goalShares > 0 ? goalShares * a.avgPrice : a.targetTotal;
@@ -162,15 +155,11 @@ export function FIIAnalysis({ fiiAssets, hideValues, onEdit, onRefresh }: Props)
       const magicNumber = divPerShare > 0 ? Math.ceil(settings.desiredDividend / divPerShare) : 0;
       const magicPrice = a.avgPrice > 0 ? a.avgPrice : a.currentPrice;
 
-      // DY anual: último dividendo por cota × 12 ÷ preço, com fallback para média dos registros
+      // DY anual: apenas Yahoo (fetchDY12m → dyB3Map) ou último dividendo × 12
       const apiDiv = apiDivPerShare.get(a.ticker.toUpperCase());
-      const dyAnual = apiDiv && apiDiv > 0 && a.currentPrice > 0
+      const dyB3 = apiDiv && apiDiv > 0 && a.currentPrice > 0
         ? Math.min((apiDiv * 12 / a.currentPrice) * 100, 30)
         : dyB3Map.get(a.ticker.toUpperCase()) || 0;
-      // Se API não retornou e temos registros, calcula DY dos registros
-      const dyB3 = dyAnual > 0 ? dyAnual
-        : avgYield12m > 0 ? Math.min(avgYield12m, 30)
-        : 0;
 
       return {
         asset: a,
@@ -179,7 +168,6 @@ export function FIIAnalysis({ fiiAssets, hideValues, onEdit, onRefresh }: Props)
         realDivPerShare: divPerShare,
         realMonthlyDiv: realMonthlyDiv,
         divYieldMensal,
-        avgYield12m,
         dyB3,
         goalShares,
         goalValue,
@@ -471,8 +459,7 @@ export function FIIAnalysis({ fiiAssets, hideValues, onEdit, onRefresh }: Props)
               <MiniBox label="Dividendo/Mês" value={mask$(r.realMonthlyDiv)} color="text-income" />
               <MiniBox label="Retorno Anual" value={mask$(r.realMonthlyDiv * 12)} color="text-income" />
               <MiniBox label="DY Mensal" value={formatPercent(r.divYieldMensal)} color={yieldColor(r.divYieldMensal)} />
-              <MiniBox label="DY 12M" value={formatPercent(r.avgYield12m)} color={yieldColor(r.avgYield12m)} />
-              {r.dyB3 > 0 && <MiniBox label="DY 12M B3" value={formatPercent(r.dyB3)} color={yieldColor(r.dyB3 / 12)} />}
+               {r.dyB3 > 0 && <MiniBox label="DY 12M" value={formatPercent(r.dyB3)} color={yieldColor(r.dyB3 / 12)} />}
               <MiniBox label="Valor Atual" value={mask$(r.currentValue)}
                 color={r.gainLoss >= 0 ? "text-income" : "text-expense"} />
               <MiniBox label="Ganho/Perda" value={mask$(r.gainLoss)}
