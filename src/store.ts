@@ -348,15 +348,20 @@ export function clearAll() {
 export function calculateSummary(assets: Asset[]): PortfolioSummary {
   const totalInvested = assets.reduce((s, a) => s + a.investedAmount, 0);
   const totalCurrentValue = assets.reduce((s, a) => s + a.currentPrice * a.quantity, 0);
-  const monthlyDividend = assets.reduce((s, a) => s + a.currentDividend, 0);
-  const annualDividend = assets.reduce((s, a) => s + a.annualReturn, 0);
+  const monthlyDividend = assets.reduce((s, a) => {
+    const divPerShare = a.dividendPerShare || 0;
+    return s + (divPerShare > 0 ? divPerShare * a.quantity : a.currentDividend);
+  }, 0);
+  const annualDividend = monthlyDividend * 12;
 
   const projectedMonthlyDividend = assets.reduce((s, a) => {
-    if (a.targetTotal > 0 && a.dividendPerShare > 0) {
+    const divPerShare = a.dividendPerShare || 0;
+    if (divPerShare <= 0) return s + a.currentDividend;
+    if (a.targetTotal > 0 && a.avgPrice > 0) {
       const projectedShares = a.targetTotal / a.avgPrice;
-      return s + projectedShares * a.dividendPerShare;
+      return s + projectedShares * divPerShare;
     }
-    return s;
+    return s + divPerShare * a.quantity;
   }, 0);
 
   const types: Record<string, number> = {};
