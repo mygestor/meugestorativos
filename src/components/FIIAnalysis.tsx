@@ -55,7 +55,7 @@ function saveSettings(s: Settings) {
   localStorage.setItem(SETTINGS_KEY, JSON.stringify(s));
 }
 
-export function FIIAnalysis({ fiiAssets, hideValues, onEdit }: Props) {
+export function FIIAnalysis({ fiiAssets, hideValues, onEdit, onRefresh }: Props) {
   const allDividends = getDividends();
   const allTrades = getTrades();
   const [settings, setSettings] = useState<Settings>(loadSettings);
@@ -67,6 +67,12 @@ export function FIIAnalysis({ fiiAssets, hideValues, onEdit }: Props) {
   const [searchTerm, setSearchTerm] = useState("");
   const [fetchStatus, setFetchStatus] = useState<Record<string, 'pending' | 'ok' | 'error'>>({});
   const [fetchingDividendos, setFetchingDividendos] = useState(false);
+  const [localAssets, setLocalAssets] = useState<Asset[]>(fiiAssets);
+
+  // Sync localAssets when prop changes
+  if (localAssets !== fiiAssets && !fetchingDividendos) {
+    setLocalAssets(fiiAssets);
+  }
 
   const fetchDividendosReais = useCallback(async () => {
     if (fiiAssets.length === 0) return;
@@ -84,17 +90,22 @@ export function FIIAnalysis({ fiiAssets, hideValues, onEdit }: Props) {
           const asset = fiiAssets.find((a) => a.ticker === ticker);
           if (asset) {
             updateAsset(asset.id, { dividendPerShare: dividendo });
+            // Update local state immediately so UI reflects new value
+            setLocalAssets((prev) => prev.map((a) =>
+              a.ticker === ticker ? { ...a, dividendPerShare: dividendo } : a
+            ));
           }
         }
       }
     );
     setFetchingDividendos(false);
+    onRefresh?.();
     setTimeout(() => setFetchStatus({}), 5000);
-  }, [fiiAssets]);
+  }, [fiiAssets, onRefresh]);
 
   // Calculate rows
   const rows = useMemo(() => {
-    return fiiAssets.map((a) => {
+    return localAssets.map((a) => {
       // Use real dividend records to calculate monthly dividend
       const allDivs = allDividends
         .filter((d) => d.ticker === a.ticker)
@@ -149,7 +160,7 @@ export function FIIAnalysis({ fiiAssets, hideValues, onEdit }: Props) {
         magicPrice,
       };
     });
-  }, [fiiAssets, allDividends, settings.desiredDividend]);
+  }, [localAssets, allDividends, settings.desiredDividend]);
 
   // Summary calculations
   const summary = useMemo(() => {
@@ -209,12 +220,12 @@ export function FIIAnalysis({ fiiAssets, hideValues, onEdit }: Props) {
   // Chart data
   const typeDist = useMemo(() => {
     const byType: Record<string, number> = {};
-    fiiAssets.forEach((a) => {
+    localAssets.forEach((a) => {
       const key = a.subtype || a.type;
       byType[key] = (byType[key] || 0) + a.investedAmount;
     });
     return Object.entries(byType).map(([n, v]) => ({ name: n, value: Math.round(v) })).sort((a, b) => b.value - a.value);
-  }, [fiiAssets]);
+  }, [localAssets]);
 
   const topDividendPayers = useMemo(() => {
     return [...rows].sort((a, b) => (b.asset.currentDividend || 0) - (a.asset.currentDividend || 0)).slice(0, 8);
@@ -223,13 +234,13 @@ export function FIIAnalysis({ fiiAssets, hideValues, onEdit }: Props) {
   const divByMonth = useMemo(() => {
     const byMonth: Record<string, number> = {};
     for (const d of allDividends) {
-      if (fiiAssets.some((a) => a.ticker === d.ticker)) {
+      if (localAssets.some((a) => a.ticker === d.ticker)) {
         const key = d.monthYear;
         byMonth[key] = (byMonth[key] || 0) + d.totalValue;
       }
     }
     return Object.entries(byMonth).map(([k, v]) => ({ month: k, value: Math.round(v) })).sort((a, b) => a.month.localeCompare(b.month)).slice(-12);
-  }, [allDividends, fiiAssets]);
+  }, [allDividends, localAssets]);
 
   const mask$ = (v: number) => hideValues ? "••••" : formatCurrency(v);
 
@@ -246,7 +257,7 @@ export function FIIAnalysis({ fiiAssets, hideValues, onEdit }: Props) {
     }));
   }, [rows, summary.totalInvested]);
 
-  if (fiiAssets.length === 0) {
+  if (localAssets.length === 0) {
     return (
       <div className="bg-card border border-border rounded-2xl p-12 text-center">
         <TrendingUp className="size-8 text-muted mx-auto mb-2" />
