@@ -2,20 +2,19 @@ import { useState, useMemo } from "react";
 import type { DividendRecord } from "../types";
 import { formatCurrency, formatDate } from "../format";
 import { deleteDividend, getDividendStats } from "../store";
-import { Trash2, Download, Upload, ChevronDown, ChevronUp } from "lucide-react";
+import { Trash2, Download, ChevronDown, ChevronUp } from "lucide-react";
 
 interface Props {
   dividends: DividendRecord[];
   hideValues: boolean;
   onRefresh: () => void;
-  onImport?: () => void;
 }
 
 function mask(v: number, hidden: boolean) {
   return hidden ? "R$ ••••" : formatCurrency(v);
 }
 
-export function DividendTable({ dividends, hideValues, onRefresh, onImport }: Props) {
+export function DividendTable({ dividends, hideValues, onRefresh }: Props) {
   const [sortField, setSortField] = useState<keyof DividendRecord>("payment");
   const [sortAsc, setSortAsc] = useState(false);
   const [filterMonth, setFilterMonth] = useState("");
@@ -113,11 +112,6 @@ export function DividendTable({ dividends, hideValues, onRefresh, onImport }: Pr
       <div className="bg-card border border-border rounded-2xl overflow-hidden">
         <div className="flex items-center justify-between p-4 border-b border-border">
           <div className="flex items-center gap-2">
-            {onImport && (
-              <button onClick={onImport} className="flex items-center gap-1.5 px-3 py-1.5 bg-surface text-muted hover:text-foreground rounded-lg text-xs font-medium border border-border transition-colors" title="Importar CSV">
-                <Upload className="size-3.5" /> Importar
-              </button>
-            )}
             <select
               value={filterMonth}
               onChange={(e) => setFilterMonth(e.target.value)}
@@ -147,11 +141,7 @@ export function DividendTable({ dividends, hideValues, onRefresh, onImport }: Pr
         {sorted.length === 0 ? (
           <div className="p-12 text-center">
             <p className="text-muted">Nenhum dividendo registrado</p>
-            {onImport && (
-              <button onClick={onImport} className="mt-3 inline-flex items-center gap-2 px-4 py-2 bg-card text-muted hover:text-foreground rounded-xl text-sm font-medium border border-border transition-colors">
-                <Upload className="size-4" /> Importar CSV
-              </button>
-            )}
+            <p className="text-xs text-muted mt-1">Use o botão "Novo Dividendo" ou "Importar" acima</p>
           </div>
         ) : (
           <div className="overflow-x-auto">

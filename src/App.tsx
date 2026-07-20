@@ -255,22 +255,7 @@ export default function App() {
               </button>
             </div>
           )}
-          {tab === "dividendos" && (
-            <div className="flex items-center gap-2 shrink-0">
-              {divSubTab === "historico" && (
-                <button onClick={() => setDivDialogOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary-dark transition-colors">
-                  <HandCoins className="size-4" /> Novo Dividendo
-                </button>
-              )}
-              <button
-                onClick={handleClearDividends}
-                className="p-2 rounded-lg hover:bg-card-hover text-muted hover:text-expense transition-colors"
-                title="Limpar dividendos"
-              >
-                <Trash2 className="size-4 text-expense" />
-              </button>
-            </div>
-          )}
+          {tab === "dividendos" && <div className="flex items-center gap-2 shrink-0" />}
           {tab === "aportes" && (
             <div className="flex items-center gap-2 shrink-0">
               <button
@@ -323,7 +308,7 @@ export default function App() {
 
         {tab === "dividendos" && (
           <div className="space-y-4">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <button
                 onClick={() => setDivSubTab("dashboard")}
                 className={`px-4 py-1.5 rounded-full text-xs font-medium transition-colors ${
@@ -348,13 +333,27 @@ export default function App() {
               >
                 Calendário
               </button>
+              {divSubTab === "historico" && (
+                <>
+                  <div className="w-px h-5 bg-border mx-1" />
+                  <button onClick={() => setDivCsvOpen(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-card text-muted hover:text-foreground rounded-xl text-xs font-medium border border-border transition-colors">
+                    <Upload className="size-3.5" /> Importar
+                  </button>
+                  <button onClick={() => setDivDialogOpen(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white rounded-xl text-xs font-medium hover:bg-primary-dark transition-colors">
+                    <HandCoins className="size-3.5" /> Novo Dividendo
+                  </button>
+                  <button onClick={handleClearDividends} className="p-1.5 rounded-lg hover:bg-card-hover text-muted hover:text-expense transition-colors" title="Limpar dividendos">
+                    <Trash2 className="size-4 text-expense" />
+                  </button>
+                </>
+              )}
             </div>
             {divSubTab === "dashboard" ? (
               <DividendDashboard dividends={dividends} hideValues={hideValues} onRefresh={refresh} />
             ) : divSubTab === "calendario" ? (
               <DividendCalendar assets={assets} />
             ) : (
-              <DividendTable dividends={dividends} hideValues={hideValues} onRefresh={refresh} onImport={() => setDivCsvOpen(true)} />
+              <DividendTable dividends={dividends} hideValues={hideValues} onRefresh={refresh} />
             )}
           </div>
         )}
