@@ -1,7 +1,8 @@
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, useEffect } from "react";
 import type { Asset, DividendRecord, TradeRecord } from "../types";
 import { formatCurrency, formatPercent, formatCompact } from "../format";
 import { getDividends, getTrades, updateAsset } from "../store";
+import { fetchDY12m } from "../prices";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, AreaChart, Area } from "recharts";
 import { Settings, ChevronDown, ChevronUp, SlidersHorizontal, TrendingUp, DollarSign, Target, BarChart3, Lightbulb, Search, RefreshCw, Check, AlertTriangle } from "lucide-react";
 
@@ -20,6 +21,7 @@ interface FIIRow {
   realMonthlyDiv: number;
   divYieldMensal: number;
   avgYield12m: number;
+  dyB3: number;
   goalShares: number;
   goalValue: number;
   investedValue: number;
@@ -68,11 +70,23 @@ export function FIIAnalysis({ fiiAssets, hideValues, onEdit, onRefresh }: Props)
   const [fetchStatus, setFetchStatus] = useState<Record<string, 'pending' | 'ok' | 'error'>>({});
   const [fetchingDividendos, setFetchingDividendos] = useState(false);
   const [localAssets, setLocalAssets] = useState<Asset[]>(fiiAssets);
+  const [dyB3Map, setDyB3Map] = useState<Map<string, number>>(new Map());
 
   // Sync localAssets when prop changes
   if (localAssets !== fiiAssets && !fetchingDividendos) {
     setLocalAssets(fiiAssets);
   }
+
+  // Fetch DY 12m from B3 data
+  useEffect(() => {
+    const tickers = fiiAssets.map((a) => a.ticker);
+    if (tickers.length === 0) return;
+    fetchDY12m(tickers).then((map) => {
+      const dyOnly = new Map<string, number>();
+      for (const [t, v] of map) dyOnly.set(t, v.dy12m);
+      setDyB3Map(dyOnly);
+    });
+  }, [fiiAssets]);
 
   const fetchDividendosReais = useCallback(async () => {
     if (fiiAssets.length === 0) return;
@@ -142,6 +156,8 @@ export function FIIAnalysis({ fiiAssets, hideValues, onEdit, onRefresh }: Props)
       const magicNumber = divPerShare > 0 ? Math.ceil(settings.desiredDividend / divPerShare) : 0;
       const magicPrice = a.avgPrice > 0 ? a.avgPrice : a.currentPrice;
 
+      const dyB3 = dyB3Map.get(a.ticker.toUpperCase()) || 0;
+
       return {
         asset: a,
         dividends12m: divs12m,
@@ -150,6 +166,7 @@ export function FIIAnalysis({ fiiAssets, hideValues, onEdit, onRefresh }: Props)
         realMonthlyDiv: realMonthlyDiv,
         divYieldMensal,
         avgYield12m,
+        dyB3,
         goalShares,
         goalValue,
         investedValue,
@@ -162,7 +179,7 @@ export function FIIAnalysis({ fiiAssets, hideValues, onEdit, onRefresh }: Props)
         magicPrice,
       };
     });
-  }, [localAssets, allDividends, settings.desiredDividend]);
+  }, [localAssets, allDividends, settings.desiredDividend, dyB3Map]);
 
   // Summary calculations
   const summary = useMemo(() => {
@@ -198,7 +215,7 @@ export function FIIAnalysis({ fiiAssets, hideValues, onEdit, onRefresh }: Props)
       let av: number, bv: number;
       switch (sortField) {
         case "ticker": return sortAsc ? a.asset.ticker.localeCompare(b.asset.ticker) : b.asset.ticker.localeCompare(a.asset.ticker);
-        case "dy": av = a.divYieldMensal; bv = b.divYieldMensal; break;
+        case "dy": av = a.dyB3 > 0 ? a.dyB3 : a.divYieldMensal; bv = b.dyB3 > 0 ? b.dyB3 : b.divYieldMensal; break;
         case "dividendo": av = a.realDivPerShare; bv = b.realDivPerShare; break;
         case "cotacao": av = a.asset.currentPrice; bv = b.asset.currentPrice; break;
         case "quantidade": av = a.asset.quantity; bv = b.asset.quantity; break;
@@ -378,7 +395,7 @@ export function FIIAnalysis({ fiiAssets, hideValues, onEdit, onRefresh }: Props)
                 <SortH label="Pag" field="" current="" asc={false} onClick={() => {}} className="hidden lg:table-cell" />
                 <SortH label="Cotação" field="cotacao" current={sortField} asc={sortAsc} onClick={toggleSort} />
                 <SortH label="Dividendo/Cota" field="dividendo" current={sortField} asc={sortAsc} onClick={toggleSort} />
-                <SortH label="DY" field="dy" current={sortField} asc={sortAsc} onClick={toggleSort} />
+                <SortH label="DY 12M" field="dy" current={sortField} asc={sortAsc} onClick={toggleSort} />
                 <SortH label="Qtd" field="quantidade" current={sortField} asc={sortAsc} onClick={toggleSort} />
                 <SortH label="Meta" field="meta" current={sortField} asc={sortAsc} onClick={toggleSort} className="hidden lg:table-cell" />
                 <SortH label="Investido" field="investido" current={sortField} asc={sortAsc} onClick={toggleSort} className="hidden md:table-cell" />
@@ -398,7 +415,7 @@ export function FIIAnalysis({ fiiAssets, hideValues, onEdit, onRefresh }: Props)
                     <td className="p-2 text-muted hidden lg:table-cell">{r.asset.paymentDay ? `Dia ${r.asset.paymentDay}` : "-"}</td>
                     <td className="p-2 tabular font-medium">{mask$(r.asset.currentPrice)}</td>
                     <td className="p-2 tabular">{mask$(r.realDivPerShare)}</td>
-                    <td className={`p-2 tabular font-medium ${yieldColor(r.divYieldMensal)}`}>{formatPercent(r.divYieldMensal)}</td>
+                    <td className={`p-2 tabular font-medium ${r.dyB3 > 0 ? yieldColor(r.dyB3 / 12) : yieldColor(r.divYieldMensal)}`}>{r.dyB3 > 0 ? formatPercent(r.dyB3) : formatPercent(r.divYieldMensal)}</td>
                     <td className="p-2 tabular">{r.asset.quantity}</td>
                     <td className="p-2 tabular hidden lg:table-cell">{r.goalShares > 0 ? r.goalShares : "-"}</td>
                     <td className="p-2 tabular hidden md:table-cell">{mask$(r.investedValue)}</td>
@@ -438,6 +455,7 @@ export function FIIAnalysis({ fiiAssets, hideValues, onEdit, onRefresh }: Props)
               <MiniBox label="Retorno Anual" value={mask$(r.realMonthlyDiv * 12)} color="text-income" />
               <MiniBox label="DY Mensal" value={formatPercent(r.divYieldMensal)} color={yieldColor(r.divYieldMensal)} />
               <MiniBox label="DY 12M" value={formatPercent(r.avgYield12m)} color={yieldColor(r.avgYield12m)} />
+              {r.dyB3 > 0 && <MiniBox label="DY 12M B3" value={formatPercent(r.dyB3)} color={yieldColor(r.dyB3 / 12)} />}
               <MiniBox label="Valor Atual" value={mask$(r.currentValue)}
                 color={r.gainLoss >= 0 ? "text-income" : "text-expense"} />
               <MiniBox label="Ganho/Perda" value={mask$(r.gainLoss)}
