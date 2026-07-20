@@ -2,7 +2,7 @@ import { useMemo, useState, useCallback, useEffect } from "react";
 import type { Asset, DividendRecord, TradeRecord } from "../types";
 import { formatCurrency, formatPercent, formatCompact } from "../format";
 import { getDividends, getTrades, updateAsset } from "../store";
-import { fetchDY12m } from "../prices";
+import { fetchDY12m, fetchLastDividends } from "../prices";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, AreaChart, Area } from "recharts";
 import { Settings, ChevronDown, ChevronUp, SlidersHorizontal, TrendingUp, DollarSign, Target, BarChart3, Lightbulb, Search, RefreshCw, Check, AlertTriangle } from "lucide-react";
 
@@ -71,13 +71,14 @@ export function FIIAnalysis({ fiiAssets, hideValues, onEdit, onRefresh }: Props)
   const [fetchingDividendos, setFetchingDividendos] = useState(false);
   const [localAssets, setLocalAssets] = useState<Asset[]>(fiiAssets);
   const [dyB3Map, setDyB3Map] = useState<Map<string, number>>(new Map());
+  const [apiDivPerShare, setApiDivPerShare] = useState<Map<string, number>>(new Map());
 
   // Sync localAssets when prop changes
   if (localAssets !== fiiAssets && !fetchingDividendos) {
     setLocalAssets(fiiAssets);
   }
 
-  // Fetch DY 12m from B3 data
+  // Fetch DY 12m + dividend per share from APIs
   useEffect(() => {
     const tickers = fiiAssets.map((a) => a.ticker);
     if (tickers.length === 0) return;
@@ -85,6 +86,9 @@ export function FIIAnalysis({ fiiAssets, hideValues, onEdit, onRefresh }: Props)
       const dyOnly = new Map<string, number>();
       for (const [t, v] of map) dyOnly.set(t, v.dy12m);
       setDyB3Map(dyOnly);
+    });
+    fetchLastDividends(tickers).then((map) => {
+      setApiDivPerShare(map);
     });
   }, [fiiAssets]);
 
@@ -127,12 +131,12 @@ export function FIIAnalysis({ fiiAssets, hideValues, onEdit, onRefresh }: Props)
       const divs12m = allDivs.slice(0, 12);
       const totalDivs12m = divs12m.reduce((s, d) => s + d.totalValue, 0);
 
-      // Dividendo por cota: prioriza dado da API (dividendPerShare), depois registro real
-      const divPerShare = a.dividendPerShare && a.dividendPerShare > 0
-        ? a.dividendPerShare
-        : a.quantity > 0 && allDivs[0]
-          ? +(allDivs[0].totalValue / a.quantity).toFixed(6)
-          : 0;
+      // Dividendo por cota: prioriza API (fetch ao abrir), depois armazenado, depois registro real
+      const apiVal = apiDivPerShare.get(a.ticker.toUpperCase());
+      const divPerShare = apiVal && apiVal > 0 ? apiVal
+        : a.dividendPerShare && a.dividendPerShare > 0 ? a.dividendPerShare
+        : a.quantity > 0 && allDivs[0] ? +(allDivs[0].totalValue / a.quantity).toFixed(6)
+        : 0;
 
       // Dividendo mensal total: usa a média dos últimos 12 meses se disponível
       const realMonthlyDiv = divs12m.length > 0
@@ -179,7 +183,7 @@ export function FIIAnalysis({ fiiAssets, hideValues, onEdit, onRefresh }: Props)
         magicPrice,
       };
     });
-  }, [localAssets, allDividends, settings.desiredDividend, dyB3Map]);
+  }, [localAssets, allDividends, settings.desiredDividend, dyB3Map, apiDivPerShare]);
 
   // Summary calculations
   const summary = useMemo(() => {
