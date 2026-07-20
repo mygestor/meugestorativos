@@ -131,11 +131,10 @@ export function FIIAnalysis({ fiiAssets, hideValues, onEdit, onRefresh }: Props)
       const divs12m = allDivs.slice(0, 12);
       const totalDivs12m = divs12m.reduce((s, d) => s + d.totalValue, 0);
 
-      // Dividendo por cota: prioriza API (fetch ao abrir), depois armazenado, depois registro real
+      // Dividendo por cota: usa API ou valor armazenado (NUNCA divide totalValue por quantity, pois quantity muda)
       const apiVal = apiDivPerShare.get(a.ticker.toUpperCase());
       const divPerShare = apiVal && apiVal > 0 ? apiVal
         : a.dividendPerShare && a.dividendPerShare > 0 ? a.dividendPerShare
-        : a.quantity > 0 && allDivs[0] ? +(allDivs[0].totalValue / a.quantity).toFixed(6)
         : 0;
 
       // Dividendo mensal total: usa a média dos últimos 12 meses se disponível
@@ -160,12 +159,15 @@ export function FIIAnalysis({ fiiAssets, hideValues, onEdit, onRefresh }: Props)
       const magicNumber = divPerShare > 0 ? Math.ceil(settings.desiredDividend / divPerShare) : 0;
       const magicPrice = a.avgPrice > 0 ? a.avgPrice : a.currentPrice;
 
-      // DY anual: usa último dividendo por cota × 12 ÷ preço (mais confiável que soma 12 meses da API)
+      // DY anual: último dividendo por cota × 12 ÷ preço, com fallback para média dos registros
       const apiDiv = apiDivPerShare.get(a.ticker.toUpperCase());
       const dyAnual = apiDiv && apiDiv > 0 && a.currentPrice > 0
         ? Math.min((apiDiv * 12 / a.currentPrice) * 100, 30)
         : dyB3Map.get(a.ticker.toUpperCase()) || 0;
-      const dyB3 = dyAnual;
+      // Se API não retornou e temos registros, calcula DY dos registros
+      const dyB3 = dyAnual > 0 ? dyAnual
+        : avgYield12m > 0 ? Math.min(avgYield12m, 30)
+        : 0;
 
       return {
         asset: a,
