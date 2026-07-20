@@ -208,9 +208,6 @@ export default function App() {
             <button onClick={() => setIrpfOpen(true)} className="p-2 rounded-lg hover:bg-card-hover text-muted transition-colors hidden sm:block" title="Relatório IRPF">
               <FileText className="size-4" />
             </button>
-            <button onClick={handleClear} className="p-2 rounded-lg hover:bg-card-hover text-muted transition-colors" title="Limpar dados">
-              <Trash2 className="size-4 text-expense" />
-            </button>
           </div>
         </div>
       </header>
@@ -261,14 +258,9 @@ export default function App() {
           {tab === "dividendos" && (
             <div className="flex items-center gap-2 shrink-0">
               {divSubTab === "historico" && (
-                <>
-                  <button onClick={() => setDivCsvOpen(true)} className="flex items-center gap-2 px-3 py-2 bg-card text-muted hover:text-foreground rounded-xl text-sm font-medium border border-border transition-colors">
-                    <Upload className="size-4" /> Importar
-                  </button>
-                  <button onClick={() => setDivDialogOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary-dark transition-colors">
-                    <HandCoins className="size-4" /> Novo Dividendo
-                  </button>
-                </>
+                <button onClick={() => setDivDialogOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary-dark transition-colors">
+                  <HandCoins className="size-4" /> Novo Dividendo
+                </button>
               )}
               <button
                 onClick={handleClearDividends}
@@ -362,7 +354,7 @@ export default function App() {
             ) : divSubTab === "calendario" ? (
               <DividendCalendar assets={assets} />
             ) : (
-              <DividendTable dividends={dividends} hideValues={hideValues} onRefresh={refresh} />
+              <DividendTable dividends={dividends} hideValues={hideValues} onRefresh={refresh} onImport={() => setDivCsvOpen(true)} />
             )}
           </div>
         )}
