@@ -1,5 +1,8 @@
 const BRAPI_BASE = "https://brapi.dev/api";
 
+// Cache p/ evitar chamadas repetidas ao Yahoo (rate limit)
+const yahooCache = new Map<string, Promise<{ sum12m: number; price: number } | null>>();
+
 interface BrapiDividend {
   value: number;
   date: string;
@@ -83,28 +86,37 @@ export async function updatePrices(
 }
 
 async function fetchYahooDividends(ticker: string): Promise<{ sum12m: number; price: number } | null> {
-  try {
-    const yahooTicker = `${ticker}.SA`;
-    const url = `https://query2.finance.yahoo.com/v7/finance/chart/${yahooTicker}?range=2y&interval=1d&events=dividends`;
-    const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
-    if (!res.ok) return null;
-    const data = await res.json();
-    const result = data?.chart?.result?.[0];
-    if (!result) return null;
-    const price = result.meta?.regularMarketPrice ?? 0;
-    const dividends = result.events?.dividends;
-    if (!dividends) return { sum12m: 0, price };
-    const now = Date.now() / 1000;
-    const oneYearAgo = now - 365 * 24 * 3600;
-    let sum12m = 0;
-    for (const key of Object.keys(dividends)) {
-      const d = dividends[key];
-      if (d.date >= oneYearAgo) sum12m += d.amount;
+  const cached = yahooCache.get(ticker.toUpperCase());
+  if (cached) return cached;
+  const promise = (async () => {
+    try {
+      const yahooTicker = `${ticker}.SA`;
+      console.log('Yahoo fetch', yahooTicker);
+      const url = `https://query2.finance.yahoo.com/v7/finance/chart/${yahooTicker}?range=2y&interval=1d&events=dividends`;
+      const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
+      if (!res.ok) { console.warn('Yahoo', ticker, 'status', res.status); return null; }
+      const data = await res.json();
+      const result = data?.chart?.result?.[0];
+      if (!result) return null;
+      const price = result.meta?.regularMarketPrice ?? 0;
+      const dividends = result.events?.dividends;
+      if (!dividends) return { sum12m: 0, price };
+      const now = Date.now() / 1000;
+      const oneYearAgo = now - 365 * 24 * 3600;
+      let sum12m = 0;
+      for (const key of Object.keys(dividends)) {
+        const d = dividends[key];
+        if (d.date >= oneYearAgo) sum12m += d.amount;
+      }
+      console.log('Yahoo OK', yahooTicker, 'sum12m:', sum12m, 'price:', price);
+      return { sum12m, price };
+    } catch (e) {
+      console.warn('Yahoo error', yahooTicker, e);
+      return null;
     }
-    return { sum12m, price };
-  } catch {
-    return null;
-  }
+  })();
+  yahooCache.set(ticker.toUpperCase(), promise);
+  return promise;
 }
 
 // Fetch dividend per share from brapi.dev (primary source)
@@ -260,11 +272,12 @@ export async function fetchDY12m(tickers: string[]): Promise<Map<string, { dy12m
   const result = new Map<string, { dy12m: number; price: number; last12Sum: number }>();
   const cap = 30;
 
-  for (const ticker of tickers) {
-    const yh = await fetchYahooDividends(ticker);
+  const results = await Promise.all(tickers.map((t) => fetchYahooDividends(t)));
+  for (let i = 0; i < tickers.length; i++) {
+    const yh = results[i];
     if (yh && yh.sum12m > 0 && yh.price > 0) {
       const dy12m = Math.min((yh.sum12m / yh.price) * 100, cap);
-      result.set(ticker.toUpperCase(), { dy12m, price: yh.price, last12Sum: yh.sum12m });
+      result.set(tickers[i].toUpperCase(), { dy12m, price: yh.price, last12Sum: yh.sum12m });
     }
   }
 
@@ -275,11 +288,12 @@ export async function fetchLastDividends(tickers: string[]): Promise<Map<string,
   if (tickers.length === 0) return new Map();
   const result = new Map<string, number>();
 
-  for (const ticker of tickers) {
-    const yh = await fetchYahooDividends(ticker);
+  const results = await Promise.all(tickers.map((t) => fetchYahooDividends(t)));
+  for (let i = 0; i < tickers.length; i++) {
+    const yh = results[i];
     if (yh && yh.sum12m > 0) {
       const lastDiv = yh.sum12m / 12;
-      if (lastDiv > 0) result.set(ticker.toUpperCase(), lastDiv);
+      if (lastDiv > 0) result.set(tickers[i].toUpperCase(), lastDiv);
     }
   }
 
