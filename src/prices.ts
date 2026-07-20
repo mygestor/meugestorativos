@@ -75,6 +75,93 @@ export async function updatePrices(
   return updated;
 }
 
+// Fetch real dividend per share from investidor10.com.br
+const CORS_PROXY = "https://api.allorigins.win/raw?url=";
+
+export async function fetchDividendFromInvestidor10(ticker: string): Promise<{ dividendo: number; dy: number; preco: number } | null> {
+  try {
+    const url = `${CORS_PROXY}${encodeURIComponent(`https://investidor10.com.br/fiis/${ticker.toLowerCase()}/`)}`;
+    const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+    if (!res.ok) return null;
+    const html = await res.text();
+
+    // Parse dividend value from the page
+    // investidor10 typically has structures like:
+    // <span class="value" data-value="0.12">R$ 0,12</span>
+    // or inside a card with class "card-dividendos"
+    const divMatch = html.match(/"[^"]*dividend[^"]*"[^>]*>[^<]*<[^>]*>R?\$?\s*([\d.,]+)/i)
+      || html.match(/R?\$?\s*([\d.,]+)\s*<\/[^>]+>[^<]*<[^>]*class="[^"]*value[^"]*"/i)
+      // Generic: find price-like patterns near "dividendo" class
+      || html.match(/<div[^>]*class="[^"]*value[^"]*"[^>]*>R?\$?\s*([\d.,]+)<\/div>/i)
+      // Try to find the DY value (percent)
+      || html.match(/yield[^>]*>[^<]*<[^>]*>([\d.,]+)%/i);
+
+    if (!divMatch) return null;
+
+    let value = parseFloat((divMatch[1] || "").replace(/\./g, "").replace(",", "."));
+    if (isNaN(value)) return null;
+
+    // If it's a percentage (DY), estimate from current price
+    // Otherwise it's the dividend per share
+    const isPercent = divMatch[0].includes("%");
+    if (isPercent) {
+      // Try to find the price too
+      const priceMatch = html.match(/pre[çc]o[^>]*>[^<]*<[^>]*>R?\$?\s*([\d.,]+)/i)
+        || html.match(/<span[^>]*class="[^"]*price[^"]*"[^>]*>R?\$?\s*([\d.,]+)/i);
+      const price = priceMatch ? parseFloat(priceMatch[1].replace(/\./g, "").replace(",", ".")) : 0;
+      if (price > 0) {
+        value = (value / 100) * price;
+      }
+    }
+
+    // Also try to get price
+    let preco = 0;
+    const precoMatch = html.match(/cotação[^>]*>[^<]*<[^>]*>R?\$?\s*([\d.,]+)/i)
+      || html.match(/pre[çc]o[^>]*>[^<]*<[^>]*>R?\$?\s*([\d.,]+)/i);
+    if (precoMatch) {
+      preco = parseFloat(precoMatch[1].replace(/\./g, "").replace(",", "."));
+    }
+
+    // DY
+    let dy = 0;
+    const dyMatch = html.match(/yield[^>]*>[^<]*<[^>]*>([\d.,]+)%/i)
+      || html.match(/dividend[^y][^>]*>[^<]*<[^>]*>([\d.,]+)%/i);
+    if (dyMatch) {
+      dy = parseFloat(dyMatch[1].replace(",", "."));
+    }
+
+    return { dividendo: value || 0, dy, preco };
+  } catch {
+    return null;
+  }
+}
+
+export async function updateDividendsFromInvestidor10(
+  tickers: string[],
+  onProgress: (ticker: string, status: 'ok' | 'error', dividendo?: number) => void
+): Promise<number> {
+  let updated = 0;
+  for (const ticker of tickers) {
+    try {
+      const data = await fetchDividendFromInvestidor10(ticker);
+      if (data && data.dividendo > 0) {
+        const { updateAsset, getAssets } = await import('./store');
+        const asset = getAssets().find((a) => a.ticker.toUpperCase() === ticker.toUpperCase());
+        if (asset) {
+          updateAsset(asset.id, { dividendPerShare: data.dividendo });
+          updated++;
+          onProgress(ticker, 'ok', data.dividendo);
+          continue;
+        }
+      }
+      onProgress(ticker, 'error');
+    } catch {
+      onProgress(ticker, 'error');
+    }
+  }
+  return updated;
+}
+
 export function calcMonthlyDividendPerShare(
   dividendYield: number | null,
   price: number

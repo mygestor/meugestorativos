@@ -1,9 +1,9 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useCallback } from "react";
 import type { Asset, DividendRecord, TradeRecord } from "../types";
 import { formatCurrency, formatPercent, formatCompact } from "../format";
-import { getDividends, getTrades } from "../store";
+import { getDividends, getTrades, updateAsset } from "../store";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, AreaChart, Area } from "recharts";
-import { Settings, ChevronDown, ChevronUp, SlidersHorizontal, TrendingUp, DollarSign, Target, BarChart3, Lightbulb, Search } from "lucide-react";
+import { Settings, ChevronDown, ChevronUp, SlidersHorizontal, TrendingUp, DollarSign, Target, BarChart3, Lightbulb, Search, RefreshCw, Check, AlertTriangle } from "lucide-react";
 
 interface Props {
   fiiAssets: Asset[];
@@ -65,6 +65,32 @@ export function FIIAnalysis({ fiiAssets, hideValues, onEdit }: Props) {
   const [sortAsc, setSortAsc] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [fetchStatus, setFetchStatus] = useState<Record<string, 'pending' | 'ok' | 'error'>>({});
+  const [fetchingDividendos, setFetchingDividendos] = useState(false);
+
+  const fetchDividendosReais = useCallback(async () => {
+    if (fiiAssets.length === 0) return;
+    setFetchingDividendos(true);
+    const status: Record<string, 'pending' | 'ok' | 'error'> = {};
+    fiiAssets.forEach((a) => { status[a.ticker] = 'pending'; });
+    setFetchStatus(status);
+
+    const { updateDividendsFromInvestidor10 } = await import("../prices");
+    await updateDividendsFromInvestidor10(
+      fiiAssets.map((a) => a.ticker),
+      (ticker, s, dividendo) => {
+        setFetchStatus((prev) => ({ ...prev, [ticker]: s }));
+        if (s === 'ok' && dividendo) {
+          const asset = fiiAssets.find((a) => a.ticker === ticker);
+          if (asset) {
+            updateAsset(asset.id, { dividendPerShare: dividendo });
+          }
+        }
+      }
+    );
+    setFetchingDividendos(false);
+    setTimeout(() => setFetchStatus({}), 5000);
+  }, [fiiAssets]);
 
   // Calculate rows
   const rows = useMemo(() => {
@@ -301,10 +327,33 @@ export function FIIAnalysis({ fiiAssets, hideValues, onEdit }: Props) {
             className="pl-8 pr-3 py-1.5 rounded-xl bg-surface border border-border text-xs w-36 focus:w-48 transition-all"
           />
         </div>
+        <button
+          onClick={fetchDividendosReais}
+          disabled={fetchingDividendos}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-surface text-muted hover:text-foreground text-xs font-medium transition-colors disabled:opacity-50"
+          title="Buscar valor real do dividendo no Investidor10"
+        >
+          {fetchingDividendos ? <RefreshCw className="size-3.5 animate-spin" /> : <Check className="size-3.5 text-income" />}
+          {fetchingDividendos ? "Buscando..." : "Dividendo Real"}
+        </button>
         <button onClick={() => setSettingsOpen(true)} className="p-1.5 rounded-lg hover:bg-card-hover text-muted transition-colors">
           <Settings className="size-4" />
         </button>
       </div>
+
+      {/* Fetch status */}
+      {Object.keys(fetchStatus).length > 0 && !fetchingDividendos && (
+        <div className="flex flex-wrap gap-1.5 text-xs">
+          {Object.entries(fetchStatus).map(([ticker, status]) => (
+            <span key={ticker} className={`px-2 py-0.5 rounded-lg flex items-center gap-1 ${
+              status === 'ok' ? 'bg-income/10 text-income' : status === 'error' ? 'bg-expense/10 text-expense' : 'bg-surface text-muted'
+            }`}>
+              {status === 'ok' ? <Check className="size-3" /> : status === 'error' ? <AlertTriangle className="size-3" /> : <RefreshCw className="size-3 animate-spin" />}
+              {ticker}
+            </span>
+          ))}
+        </div>
+      )}
 
       {/* Main Table */}
       <div className="bg-card border border-border rounded-2xl overflow-hidden">
