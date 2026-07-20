@@ -19,6 +19,7 @@ export function DividendTable({ dividends, hideValues, onRefresh }: Props) {
   const [sortAsc, setSortAsc] = useState(false);
   const [filterMonth, setFilterMonth] = useState("");
   const [filterYear, setFilterYear] = useState("");
+  const [filterTicker, setFilterTicker] = useState("");
 
   const stats = useMemo(() => getDividendStats(dividends), [dividends]);
 
@@ -36,10 +37,16 @@ export function DividendTable({ dividends, hideValues, onRefresh }: Props) {
     return Array.from(set).sort((a, b) => a - b);
   }, [dividends]);
 
+  const tickers = useMemo(() => {
+    const set = new Set(dividends.map((d) => d.ticker));
+    return Array.from(set).sort();
+  }, [dividends]);
+
   const sorted = useMemo(() => {
     let filtered = dividends;
     if (filterMonth) filtered = filtered.filter((d) => d.monthYear === filterMonth);
     if (filterYear) filtered = filtered.filter((d) => String(d.year) === filterYear);
+    if (filterTicker) filtered = filtered.filter((d) => d.ticker === filterTicker);
 
     return [...filtered].sort((a, b) => {
       const av = a[sortField] ?? "";
@@ -112,6 +119,16 @@ export function DividendTable({ dividends, hideValues, onRefresh }: Props) {
       <div className="bg-card border border-border rounded-2xl overflow-hidden">
         <div className="flex items-center justify-between p-4 border-b border-border">
           <div className="flex items-center gap-2">
+            <select
+              value={filterTicker}
+              onChange={(e) => setFilterTicker(e.target.value)}
+              className="px-3 py-1.5 bg-surface border border-border rounded-lg text-xs focus:outline-none focus:border-primary"
+            >
+              <option value="">Todos os ativos</option>
+              {tickers.map((t) => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
             <select
               value={filterMonth}
               onChange={(e) => setFilterMonth(e.target.value)}
