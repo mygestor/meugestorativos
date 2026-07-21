@@ -2,11 +2,12 @@ import type { Asset } from "../types";
 import { formatCurrency, formatPercent } from "../format";
 import { deleteAsset, getDividends, getTrades } from "../store";
 import { Pencil, Trash2, ChevronDown, ChevronUp, RefreshCw, Layers } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { PriceUpdateDialog } from "./PriceUpdateDialog";
 import { AssetLogo } from "./AssetLogo";
 import { AssetDetailPanel } from "./AssetDetailPanel";
 import { LotsView } from "./LotsView";
+import { fetchDY12m } from "../prices";
 
 interface Props {
   assets: Asset[];
@@ -26,6 +27,23 @@ export function AssetTable({ assets, hideValues, onEdit, onRefresh }: Props) {
   const [priceOpen, setPriceOpen] = useState(false);
   const [detailAsset, setDetailAsset] = useState<Asset | null>(null);
   const [lotAsset, setLotAsset] = useState<Asset | null>(null);
+  const [dyMap, setDyMap] = useState<Map<string, number>>(new Map());
+  const [priceMap, setPriceMap] = useState<Map<string, number>>(new Map());
+
+  useEffect(() => {
+    const tickers = assets.map((a) => a.ticker);
+    if (tickers.length === 0) return;
+    fetchDY12m(tickers).then((map) => {
+      const dy = new Map<string, number>();
+      const pr = new Map<string, number>();
+      for (const [t, v] of map) {
+        dy.set(t, v.dy12m);
+        pr.set(t, v.price);
+      }
+      setDyMap(dy);
+      setPriceMap(pr);
+    });
+  }, [assets]);
 
   const sorted = [...assets].sort((a, b) => {
     const av = a[sortField] ?? 0;
@@ -91,22 +109,23 @@ export function AssetTable({ assets, hideValues, onEdit, onRefresh }: Props) {
                 <th className="p-3 text-left"><SortHeader field="ticker" label="Ativo" /></th>
                 <th className="p-3 text-left hidden sm:table-cell"><SortHeader field="type" label="Tipo" /></th>
                 <th className="p-3 text-right"><SortHeader field="currentPrice" label="Cotação" /></th>
-                <th className="p-3 text-right"><SortHeader field="dividendPerShare" label="Dividendo" /></th>
                 <th className="p-3 text-right"><SortHeader field="quantity" label="Qtd" /></th>
                 <th className="p-3 text-right hidden md:table-cell"><SortHeader field="investedAmount" label="Investido" /></th>
                 <th className="p-3 text-right hidden lg:table-cell"><span className="text-xs font-medium">Ganho/Perda</span></th>
-                <th className="p-3 text-right"><SortHeader field="currentDividend" label="Dividendo/Mês" /></th>
-                <th className="p-3 text-right hidden lg:table-cell"><SortHeader field="annualReturn" label="Retorno/Ano" /></th>
-                <th className="p-3 text-center"><SortHeader field="goal" label="Meta" /></th>
+                <th className="p-3 text-right hidden lg:table-cell"><span className="text-xs font-medium">Preço Médio</span></th>
+                <th className="p-3 text-right hidden lg:table-cell"><span className="text-xs font-medium">Preço Justo</span></th>
+                <th className="p-3 text-right"><span className="text-xs font-medium">DY Anual</span></th>
                 <th className="p-3 text-right w-20" />
               </tr>
             </thead>
             {sorted.map((a) => {
               const isExpanded = expanded === a.id;
-              const yieldPct = a.currentPrice > 0 ? (a.dividendPerShare / a.currentPrice) * 100 : 0;
-              const goalProgress = a.investedAmount > 0 && a.targetTotal > 0 ? Math.min(100, (a.investedAmount / a.targetTotal) * 100) : 0;
               const currentValue = a.currentPrice * a.quantity;
               const valueColor = currentValue >= a.investedAmount ? "text-income" : "text-expense";
+              const dyAnual = dyMap.get(a.ticker.toUpperCase()) || 0;
+              const precoJusto = a.dividendPerShare > 0 && dyAnual > 0
+                ? (a.dividendPerShare * 12) / (dyAnual / 100)
+                : 0;
               return (
                 <tbody key={a.id} className="even:bg-surface/30">
                   <tr
@@ -127,10 +146,6 @@ export function AssetTable({ assets, hideValues, onEdit, onRefresh }: Props) {
                       <span className="text-xs bg-surface px-2 py-1 rounded-lg">{a.type}</span>
                     </td>
                     <td className="p-3 text-right tabular font-medium">{mask(a.currentPrice, hideValues)}</td>
-                    <td className="p-3 text-right tabular">
-                      <p className="font-medium">{mask(a.dividendPerShare, hideValues)}</p>
-                      <p className={`text-xs ${yieldPct >= 0 ? yieldColor(yieldPct) : ""}`}>{yieldPct >= 0 ? `${yieldPct.toFixed(2)}%` : ""}</p>
-                    </td>
                     <td className="p-3 text-right tabular">{a.quantity}</td>
                     <td className="p-3 text-right tabular hidden md:table-cell">{mask(a.investedAmount, hideValues)}</td>
                     <td className="p-3 text-right tabular hidden lg:table-cell">
@@ -141,15 +156,16 @@ export function AssetTable({ assets, hideValues, onEdit, onRefresh }: Props) {
                         {a.investedAmount > 0 ? formatPercent(((currentValue - a.investedAmount) / a.investedAmount) * 100) : ""}
                       </p>
                     </td>
-                    <td className="p-3 text-right tabular font-medium text-income">{mask(a.currentDividend, hideValues)}</td>
+                    <td className="p-3 text-right tabular hidden lg:table-cell">{mask(a.avgPrice, hideValues)}</td>
                     <td className="p-3 text-right tabular hidden lg:table-cell">
-                      <p className="font-medium">{mask(a.annualReturn, hideValues)}</p>
-                      <p className="text-xs text-muted">
-                        {a.investedAmount > 0 ? formatPercent((a.annualReturn / a.investedAmount) * 100) : ""}
-                      </p>
+                      {precoJusto > 0 ? mask(precoJusto, hideValues) : "-"}
                     </td>
-                    <td className="p-3 text-center">
-                      <GoalBadge goal={a.goal} />
+                    <td className="p-3 text-right tabular">
+                      {dyAnual > 0 ? (
+                        <span className={`font-medium ${dyAnual > 8 ? "text-green-500" : dyAnual > 5 ? "text-yellow-500" : "text-red-500"}`}>
+                          {formatPercent(dyAnual)}
+                        </span>
+                      ) : "-"}
                     </td>
                     <td className="p-3 text-right">
                       <div className="flex items-center gap-1">
@@ -176,7 +192,8 @@ export function AssetTable({ assets, hideValues, onEdit, onRefresh }: Props) {
                           <DetailItem label="Total Necessário" value={mask(a.targetTotal, hideValues)} />
                           <DetailItem label="Cotas Necessárias" value={String(a.sharesNeeded)} />
                           <DetailItem label="Falta" value={mask(a.missing, hideValues)} />
-                          <DetailItem label="DY (12M)" value={a.divYield12m ? `${a.divYield12m.toFixed(2)}%` : "-"} />
+                          <DetailItem label="DY Anual" value={dyAnual > 0 ? `${dyAnual.toFixed(2)}%` : "-"} />
+                          <DetailItem label="Preço Justo" value={precoJusto > 0 ? mask(precoJusto, hideValues) : "-"} />
                           <DetailItem label="Dia Pagamento" value={a.paymentDay ? `Dia ${a.paymentDay}` : "-"} />
                           <div>
                             <p className="text-muted mb-0.5">Valor Atual</p>
@@ -197,17 +214,6 @@ export function AssetTable({ assets, hideValues, onEdit, onRefresh }: Props) {
                         </button>
                         {a.status && (
                           <p className="text-xs text-muted mt-3">Status: {a.status}</p>
-                        )}
-                        {a.targetTotal > 0 && (
-                          <div className="mt-3">
-                            <div className="flex items-center justify-between text-xs text-muted mb-1">
-                              <span>Progresso</span>
-                              <span>{goalProgress.toFixed(0)}%</span>
-                            </div>
-                            <div className="w-full h-2 bg-surface rounded-full overflow-hidden">
-                              <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${goalProgress}%` }} />
-                            </div>
-                          </div>
                         )}
                       </td>
                     </tr>
