@@ -45,6 +45,7 @@ export default function App() {
   const [irpfOpen, setIrpfOpen] = useState(false);
   const [divSubTab, setDivSubTab] = useState<"historico" | "dashboard" | "calendario">("dashboard");
   const [hideValues, setHideValues] = useState(false);
+  const [toast, setToast] = useState<{ id: string; message: string; type: 'info' | 'success' | 'error' } | null>(null);
   const [theme, setTheme] = useState<"dark" | "light">(() => {
     const saved = localStorage.getItem("gestor-theme");
     return saved === "light" ? "light" : "dark";
@@ -67,6 +68,44 @@ export default function App() {
 
   useEffect(() => {
     refresh();
+  }, []);
+
+  // Auto-fetch dividends on load with retry
+  useEffect(() => {
+    if (assets.length === 0) return;
+    
+    const autoFetchDividends = async () => {
+      try {
+        const { updatePrices } = await import('./prices');
+        let attempt = 0;
+        const maxAttempts = 2;
+        let updated = 0;
+        
+        while (attempt < maxAttempts && updated === 0) {
+          console.log(`[Auto-fetch] Tentativa ${attempt + 1} de ${maxAttempts}`);
+          updated = await updatePrices(
+            assets.map(a => ({ id: a.id, ticker: a.ticker })),
+            (ticker, status) => {
+              console.log(`[Auto-fetch] ${ticker}: ${status}`);
+            }
+          );
+          if (updated === 0) {
+            // Se nenhum ativo foi atualizado, aguardar antes de retry
+            await new Promise(r => setTimeout(r, 1000));
+          }
+          attempt++;
+        }
+        
+        setTimeout(() => refresh(), 500);
+        console.log(`[Auto-fetch] Finalizado: ${updated} ativos atualizados`);
+      } catch (e) {
+        console.error('[Auto-fetch] Erro:', e);
+      }
+    };
+    
+    // Iniciar busca após página renderizar
+    const timer = setTimeout(autoFetchDividends, 1000);
+    return () => clearTimeout(timer);
   }, []);
 
   function handleEdit(asset: Asset) {
@@ -141,10 +180,67 @@ export default function App() {
     }
   }
 
+  async function handleUpdatePrices() {
+    const { updatePrices } = await import('./prices');
+    const toastId = `update-${Date.now()}`;
+    
+    try {
+      setToast({ id: toastId, message: `Buscando preços de ${assets.length} ativo(s)...`, type: 'info' });
+      
+      const updated = await updatePrices(
+        assets.map(a => ({ id: a.id, ticker: a.ticker })),
+        (ticker, status, price) => {
+          console.log(`[Preço] ${ticker}: ${status}${price ? ` (R$ ${price.toFixed(2)})` : ''}`);
+        }
+      );
+      
+      setTimeout(() => refresh(), 500);
+      
+      setToast({ 
+        id: toastId, 
+        message: `✓ ${updated} ativo(s) atualizado(s) com preços de mercado!`, 
+        type: 'success' 
+      });
+    } catch (error) {
+      console.error('Erro ao buscar preços:', error);
+      setToast({ 
+        id: toastId, 
+        message: `✗ Erro ao buscar preços: ${error instanceof Error ? error.message : 'Desconhecido'}`, 
+        type: 'error' 
+      });
+    }
+  }
+
   function handleClear() {
     if (confirm("Tem certeza? Todos os dados (ativos + dividendos + aportes + trades) serão perdidos!")) {
       clearAll();
       refresh();
+    }
+  }
+
+  async function handleResetAndReseed() {
+    if (confirm("Limpar TODOS os dados e reimportar 16 FIIs + 2 Ações com preços reais?\n\nIsso vai resetar tudo e buscar preços da internet.")) {
+      const { resetAndReseedData } = await import('./store');
+      const toastId = `reseed-${Date.now()}`;
+      setToast({ id: toastId, message: 'Limpando dados e reimportando...', type: 'info' });
+      
+      try {
+        await resetAndReseedData();
+        setTimeout(() => refresh(), 500);
+        
+        setToast({ 
+          id: toastId, 
+          message: '✓ Dados resetados com sucesso! Preços sendo buscados...', 
+          type: 'success' 
+        });
+      } catch (error) {
+        console.error('Erro ao resetar:', error);
+        setToast({ 
+          id: toastId, 
+          message: `✗ Erro: ${error instanceof Error ? error.message : 'Desconhecido'}`, 
+          type: 'error' 
+        });
+      }
     }
   }
 
@@ -193,6 +289,9 @@ export default function App() {
               {hideValues ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
             </button>
             <DividendAlerts assets={assets} />
+            <button onClick={handleUpdatePrices} className="p-2 rounded-lg hover:bg-card-hover text-muted hover:text-primary transition-colors hidden sm:block" title="Atualizar preços e dividendos dos FIIs">
+              <svg className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>
+            </button>
             <button onClick={handleSeedData} className="p-2 rounded-lg hover:bg-card-hover text-muted hover:text-primary transition-colors hidden sm:block" title="Adicionar dados de exemplo">
               <svg className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
             </button>

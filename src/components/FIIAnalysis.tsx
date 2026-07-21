@@ -130,16 +130,16 @@ export function FIIAnalysis({ fiiAssets, hideValues, onEdit, onRefresh }: Props)
       const divs12m = allDivs.slice(0, 12);
       const totalDivs12m = divs12m.reduce((s, d) => s + d.totalValue, 0);
 
-      // Dividendo por cota: apenas API Yahoo (ignora registros do historico e dividendPerShare obsoleto)
-      const apiVal = apiDivPerShare.get(a.ticker.toUpperCase());
-      const divPerShare = apiVal && apiVal > 0 ? apiVal : 0;
+      // Dividendo por cota: prioriza API, depois usa dividendPerShare armazenado no ativo
+      let apiVal = apiDivPerShare.get(a.ticker.toUpperCase());
+      let divPerShare = apiVal && apiVal > 0 ? apiVal : (a.dividendPerShare || 0);
 
-      // Dividendo mensal total: registros ou fallback via API
-      const realMonthlyDiv = divs12m.length > 0
-        ? totalDivs12m / Math.min(divs12m.length, 12)
-        : divPerShare * a.quantity;
+      // Dividendo mensal: calcula APENAS a partir de divPerShare (API ou ativo)
+      // NÃO usa histórico de dividendos - este é apenas para visualização
+      const realMonthlyDiv = divPerShare > 0 ? (divPerShare * a.quantity) : 0;
 
-      const divYieldMensal = a.currentPrice > 0 && divPerShare > 0 ? (divPerShare / a.currentPrice) * 100 : 0;
+      // DY mensal: baseado em divPerShare de mercado, não em histórico
+      const divYieldMensal = divPerShare > 0 && a.currentPrice > 0 ? (divPerShare / a.currentPrice) * 100 : 0;
 
       const goalShares = Number(a.goal) || 0;
       const goalValue = goalShares > 0 ? goalShares * a.avgPrice : a.targetTotal;
@@ -155,11 +155,15 @@ export function FIIAnalysis({ fiiAssets, hideValues, onEdit, onRefresh }: Props)
       const magicNumber = divPerShare > 0 ? Math.ceil(settings.desiredDividend / divPerShare) : 0;
       const magicPrice = a.avgPrice > 0 ? a.avgPrice : a.currentPrice;
 
-      // DY anual: apenas Yahoo (fetchDY12m → dyB3Map) ou último dividendo × 12
+      // DY anual: baseado em dividPerShare de mercado (API ou ativo)
+      // NÃO usa histórico de dividendos
       const apiDiv = apiDivPerShare.get(a.ticker.toUpperCase());
-      const dyB3 = apiDiv && apiDiv > 0 && a.currentPrice > 0
-        ? Math.min((apiDiv * 12 / a.currentPrice) * 100, 30)
-        : dyB3Map.get(a.ticker.toUpperCase()) || 0;
+      let dyB3 = dyB3Map.get(a.ticker.toUpperCase()) || 0;
+      
+      // Se API não retornou DY mas temos dividendo por cota, calcula
+      if (dyB3 === 0 && divPerShare > 0 && a.currentPrice > 0) {
+        dyB3 = Math.min((divPerShare * 12 / a.currentPrice) * 100, 30);
+      }
 
       return {
         asset: a,

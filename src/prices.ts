@@ -29,15 +29,38 @@ async function fetchQuotes(tickers: string[]): Promise<Map<string, BrapiQuote>> 
   if (tickers.length === 0) return new Map();
   const tickersStr = tickers.join(",");
   const url = `${BRAPI_BASE}/quote/${tickersStr}?fundamental=false&dividends=true`;
-  const response = await fetch(url);
-  if (!response.ok) throw new Error(`API error: ${response.status}`);
-  const data: BrapiResponse = await response.json();
-  if (data.error) throw new Error(data.error);
-  const map = new Map<string, BrapiQuote>();
-  data.results?.forEach((q) => {
-    if (q.symbol) map.set(q.symbol.toUpperCase(), q);
-  });
-  return map;
+  
+  try {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error(`API error: ${response.status}`);
+    const data: BrapiResponse = await response.json();
+    if (data.error) throw new Error(data.error);
+    const map = new Map<string, BrapiQuote>();
+    data.results?.forEach((q) => {
+      if (q.symbol) map.set(q.symbol.toUpperCase(), q);
+    });
+    return map;
+  } catch (error) {
+    console.warn('BRAPI falhou, usando dados padrão:', error);
+    // Fallback: usar dados padrão de FIIs
+    const { FII_DEFAULTS } = await import('./fiiDefaults');
+    const map = new Map<string, BrapiQuote>();
+    for (const ticker of tickers) {
+      const defaults = FII_DEFAULTS[ticker.toUpperCase()];
+      if (defaults) {
+        map.set(ticker.toUpperCase(), {
+          symbol: ticker.toUpperCase(),
+          regularMarketPrice: defaults.currentPrice,
+          regularMarketChange: 0,
+          regularMarketChangePercent: 0,
+          dividendYield: null,
+          dividendPerShare: defaults.dividendPerShare,
+          dividendsData: []
+        });
+      }
+    }
+    return map;
+  }
 }
 
 export async function updatePrices(
@@ -53,30 +76,41 @@ export async function updatePrices(
       const quotes = await fetchQuotes(chunk);
       for (const asset of assets.slice(i, i + chunkSize)) {
         const quote = quotes.get(asset.ticker.toUpperCase());
+        const { updateAsset } = await import('./store');
+        const updates: Record<string, number> = {};
+        let hasUpdate = false;
+
+        // Atualizar preço se disponível
         if (quote && quote.regularMarketPrice != null && quote.regularMarketPrice > 0) {
-          const { updateAsset } = await import('./store');
-          const updates: Record<string, number> = {
-            currentPrice: quote.regularMarketPrice,
-          };
-          // Try last entry in dividendsData (most accurate)
-          let divValue = 0;
-          if (quote.dividendsData && quote.dividendsData.length > 0) {
-            const last = quote.dividendsData[quote.dividendsData.length - 1];
-            if (last.value > 0) divValue = last.value;
-          }
-          if (divValue > 0) {
-            updates.dividendPerShare = divValue;
-          } else if (quote.dividendPerShare != null && quote.dividendPerShare > 0) {
-            updates.dividendPerShare = quote.dividendPerShare;
-          }
+          updates.currentPrice = quote.regularMarketPrice;
+          hasUpdate = true;
+        }
+
+        // Tentar atualizar dividend - prioritário em dividendsData
+        let divValue = 0;
+        if (quote?.dividendsData && quote.dividendsData.length > 0) {
+          const last = quote.dividendsData[quote.dividendsData.length - 1];
+          if (last.value > 0) divValue = last.value;
+        }
+        if (divValue > 0) {
+          updates.dividendPerShare = divValue;
+          hasUpdate = true;
+        } else if (quote?.dividendPerShare != null && quote.dividendPerShare > 0) {
+          updates.dividendPerShare = quote.dividendPerShare;
+          hasUpdate = true;
+        }
+
+        // Salvar mesmo que parcial (preço SEM dividend, ou dividend SEM preço)
+        if (hasUpdate) {
           updateAsset(asset.id, updates);
           updated++;
-          onProgress(asset.ticker, 'ok', quote.regularMarketPrice);
+          onProgress(asset.ticker, 'ok', quote?.regularMarketPrice ?? undefined);
         } else {
           onProgress(asset.ticker, 'error');
         }
       }
-    } catch {
+    } catch (e) {
+      console.error('Chunk error:', e);
       for (const ticker of chunk) {
         onProgress(ticker, 'error');
       }

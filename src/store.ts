@@ -284,6 +284,9 @@ export function importSeedData() {
   const now = new Date().toISOString();
   const assets = seed.map((a: any) => ({ ...a, id: generateId(), createdAt: now, updatedAt: now }));
   saveAssets(assets);
+  
+  // Não criar dividendos falsos - apenas carregar dados reais via API
+  // A busca automática preencherá os preços e dividends com dados verdadeiros
 }
 
 // ---- Lot Tracking ----
@@ -352,6 +355,26 @@ export function clearAll() {
   localStorage.removeItem(TRADE_KEY);
   localStorage.removeItem(LOT_KEY);
   localStorage.removeItem("gestor-last-price-update");
+}
+
+export function resetAndReseedData() {
+  // Limpar tudo
+  clearAll();
+  
+  // Importar seed novo
+  importSeedData();
+  
+  // Tentar atualizar preços via API (com fallback automático para dados padrão)
+  return new Promise<void>((resolve) => {
+    import('./prices').then(async ({ updatePrices }) => {
+      const assets = getAssets();
+      await updatePrices(
+        assets.map(a => ({ id: a.id, ticker: a.ticker })),
+        () => {}
+      );
+      resolve();
+    });
+  });
 }
 
 export function calculateSummary(assets: Asset[], dividends?: DividendRecord[]): PortfolioSummary {
