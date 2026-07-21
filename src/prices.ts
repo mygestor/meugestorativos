@@ -3,6 +3,10 @@ const BRAPI_BASE = "https://brapi.dev/api";
 // Cache p/ evitar chamadas repetidas ao Yahoo (rate limit)
 const yahooCache = new Map<string, Promise<{ sum12m: number; price: number } | null>>();
 
+// Cloudflare Worker proxy - substitua pela sua URL após deploy
+// Exemplo: "https://gestor-yahoo-proxy.seu-usuario.workers.dev"
+const YAHOO_PROXY = "https://gestor-yahoo-proxy.mr-caastro.workers.dev";
+
 interface BrapiDividend {
   value: number;
   date: string;
@@ -132,7 +136,12 @@ async function fetchYahooDividends(ticker: string): Promise<{ sum12m: number; pr
     ];
     try {
       let data: any = null;
-      for (const proxy of PROXIES) {
+      // Ordem: Cloudflare Worker > direto > proxies legados
+      const allProxies = [
+        ...(YAHOO_PROXY ? [(url: string) => `${YAHOO_PROXY}?url=${encodeURIComponent(url)}`] : []),
+        ...PROXIES,
+      ];
+      for (const proxy of allProxies) {
         try {
           const url = proxy(base);
           const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
@@ -209,6 +218,7 @@ export async function fetchDividendFromBrapi(ticker: string): Promise<{ dividend
 
 // Fetch dividend per share from investidor10.com.br (fallback)
 const CORS_PROXIES = [
+  ...(YAHOO_PROXY ? [`${YAHOO_PROXY}?url=`] : []),
   "https://api.allorigins.win/raw?url=",
   "https://corsproxy.io/?",
   "https://api.codetabs.com/v1/proxy?quest=",
