@@ -122,9 +122,16 @@ export function AssetTable({ assets, hideValues, onEdit, onRefresh }: Props) {
               const isExpanded = expanded === a.id;
               const currentValue = a.currentPrice * a.quantity;
               const valueColor = currentValue >= a.investedAmount ? "text-income" : "text-expense";
-              const dyAnual = dyMap.get(a.ticker.toUpperCase()) || 0;
-              const precoJusto = a.dividendPerShare > 0 && dyAnual > 0
-                ? (a.dividendPerShare * 12) / (dyAnual / 100)
+              // DY Anual: Yahoo API ou cálculo local
+              const dyFromYahoo = dyMap.get(a.ticker.toUpperCase()) || 0;
+              const dyLocal = a.dividendPerShare > 0 && a.currentPrice > 0
+                ? Math.min((a.dividendPerShare * 12 / a.currentPrice) * 100, 30)
+                : 0;
+              const dyAnual = dyFromYahoo > 0 ? dyFromYahoo : dyLocal;
+              // Preço Justo: dividendPerShare * 12 / targetYield
+              const TARGET_YIELD = 0.08;
+              const precoJusto = a.dividendPerShare > 0
+                ? (a.dividendPerShare * 12) / TARGET_YIELD
                 : 0;
               return (
                 <tbody key={a.id} className="even:bg-surface/30">
