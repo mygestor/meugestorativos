@@ -71,20 +71,26 @@ export function FIIAnalysis({ fiiAssets, hideValues, onEdit, onRefresh }: Props)
   const [localAssets, setLocalAssets] = useState<Asset[]>(fiiAssets);
   const [dyB3Map, setDyB3Map] = useState<Map<string, number>>(new Map());
   const [apiDivPerShare, setApiDivPerShare] = useState<Map<string, number>>(new Map());
+  const [yahooPriceMap, setYahooPriceMap] = useState<Map<string, number>>(new Map());
 
   // Sync localAssets when prop changes
   if (localAssets !== fiiAssets && !fetchingDividendos) {
     setLocalAssets(fiiAssets);
   }
 
-  // Fetch DY 12m + dividend per share from APIs
+  // Fetch DY 12m + dividend per share from Yahoo
   useEffect(() => {
     const tickers = fiiAssets.map((a) => a.ticker);
     if (tickers.length === 0) return;
     fetchDY12m(tickers).then((map) => {
       const dyOnly = new Map<string, number>();
-      for (const [t, v] of map) dyOnly.set(t, v.dy12m);
+      const priceOnly = new Map<string, number>();
+      for (const [t, v] of map) {
+        dyOnly.set(t, v.dy12m);
+        priceOnly.set(t, v.price);
+      }
       setDyB3Map(dyOnly);
+      setYahooPriceMap(priceOnly);
     });
     fetchLastDividends(tickers).then((map) => {
       setApiDivPerShare(map);
@@ -155,14 +161,13 @@ export function FIIAnalysis({ fiiAssets, hideValues, onEdit, onRefresh }: Props)
       const magicNumber = divPerShare > 0 ? Math.ceil(settings.desiredDividend / divPerShare) : 0;
       const magicPrice = a.avgPrice > 0 ? a.avgPrice : a.currentPrice;
 
-      // DY anual: baseado em dividPerShare de mercado (API ou ativo)
-      // NÃO usa histórico de dividendos
-      const apiDiv = apiDivPerShare.get(a.ticker.toUpperCase());
+      // DY anual: APENAS do Yahoo (dyB3Map já calcula com preço correto do Yahoo)
       let dyB3 = dyB3Map.get(a.ticker.toUpperCase()) || 0;
-      
-      // Se API não retornou DY mas temos dividendo por cota, calcula
-      if (dyB3 === 0 && divPerShare > 0 && a.currentPrice > 0) {
-        dyB3 = Math.min((divPerShare * 12 / a.currentPrice) * 100, 30);
+      // Se Yahoo não retornou, calcula com preço do Yahoo se disponível
+      if (dyB3 === 0 && divPerShare > 0) {
+        const yhPrice = yahooPriceMap.get(a.ticker.toUpperCase());
+        const price = yhPrice && yhPrice > 0 ? yhPrice : a.currentPrice;
+        dyB3 = price > 0 ? Math.min((divPerShare * 12 / price) * 100, 30) : 0;
       }
 
       return {

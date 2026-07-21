@@ -124,7 +124,7 @@ async function fetchYahooDividends(ticker: string): Promise<{ sum12m: number; pr
   if (cached) return cached;
   const promise = (async () => {
     const yahooTicker = `${ticker}.SA`;
-    const base = `https://query2.finance.yahoo.com/v7/finance/chart/${yahooTicker}?range=2y&interval=1d&events=dividends`;
+    const base = `https://query2.finance.yahoo.com/v8/finance/chart/${yahooTicker}?range=2y&interval=1d&events=dividends`;
     const PROXIES = [
       (url: string) => url,
       (url: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
