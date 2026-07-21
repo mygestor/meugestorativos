@@ -276,13 +276,15 @@ export async function updateDividendsFromBrapi(
   onProgress: (ticker: string, status: 'ok' | 'error', dividendo?: number) => void
 ): Promise<number> {
   let updated = 0;
+  const { updateAsset, getAssets } = await import('./store');
+
   for (const ticker of tickers) {
     try {
+      // Prioridade 1: Yahoo Finance via Worker
       const yh = await fetchYahooDividends(ticker);
       if (yh && yh.sum12m > 0) {
         const lastDiv = yh.sum12m / 12;
         if (lastDiv > 0) {
-          const { updateAsset, getAssets } = await import('./store');
           const asset = getAssets().find((a) => a.ticker.toUpperCase() === ticker.toUpperCase());
           if (asset) {
             updateAsset(asset.id, { dividendPerShare: lastDiv });
@@ -292,12 +294,33 @@ export async function updateDividendsFromBrapi(
           }
         }
       }
-      // Limpa dado obsoleto quando Yahoo falha
-      const { updateAsset, getAssets } = await import('./store');
-      const asset = getAssets().find((a) => a.ticker.toUpperCase() === ticker.toUpperCase());
-      if (asset && asset.dividendPerShare > 0) {
-        updateAsset(asset.id, { dividendPerShare: 0 });
+
+      // Prioridade 2: brapi.dev
+      const brapi = await fetchDividendFromBrapi(ticker);
+      if (brapi && brapi.dividendo > 0) {
+        const asset = getAssets().find((a) => a.ticker.toUpperCase() === ticker.toUpperCase());
+        if (asset) {
+          updateAsset(asset.id, { dividendPerShare: brapi.dividendo });
+          updated++;
+          onProgress(ticker, 'ok', brapi.dividendo);
+          continue;
+        }
       }
+
+      // Prioridade 3: fiiDefaults (dados estáticos)
+      const { FII_DEFAULTS } = await import('./fiiDefaults');
+      const def = FII_DEFAULTS[ticker.toUpperCase()];
+      if (def && def.dividendPerShare > 0) {
+        const asset = getAssets().find((a) => a.ticker.toUpperCase() === ticker.toUpperCase());
+        if (asset) {
+          updateAsset(asset.id, { dividendPerShare: def.dividendPerShare });
+          updated++;
+          onProgress(ticker, 'ok', def.dividendPerShare);
+          continue;
+        }
+      }
+
+      // Prioridade 4: manter o dado existente (NÃO apagar)
       onProgress(ticker, 'error');
     } catch {
       onProgress(ticker, 'error');
@@ -350,6 +373,21 @@ export async function fetchDY12m(tickers: string[]): Promise<Map<string, { dy12m
     }
   }
 
+  // Fallback: fiiDefaults para tickers que não tiveram dados do Yahoo
+  if (result.size < tickers.length) {
+    const { FII_DEFAULTS } = await import('./fiiDefaults');
+    for (const ticker of tickers) {
+      if (!result.has(ticker.toUpperCase())) {
+        const def = FII_DEFAULTS[ticker.toUpperCase()];
+        if (def && def.dividendPerShare > 0 && def.currentPrice > 0) {
+          const annual = def.dividendPerShare * 12;
+          const dy12m = Math.min((annual / def.currentPrice) * 100, cap);
+          result.set(ticker.toUpperCase(), { dy12m, price: def.currentPrice, last12Sum: annual });
+        }
+      }
+    }
+  }
+
   return result;
 }
 
@@ -363,6 +401,19 @@ export async function fetchLastDividends(tickers: string[]): Promise<Map<string,
     if (yh && yh.sum12m > 0) {
       const lastDiv = yh.sum12m / 12;
       if (lastDiv > 0) result.set(tickers[i].toUpperCase(), lastDiv);
+    }
+  }
+
+  // Fallback: fiiDefaults para tickers sem dados do Yahoo
+  if (result.size < tickers.length) {
+    const { FII_DEFAULTS } = await import('./fiiDefaults');
+    for (const ticker of tickers) {
+      if (!result.has(ticker.toUpperCase())) {
+        const def = FII_DEFAULTS[ticker.toUpperCase()];
+        if (def && def.dividendPerShare > 0) {
+          result.set(ticker.toUpperCase(), def.dividendPerShare);
+        }
+      }
     }
   }
 
