@@ -22,7 +22,14 @@ export function TradeTable({ trades, hideValues, onRefresh, onEdit }: Props) {
   const [filterTicker, setFilterTicker] = useState("");
 
   const calculated = useMemo(() => {
-    const sorted = [...trades].sort((a, b) => (a.date + a.id).localeCompare(b.date + b.id));
+    const sorted = [...trades].sort((a, b) => {
+      const dateCmp = a.date.localeCompare(b.date);
+      if (dateCmp !== 0) return dateCmp;
+      // No mesmo dia: compra antes de venda
+      if (a.quantity > 0 && b.quantity < 0) return -1;
+      if (a.quantity < 0 && b.quantity > 0) return 1;
+      return a.id.localeCompare(b.id);
+    });
     const byTicker: Record<string, { shares: number; invested: number }> = {};
     return sorted.map((t) => {
       const qty = t.quantity;
