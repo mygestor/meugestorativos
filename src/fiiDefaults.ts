@@ -21,7 +21,7 @@ export const FII_DEFAULTS: Record<string, { currentPrice: number; dividendPerSha
   
   // Fundos Híbridos
   RZTR11: { currentPrice: 88.09, dividendPerShare: 1.0 },
-  KLBNTI: { currentPrice: 19.1, dividendPerShare: 0.08 },
+  KLBN11: { currentPrice: 19.1, dividendPerShare: 0.08 },
   KNRI11: { currentPrice: 156.0, dividendPerShare: 1.0 },
   KNCR11: { currentPrice: 108.5, dividendPerShare: 1.35 },
   
