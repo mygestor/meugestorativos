@@ -1,4 +1,5 @@
 const BRAPI_BASE = "https://brapi.dev/api";
+const BRAPI_TOKEN = "cP3aB5r1TD7C8fjNYW5F14";
 
 // Cache p/ evitar chamadas repetidas ao Yahoo (rate limit)
 const yahooCache = new Map<string, Promise<{ sum12m: number; price: number } | null>>();
@@ -32,7 +33,7 @@ interface BrapiResponse {
 async function fetchQuotes(tickers: string[]): Promise<Map<string, BrapiQuote>> {
   if (tickers.length === 0) return new Map();
   const tickersStr = tickers.join(",");
-  const url = `${BRAPI_BASE}/quote/${tickersStr}?fundamental=false&dividends=true`;
+  const url = `${BRAPI_BASE}/quote/${tickersStr}?fundamental=false&dividends=true&token=${BRAPI_TOKEN}`;
   
   try {
     const response = await fetch(url);
