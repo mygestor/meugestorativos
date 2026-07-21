@@ -359,7 +359,25 @@ export async function fetchDY12m(tickers: string[]): Promise<Map<string, { dy12m
     }
   }
 
-  // Fallback: fiiDefaults para tickers que não tiveram dados do Yahoo
+  // Para AÇÕES (ticker termina em 3/4), tenta Investidor10 (exclui JCP)
+  const stockTickers = tickers.filter((t) => {
+    const u = t.toUpperCase();
+    return !result.has(u) && /\d[34]$/.test(u);
+  });
+  for (const ticker of stockTickers) {
+    try {
+      const inv = await fetchDividendFromInvestidor10(ticker);
+      if (inv && inv.dy > 0) {
+        const price = result.get(ticker.toUpperCase())?.price || 0;
+        if (price > 0) {
+          result.set(ticker.toUpperCase(), { dy12m: inv.dy, price, last12Sum: (inv.dy / 100) * price });
+          continue;
+        }
+      }
+    } catch { /* ignore */ }
+  }
+
+  // Fallback: fiiDefaults para tickers que não tiveram dados
   if (result.size < tickers.length) {
     const { FII_DEFAULTS } = await import('./fiiDefaults');
     for (const ticker of tickers) {
@@ -390,7 +408,28 @@ export async function fetchLastDividends(tickers: string[]): Promise<Map<string,
     }
   }
 
-  // Fallback: fiiDefaults para tickers sem dados do Yahoo
+  // Para AÇÕES, tenta Investidor10 (exclui JCP)
+  const stockTickers = tickers.filter((t) => {
+    const u = t.toUpperCase();
+    return !result.has(u) && /\d[34]$/.test(u);
+  });
+  for (const ticker of stockTickers) {
+    try {
+      const inv = await fetchDividendFromInvestidor10(ticker);
+      if (inv && inv.dy > 0) {
+        const price = result.get(ticker.toUpperCase()) || 0;
+        // dy é percentual, dividendo = dy * price / 100 / 12
+        const priceFromYahoo = (await fetchYahooDividends(ticker))?.price || 0;
+        if (priceFromYahoo > 0) {
+          const monthly = (inv.dy / 100) * priceFromYahoo / 12;
+          result.set(ticker.toUpperCase(), monthly);
+          continue;
+        }
+      }
+    } catch { /* ignore */ }
+  }
+
+  // Fallback: fiiDefaults para tickers sem dados
   if (result.size < tickers.length) {
     const { FII_DEFAULTS } = await import('./fiiDefaults');
     for (const ticker of tickers) {
