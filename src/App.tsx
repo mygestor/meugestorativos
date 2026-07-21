@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import type { Asset, DividendRecord, ContributionRecord, TradeRecord } from "./types";
-import { getAssets, getDividends, getContributions, getTrades, calculateSummary, addAsset, clearAll, clearDividends, clearContributions, importFullBackup, importSeedData, cleanupOrphanAssets, reclassifyAssets } from "./store";
+import { getAssets, getDividends, getContributions, getTrades, calculateSummary, addAsset, clearAll, clearDividends, clearContributions, importFullBackup, importSeedData, cleanupOrphanAssets, reclassifyAssets, initFromRemoteData, exportAllData } from "./store";
 import { syncAssetsFromTrades } from "./assetHelper";
 import { Dashboard } from "./components/Dashboard";
 import { AssetTable } from "./components/AssetTable";
@@ -67,7 +67,7 @@ export default function App() {
   }
 
   useEffect(() => {
-    refresh();
+    initFromRemoteData().then(() => refresh());
   }, []);
 
   // Auto-fetch dividends on load with retry
@@ -120,18 +120,12 @@ export default function App() {
   }
 
   function handleExport() {
-    const payload = {
-      assets: getAssets(),
-      dividends: getDividends(),
-      contributions: getContributions(),
-      trades: getTrades(),
-      exportedAt: new Date().toISOString(),
-    };
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+    const data = exportAllData();
+    const blob = new Blob([data], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `gestor-ativos-full-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = "data.json";
     a.click();
     URL.revokeObjectURL(url);
   }

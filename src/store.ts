@@ -27,6 +27,45 @@ function save<T>(key: string, data: T[]) {
 function loadAssets(): Asset[] { return load<Asset>(STORAGE_KEY); }
 function saveAssets(assets: Asset[]) { save(STORAGE_KEY, assets); }
 
+const DATA_JSON_URL = "/data.json";
+
+export async function initFromRemoteData(): Promise<boolean> {
+  if (loadAssets().length > 0) return false;
+  try {
+    const res = await fetch(DATA_JSON_URL);
+    if (!res.ok) return false;
+    const data = await res.json();
+    if (data.assets && data.assets.length > 0) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data.assets));
+    }
+    if (data.dividends && data.dividends.length > 0) {
+      localStorage.setItem(DIVIDEND_KEY, JSON.stringify(data.dividends));
+    }
+    if (data.contributions && data.contributions.length > 0) {
+      localStorage.setItem(APORTE_KEY, JSON.stringify(data.contributions));
+    }
+    if (data.trades && data.trades.length > 0) {
+      localStorage.setItem(TRADE_KEY, JSON.stringify(data.trades));
+    }
+    if (data.lots && data.lots.length > 0) {
+      localStorage.setItem(LOT_KEY, JSON.stringify(data.lots));
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function exportAllData(): string {
+  return JSON.stringify({
+    assets: loadAssets(),
+    dividends: load<DividendRecord>(DIVIDEND_KEY),
+    contributions: load<ContributionRecord>(APORTE_KEY),
+    trades: load<TradeRecord>(TRADE_KEY),
+    lots: load<Lot>(LOT_KEY),
+  }, null, 2);
+}
+
 export function getAssets(): Asset[] {
   return loadAssets();
 }
