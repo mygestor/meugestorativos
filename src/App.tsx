@@ -50,6 +50,8 @@ export default function App() {
     const saved = localStorage.getItem("gestor-theme");
     return saved === "light" ? "light" : "dark";
   });
+  const [appName, setAppName] = useState(() => localStorage.getItem("gestor-app-name") || "Gestor de Ativos");
+  const [editingName, setEditingName] = useState(false);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
@@ -263,7 +265,24 @@ export default function App() {
           <div className="flex items-center gap-3">
             <TrendingUp className="size-5 text-primary" />
             <div>
-              <h1 className="font-bold text-base leading-tight">Gestor de Ativos</h1>
+              {editingName ? (
+                <input
+                  autoFocus
+                  value={appName}
+                  onChange={(e) => setAppName(e.target.value)}
+                  onBlur={() => { setEditingName(false); localStorage.setItem("gestor-app-name", appName); }}
+                  onKeyDown={(e) => { if (e.key === "Enter") { setEditingName(false); localStorage.setItem("gestor-app-name", appName); } }}
+                  className="font-bold text-base leading-tight bg-surface border border-border rounded-lg px-2 py-0.5 text-foreground w-56"
+                />
+              ) : (
+                <h1
+                  className="font-bold text-base leading-tight cursor-pointer hover:text-primary transition-colors"
+                  onClick={() => setEditingName(true)}
+                  title="Clique para editar"
+                >
+                  {appName}
+                </h1>
+              )}
               <p className="text-xs text-muted leading-tight">Portfólio de Investimentos</p>
             </div>
           </div>
