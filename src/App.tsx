@@ -22,11 +22,15 @@ import { DividendAlerts } from "./components/DividendAlerts";
 import { DividendCalendar } from "./components/DividendCalendar";
 import { UpdateToast } from "./components/UpdateToast";
 import { FIIAnalysis } from "./components/FIIAnalysis";
+import { GoogleLogin, getStoredUser, logout, type GoogleUser } from "./components/GoogleLogin";
 import { TrendingUp, Plus, Upload, Download, Trash2, Eye, EyeOff, LayoutDashboard, Briefcase, HandCoins, PiggyBank, ArrowLeftRight, Target, FileText, Building2 } from "lucide-react";
 
 type Tab = "dashboard" | "assets" | "dividendos" | "aportes" | "trades" | "planejamento" | "analise-fii";
 
+const GOOGLE_CLIENT_ID = "364366329582-PLACEHOLDER.apps.googleusercontent.com";
+
 export default function App() {
+  const [user, setUser] = useState<GoogleUser | null>(getStoredUser);
   const [assets, setAssets] = useState<Asset[]>([]);
   const [dividends, setDividends] = useState<DividendRecord[]>([]);
   const [contributions, setContributions] = useState<ContributionRecord[]>([]);
@@ -258,6 +262,10 @@ export default function App() {
   const fiiAssets = useMemo(() => assets.filter((a) => a.type === "FII"), [assets]);
   const stockAssets = useMemo(() => assets.filter((a) => a.type !== "FII"), [assets]);
 
+  if (!user && GOOGLE_CLIENT_ID && !GOOGLE_CLIENT_ID.includes("PLACEHOLDER")) {
+    return <GoogleLogin clientId={GOOGLE_CLIENT_ID} onLogin={setUser} />;
+  }
+
   return (
     <div className="min-h-screen bg-surface">
       <header className="border-b border-border bg-card sticky top-0 z-40">
@@ -287,6 +295,14 @@ export default function App() {
             </div>
           </div>
           <div className="flex items-center gap-1">
+            {user?.picture && <img src={user.picture} alt={user.name} className="size-7 rounded-full" title={user.name} />}
+            {user && <button
+              onClick={logout}
+              className="px-2 py-1 rounded-lg text-[10px] text-muted hover:text-foreground transition-colors"
+              title="Sair"
+            >
+              Sair
+            </button>}
             <button
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
               className="p-2 rounded-lg hover:bg-card-hover text-muted transition-colors"
