@@ -149,9 +149,25 @@ async function fetchYahooDividends(ticker: string): Promise<{ sum12m: number; pr
       const now = Date.now() / 1000;
       const oneYearAgo = now - 365 * 24 * 3600;
       let sum12m = 0;
-      for (const key of Object.keys(dividends)) {
-        const d = dividends[key];
-        if (d.date >= oneYearAgo) sum12m += d.amount;
+      let count = 0;
+      // Pega as últimas 12 distribuições dos últimos 2 anos
+      const entries = Object.keys(dividends)
+        .map((k) => dividends[k])
+        .filter((d) => d.date >= now - 730 * 24 * 3600)
+        .sort((a, b) => b.date - a.date);
+      for (const d of entries) {
+        if (count >= 12) break;
+        if (d.date >= oneYearAgo) {
+          sum12m += d.amount;
+          count++;
+        }
+      }
+      // Se não tem 12 pagamentos no último ano, pega os últimos 12 independentemente
+      if (count < 12) {
+        sum12m = 0;
+        for (const d of entries.slice(0, 12)) {
+          sum12m += d.amount;
+        }
       }
       return { sum12m, price };
     } catch {
