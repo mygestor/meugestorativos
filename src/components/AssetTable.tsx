@@ -7,7 +7,7 @@ import { PriceUpdateDialog } from "./PriceUpdateDialog";
 import { AssetLogo } from "./AssetLogo";
 import { AssetDetailPanel } from "./AssetDetailPanel";
 import { LotsView } from "./LotsView";
-import { fetchDY12m, fetchProventosCached } from "../prices";
+import { fetchDY12m } from "../prices";
 
 interface Props {
   assets: Asset[];
@@ -29,7 +29,6 @@ export function AssetTable({ assets, hideValues, onEdit, onRefresh }: Props) {
   const [lotAsset, setLotAsset] = useState<Asset | null>(null);
   const [dyMap, setDyMap] = useState<Map<string, number>>(new Map());
   const [priceMap, setPriceMap] = useState<Map<string, number>>(new Map());
-  const [proventosMap, setProventosMap] = useState<Map<string, { dividendos: number; jcp: number; total: number }>>(new Map());
   const allDividends = getDividends();
 
   useEffect(() => {
@@ -44,13 +43,6 @@ export function AssetTable({ assets, hideValues, onEdit, onRefresh }: Props) {
       }
       setDyMap(dy);
       setPriceMap(pr);
-    });
-    const proventosResults = new Map<string, { dividendos: number; jcp: number; total: number }>();
-    Promise.all(tickers.map((t) => fetchProventosCached(t))).then((results) => {
-      results.forEach((p, i) => {
-        if (p) proventosResults.set(tickers[i].toUpperCase(), p);
-      });
-      setProventosMap(proventosResults);
     });
   }, [assets]);
 
@@ -123,7 +115,7 @@ export function AssetTable({ assets, hideValues, onEdit, onRefresh }: Props) {
                 <th className="p-3 text-right hidden lg:table-cell"><span className="text-xs font-medium">Ganho/Perda</span></th>
                 <th className="p-3 text-right hidden lg:table-cell"><span className="text-xs font-medium">Preço Médio</span></th>
                 <th className="p-3 text-right hidden lg:table-cell"><span className="text-xs font-medium">Preço Justo</span></th>
-                <th className="p-3 text-right"><span className="text-xs font-medium">DY Anual</span></th>
+                <th className="p-3 text-right"><span className="text-xs font-medium">DY Anual<br/><span className="text-[10px] text-muted font-normal">(com JCP)</span></span></th>
                 <th className="p-3 text-right w-20" />
               </tr>
             </thead>
@@ -203,20 +195,7 @@ export function AssetTable({ assets, hideValues, onEdit, onRefresh }: Props) {
                           <DetailItem label="Total Necessário" value={mask(a.targetTotal, hideValues)} />
                           <DetailItem label="Cotas Necessárias" value={String(a.sharesNeeded)} />
                           <DetailItem label="Falta" value={mask(a.missing, hideValues)} />
-                          <DetailItem label="DY Anual" value={dyAnual > 0 ? `${dyAnual.toFixed(2)}%` : "-"} />
-                          {(() => {
-                            const prov = proventosMap.get(a.ticker.toUpperCase());
-                            if (prov && prov.jcp > 0) {
-                              const dySemJcp = a.currentPrice > 0 ? ((prov.dividendos / a.currentPrice) * 100) : 0;
-                              return (
-                                <>
-                                  <DetailItem label="JCP/Ano" value={mask(prov.jcp, hideValues)} />
-                                  <DetailItem label="DY S/ JCP" value={`${dySemJcp.toFixed(2)}%`} />
-                                </>
-                              );
-                            }
-                            return null;
-                          })()}
+                          <DetailItem label="DY Anual (com JCP)" value={dyAnual > 0 ? `${dyAnual.toFixed(2)}%` : "-"} />
                           <DetailItem label="Preço Justo" value={precoJusto > 0 ? mask(precoJusto, hideValues) : "-"} />
                           <DetailItem label="Dia Pagamento" value={a.paymentDay ? `Dia ${a.paymentDay}` : "-"} />
                           <div>
