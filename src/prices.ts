@@ -359,25 +359,7 @@ export async function fetchDY12m(tickers: string[]): Promise<Map<string, { dy12m
     }
   }
 
-  // Para AÇÕES (ticker termina em 3/4), tenta Investidor10 (exclui JCP)
-  const stockTickers = tickers.filter((t) => {
-    const u = t.toUpperCase();
-    return !result.has(u) && /\d[34]$/.test(u);
-  });
-  for (const ticker of stockTickers) {
-    try {
-      const inv = await fetchDividendFromInvestidor10(ticker);
-      if (inv && inv.dy > 0) {
-        const price = result.get(ticker.toUpperCase())?.price || 0;
-        if (price > 0) {
-          result.set(ticker.toUpperCase(), { dy12m: inv.dy, price, last12Sum: (inv.dy / 100) * price });
-          continue;
-        }
-      }
-    } catch { /* ignore */ }
-  }
-
-  // Fallback: fiiDefaults para tickers que não tiveram dados
+  // Fallback: fiiDefaults para tickers que não tiveram dados do Yahoo
   if (result.size < tickers.length) {
     const { FII_DEFAULTS } = await import('./fiiDefaults');
     for (const ticker of tickers) {
@@ -408,28 +390,7 @@ export async function fetchLastDividends(tickers: string[]): Promise<Map<string,
     }
   }
 
-  // Para AÇÕES, tenta Investidor10 (exclui JCP)
-  const stockTickers = tickers.filter((t) => {
-    const u = t.toUpperCase();
-    return !result.has(u) && /\d[34]$/.test(u);
-  });
-  for (const ticker of stockTickers) {
-    try {
-      const inv = await fetchDividendFromInvestidor10(ticker);
-      if (inv && inv.dy > 0) {
-        const price = result.get(ticker.toUpperCase()) || 0;
-        // dy é percentual, dividendo = dy * price / 100 / 12
-        const priceFromYahoo = (await fetchYahooDividends(ticker))?.price || 0;
-        if (priceFromYahoo > 0) {
-          const monthly = (inv.dy / 100) * priceFromYahoo / 12;
-          result.set(ticker.toUpperCase(), monthly);
-          continue;
-        }
-      }
-    } catch { /* ignore */ }
-  }
-
-  // Fallback: fiiDefaults para tickers sem dados
+  // Fallback: fiiDefaults para tickers sem dados do Yahoo
   if (result.size < tickers.length) {
     const { FII_DEFAULTS } = await import('./fiiDefaults');
     for (const ticker of tickers) {
@@ -459,4 +420,57 @@ export function calcMonthlyDividendPerShare(
 ): number {
   if (!dividendYield || !price) return 0;
   return (dividendYield * price) / 12;
+}
+
+// Busca proventos do Investidor10 e separa Dividendos de JCP (últimos 12 meses)
+export async function fetchProventos(ticker: string): Promise<{ dividendos: number; jcp: number; total: number } | null> {
+  try {
+    const isFii = ticker.toUpperCase().endsWith('11');
+    const path = isFii ? `fiis/${ticker.toLowerCase()}` : `acoes/${ticker.toLowerCase()}`;
+    const html = await fetchViaProxy(`https://investidor10.com.br/${path}/proventos/`);
+    if (!html) return null;
+
+    const now = Date.now();
+    const oneYearAgo = now - 365 * 86400 * 1000;
+
+    // Padrão: <td>Tipo</td><td>Data</td><td>Pagamento</td><td>Valor</td>
+    const pattern = /<td[^>]*>\s*(JSCP|JCP|Dividendo[s]?|Rend[^<]*)\s*<\/td>\s*<td[^>]*>\s*(\d{2}\/\d{2}\/\d{4})\s*<\/td>\s*<td[^>]*>\s*(\d{2}\/\d{2}\/\d{4})\s*<\/td>\s*<td[^>]*>\s*([\d.,]+)\s*<\/td>/gi;
+
+    let dividendos = 0;
+    let jcp = 0;
+    let match;
+
+    while ((match = pattern.exec(html)) !== null) {
+      const [, tipo, dataCom, , valorStr] = match;
+      const dm = dataCom.match(/(\d{2})\/(\d{2})\/(\d{4})/);
+      if (!dm) continue;
+      const dt = new Date(parseInt(dm[3]), parseInt(dm[2]) - 1, parseInt(dm[1]));
+      if (dt.getTime() < oneYearAgo) continue;
+
+      const valor = parseFloat(valorStr.replace(/\./g, '').replace(',', '.'));
+      if (isNaN(valor) || valor <= 0) continue;
+
+      const t = tipo.toUpperCase();
+      if (t.includes('JCP') || t.includes('JSCP')) {
+        jcp += valor;
+      } else {
+        dividendos += valor;
+      }
+    }
+
+    return { dividendos, jcp, total: dividendos + jcp };
+  } catch {
+    return null;
+  }
+}
+
+// Cache de proventos
+const proventosCache = new Map<string, Promise<{ dividendos: number; jcp: number; total: number } | null>>();
+
+export async function fetchProventosCached(ticker: string) {
+  const cached = proventosCache.get(ticker.toUpperCase());
+  if (cached) return cached;
+  const promise = fetchProventos(ticker);
+  proventosCache.set(ticker.toUpperCase(), promise);
+  return promise;
 }

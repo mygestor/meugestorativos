@@ -2,7 +2,7 @@ import { useMemo, useState, useCallback, useEffect } from "react";
 import type { Asset, DividendRecord, TradeRecord } from "../types";
 import { formatCurrency, formatPercent, formatCompact } from "../format";
 import { getDividends, getTrades, updateAsset } from "../store";
-import { fetchDY12m, fetchLastDividends } from "../prices";
+import { fetchDY12m, fetchLastDividends, fetchProventosCached } from "../prices";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, AreaChart, Area } from "recharts";
 import { Settings, ChevronDown, ChevronUp, SlidersHorizontal, TrendingUp, DollarSign, Target, BarChart3, Lightbulb, Search, RefreshCw, Check, AlertTriangle } from "lucide-react";
 
@@ -31,6 +31,7 @@ interface FIIRow {
   monthsToTarget: number;
   magicNumber: number;
   magicPrice: number;
+  proventos: { dividendos: number; jcp: number; total: number } | null;
 }
 
 const PIE_COLORS = ["#10b981", "#3b82f6", "#f59e0b", "#8b5cf6", "#ec4899", "#14b8a6", "#f97316", "#ef4444", "#6366f1", "#84cc16"];
@@ -72,6 +73,7 @@ export function FIIAnalysis({ fiiAssets, hideValues, onEdit, onRefresh }: Props)
   const [dyB3Map, setDyB3Map] = useState<Map<string, number>>(new Map());
   const [apiDivPerShare, setApiDivPerShare] = useState<Map<string, number>>(new Map());
   const [yahooPriceMap, setYahooPriceMap] = useState<Map<string, number>>(new Map());
+  const [proventosMap, setProventosMap] = useState<Map<string, { dividendos: number; jcp: number; total: number }>>(new Map());
 
   // Sync localAssets when prop changes
   if (localAssets !== fiiAssets && !fetchingDividendos) {
@@ -94,6 +96,14 @@ export function FIIAnalysis({ fiiAssets, hideValues, onEdit, onRefresh }: Props)
     });
     fetchLastDividends(tickers).then((map) => {
       setApiDivPerShare(map);
+    });
+    // Buscar proventos (Dividendos + JCP) do Investidor10
+    const proventosResults = new Map<string, { dividendos: number; jcp: number; total: number }>();
+    Promise.all(tickers.map((t) => fetchProventosCached(t))).then((results) => {
+      results.forEach((p, i) => {
+        if (p) proventosResults.set(tickers[i].toUpperCase(), p);
+      });
+      setProventosMap(proventosResults);
     });
   }, [fiiAssets]);
 
@@ -188,9 +198,10 @@ export function FIIAnalysis({ fiiAssets, hideValues, onEdit, onRefresh }: Props)
         monthsToTarget,
         magicNumber,
         magicPrice,
+        proventos: proventosMap.get(a.ticker.toUpperCase()) || null,
       };
     });
-  }, [localAssets, allDividends, settings.desiredDividend, dyB3Map, apiDivPerShare]);
+  }, [localAssets, allDividends, settings.desiredDividend, dyB3Map, apiDivPerShare, proventosMap]);
 
   // Summary calculations
   const summary = useMemo(() => {
@@ -469,6 +480,12 @@ export function FIIAnalysis({ fiiAssets, hideValues, onEdit, onRefresh }: Props)
               <MiniBox label="Retorno Anual" value={mask$(r.realMonthlyDiv * 12)} color="text-income" />
               <MiniBox label="DY Mensal" value={formatPercent(r.divYieldMensal)} color={yieldColor(r.divYieldMensal)} />
                {r.dyB3 > 0 && <MiniBox label="DY 12M" value={formatPercent(r.dyB3)} color={yieldColor(r.dyB3 / 12)} />}
+              {r.proventos && r.proventos.jcp > 0 && (
+                <>
+                  <MiniBox label="JCP/Ano" value={mask$(r.proventos.jcp)} color="text-blue-400" />
+                  <MiniBox label="DY S/ JCP" value={r.asset.currentPrice > 0 ? formatPercent((r.proventos.dividendos / r.asset.currentPrice) * 100) : "-"} color={yieldColor((r.proventos.dividendos / r.asset.currentPrice) * 100)} />
+                </>
+              )}
               <MiniBox label="Valor Atual" value={mask$(r.currentValue)}
                 color={r.gainLoss >= 0 ? "text-income" : "text-expense"} />
               <MiniBox label="Ganho/Perda" value={mask$(r.gainLoss)}
