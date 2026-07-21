@@ -124,14 +124,25 @@ async function fetchYahooDividends(ticker: string): Promise<{ sum12m: number; pr
   if (cached) return cached;
   const promise = (async () => {
     const yahooTicker = `${ticker}.SA`;
+    const base = `https://query2.finance.yahoo.com/v7/finance/chart/${yahooTicker}?range=2y&interval=1d&events=dividends`;
+    const PROXIES = [
+      (url: string) => url,
+      (url: string) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
+      (url: string) => `https://corsproxy.io/?${encodeURIComponent(url)}`,
+    ];
     try {
-      console.log('Yahoo fetch', yahooTicker);
-      const url = `https://query2.finance.yahoo.com/v7/finance/chart/${yahooTicker}?range=2y&interval=1d&events=dividends`;
-      const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" } });
-      if (!res.ok) { console.warn('Yahoo', ticker, 'status', res.status); return null; }
-      const data = await res.json();
-      const result = data?.chart?.result?.[0];
-      if (!result) return null;
+      let data: any = null;
+      for (const proxy of PROXIES) {
+        try {
+          const url = proxy(base);
+          const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
+          if (!res.ok) continue;
+          const json = await res.json();
+          if (json?.chart?.result?.[0]) { data = json; break; }
+        } catch { continue; }
+      }
+      if (!data) return null;
+      const result = data.chart.result[0];
       const price = result.meta?.regularMarketPrice ?? 0;
       const dividends = result.events?.dividends;
       if (!dividends) return { sum12m: 0, price };
@@ -142,10 +153,8 @@ async function fetchYahooDividends(ticker: string): Promise<{ sum12m: number; pr
         const d = dividends[key];
         if (d.date >= oneYearAgo) sum12m += d.amount;
       }
-      console.log('Yahoo OK', yahooTicker, 'sum12m:', sum12m, 'price:', price);
       return { sum12m, price };
-    } catch (e) {
-      console.warn('Yahoo error', yahooTicker, e);
+    } catch {
       return null;
     }
   })();

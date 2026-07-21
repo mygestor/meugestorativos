@@ -29,6 +29,7 @@ export function AssetTable({ assets, hideValues, onEdit, onRefresh }: Props) {
   const [lotAsset, setLotAsset] = useState<Asset | null>(null);
   const [dyMap, setDyMap] = useState<Map<string, number>>(new Map());
   const [priceMap, setPriceMap] = useState<Map<string, number>>(new Map());
+  const allDividends = getDividends();
 
   useEffect(() => {
     const tickers = assets.map((a) => a.ticker);
@@ -122,16 +123,11 @@ export function AssetTable({ assets, hideValues, onEdit, onRefresh }: Props) {
               const isExpanded = expanded === a.id;
               const currentValue = a.currentPrice * a.quantity;
               const valueColor = currentValue >= a.investedAmount ? "text-income" : "text-expense";
-              // DY Anual: Yahoo API ou cálculo local
-              const dyFromYahoo = dyMap.get(a.ticker.toUpperCase()) || 0;
-              const dyLocal = a.dividendPerShare > 0 && a.currentPrice > 0
-                ? Math.min((a.dividendPerShare * 12 / a.currentPrice) * 100, 30)
-                : 0;
-              const dyAnual = dyFromYahoo > 0 ? dyFromYahoo : dyLocal;
-              // Preço Justo: dividendPerShare * 12 / targetYield
-              const TARGET_YIELD = 0.08;
-              const precoJusto = a.dividendPerShare > 0
-                ? (a.dividendPerShare * 12) / TARGET_YIELD
+              // DY Anual: apenas Yahoo API
+              const dyAnual = dyMap.get(a.ticker.toUpperCase()) || 0;
+              // Preço Justo: preço do Yahoo × (DY alvo ÷ DY real)
+              const precoJusto = dyAnual > 0 && a.currentPrice > 0
+                ? a.currentPrice * (8 / dyAnual)
                 : 0;
               return (
                 <tbody key={a.id} className="even:bg-surface/30">
