@@ -33,7 +33,7 @@ interface BrapiResponse {
 async function fetchQuotes(tickers: string[]): Promise<Map<string, BrapiQuote>> {
   if (tickers.length === 0) return new Map();
   const tickersStr = tickers.join(",");
-  const url = `${BRAPI_BASE}/quote/${tickersStr}?fundamental=false&dividends=true&token=${BRAPI_TOKEN}`;
+  const url = `${BRAPI_BASE}/quote/${tickersStr}?fundamental=false&token=${BRAPI_TOKEN}`;
   
   try {
     const response = await fetch(url);
@@ -74,7 +74,7 @@ export async function updatePrices(
 ): Promise<number> {
   const tickers = assets.map((a) => a.ticker);
   let updated = 0;
-  const chunkSize = 10;
+  const chunkSize = 1;
   for (let i = 0; i < tickers.length; i += chunkSize) {
     const chunk = tickers.slice(i, i + chunkSize);
     try {
