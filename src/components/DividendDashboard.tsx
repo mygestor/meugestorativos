@@ -103,9 +103,14 @@ export function DividendDashboard({ dividends, hideValues, onRefresh }: Props) {
   const hasActiveFilters = filterType || filterYears.length > 0 || selectedTicker;
 
   const avgMonthly = useMemo(() => {
-    if (totalFiltered <= 0) return 0;
-    return totalFiltered / 12;
-  }, [totalFiltered]);
+    const currentYear = new Date().getFullYear();
+    let data = filtered;
+    if (filterYears.length === 0) {
+      data = data.filter((d) => d.year === currentYear);
+    }
+    const total = data.reduce((s, d) => s + d.totalValue, 0);
+    return total / 12;
+  }, [filtered, filterYears]);
 
   const avgAnnual = avgMonthly * 12;
 
