@@ -492,7 +492,7 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
                   <div key={s.name}>
                     <button
                       className={`w-full text-left rounded-lg p-2 transition-all ${isSelected ? "bg-surface ring-1 ring-border" : "hover:bg-surface/50"}`}
-                      onClick={() => setSelectedSegment(prev => prev === seg ? null : seg)}
+                      onClick={() => setSelectedSegment(prev => prev === s.name ? null : s.name)}
                     >
                       <div className="flex items-center justify-between text-xs mb-1">
                         <div className="flex items-center gap-2">
