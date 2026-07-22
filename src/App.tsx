@@ -22,15 +22,17 @@ import { DividendAlerts } from "./components/DividendAlerts";
 import { DividendCalendar } from "./components/DividendCalendar";
 import { UpdateToast } from "./components/UpdateToast";
 import { FIIAnalysis } from "./components/FIIAnalysis";
-import { GoogleLogin, getStoredUser, logout, type GoogleUser } from "./components/GoogleLogin";
+import { logoutFirebase, onAuthChange, isFirebaseConfigured } from "./firebase";
+import { FirebaseLogin } from "./components/FirebaseLogin";
 import { TrendingUp, Plus, Upload, Download, Trash2, Eye, EyeOff, LayoutDashboard, Briefcase, HandCoins, PiggyBank, ArrowLeftRight, Target, FileText, Building2 } from "lucide-react";
 
 type Tab = "dashboard" | "assets" | "dividendos" | "aportes" | "trades" | "planejamento" | "analise-fii";
 
-const GOOGLE_CLIENT_ID = "364366329582-PLACEHOLDER.apps.googleusercontent.com";
+type FirebaseUser = { uid: string; displayName: string | null; email: string | null; photoURL: string | null };
 
 export default function App() {
-  const [user, setUser] = useState<GoogleUser | null>(getStoredUser);
+  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [assets, setAssets] = useState<Asset[]>([]);
   const [dividends, setDividends] = useState<DividendRecord[]>([]);
   const [contributions, setContributions] = useState<ContributionRecord[]>([]);
@@ -61,6 +63,18 @@ export default function App() {
     document.documentElement.setAttribute("data-theme", theme);
     localStorage.setItem("gestor-theme", theme);
   }, [theme]);
+
+  useEffect(() => {
+    const unsub = onAuthChange((fbUser) => {
+      if (fbUser) {
+        setFirebaseUser({ uid: fbUser.uid, displayName: fbUser.displayName, email: fbUser.email, photoURL: fbUser.photoURL });
+      } else {
+        setFirebaseUser(null);
+      }
+      setAuthLoading(false);
+    });
+    return unsub;
+  }, []);
 
   const summary = useMemo(() => calculateSummary(assets, dividends), [assets, dividends]);
 
@@ -262,8 +276,16 @@ export default function App() {
   const fiiAssets = useMemo(() => assets.filter((a) => a.type === "FII"), [assets]);
   const stockAssets = useMemo(() => assets.filter((a) => a.type !== "FII"), [assets]);
 
-  if (!user && GOOGLE_CLIENT_ID && !GOOGLE_CLIENT_ID.includes("PLACEHOLDER")) {
-    return <GoogleLogin clientId={GOOGLE_CLIENT_ID} onLogin={setUser} />;
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-surface flex items-center justify-center">
+        <div className="text-muted text-sm">Carregando...</div>
+      </div>
+    );
+  }
+
+  if (isFirebaseConfigured() && !firebaseUser) {
+    return <FirebaseLogin onLogin={() => {}} />;
   }
 
   return (
@@ -295,9 +317,9 @@ export default function App() {
             </div>
           </div>
           <div className="flex items-center gap-1">
-            {user?.picture && <img src={user.picture} alt={user.name} className="size-7 rounded-full" title={user.name} />}
-            {user && <button
-              onClick={logout}
+            {firebaseUser?.photoURL && <img src={firebaseUser.photoURL} alt={firebaseUser.displayName || ""} className="size-7 rounded-full" title={firebaseUser.displayName || firebaseUser.email || ""} />}
+            {firebaseUser && <button
+              onClick={logoutFirebase}
               className="px-2 py-1 rounded-lg text-[10px] text-muted hover:text-foreground transition-colors"
               title="Sair"
             >
