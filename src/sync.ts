@@ -1,60 +1,30 @@
-import { doc, getDoc, setDoc } from "firebase/firestore";
-import { firestore } from "./firebase";
-import type { Asset, DividendRecord, ContributionRecord, TradeRecord, Lot } from "./types";
+import { loadRemoteData, saveRemoteData } from "./firebase";
 
 export interface UserData {
-  assets: Asset[];
-  dividends: DividendRecord[];
-  contributions: ContributionRecord[];
-  trades: TradeRecord[];
-  lots: Lot[];
+  assets: any[];
+  dividends: any[];
+  contributions: any[];
+  trades: any[];
+  lots: any[];
   appName: string;
-  updatedAt: string;
 }
 
 export async function loadUserData(uid: string): Promise<UserData | null> {
-  try {
-    const ref = doc(firestore, "users", uid);
-    const snap = await getDoc(ref);
-    if (snap.exists()) {
-      console.log("[Firestore] Dados carregados para:", uid);
-      return snap.data() as UserData;
-    }
-    console.log("[Firestore] Nenhum dado encontrado para:", uid);
-    return null;
-  } catch (e) {
-    console.error("[Firestore] Erro ao carregar:", e);
-    return null;
-  }
+  return loadRemoteData(uid);
 }
 
 export async function saveUserData(uid: string, data: UserData): Promise<boolean> {
-  try {
-    const ref = doc(firestore, "users", uid);
-    const toSave = { ...data, updatedAt: new Date().toISOString() };
-    await setDoc(ref, toSave);
-    console.log("[Firestore] Dados salvos para:", uid, "- Ativos:", data.assets.length);
-    return true;
-  } catch (e) {
-    console.error("[Firestore] Erro ao salvar:", e);
-    return false;
-  }
+  return saveRemoteData(uid, data);
 }
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 let pendingUid: string | null = null;
-let pendingData: UserData | null = null;
 
 export function scheduleSave(uid: string, data: UserData) {
   pendingUid = uid;
-  pendingData = data;
   if (saveTimer) clearTimeout(saveTimer);
   saveTimer = setTimeout(async () => {
-    if (pendingUid && pendingData) {
-      await saveUserData(pendingUid, pendingData);
-      pendingUid = null;
-      pendingData = null;
-    }
+    if (pendingUid) await saveUserData(pendingUid, data);
   }, 500);
 }
 
@@ -71,7 +41,7 @@ export function getAllLocalData(): UserData {
   const trades = JSON.parse(localStorage.getItem("gestor-ativos-trades") || "[]");
   const lots = JSON.parse(localStorage.getItem("gestor-ativos-lotes") || "[]");
   const appName = localStorage.getItem("gestor-app-name") || "Gestor de Ativos";
-  return { assets, dividends, contributions, trades, lots, appName, updatedAt: new Date().toISOString() };
+  return { assets, dividends, contributions, trades, lots, appName };
 }
 
 export function setLocalData(data: UserData) {
