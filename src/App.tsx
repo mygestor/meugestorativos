@@ -504,7 +504,7 @@ export default function App() {
           </div>
         )}
 
-        {tab === "dashboard" && <Dashboard summary={summary} assets={assets} hideValues={hideValues} contributions={contributions} trades={trades} />}
+        {tab === "dashboard" && <Dashboard summary={summary} assets={assets} hideValues={hideValues} contributions={contributions} trades={trades} dividends={dividends} />}
 
         {tab === "assets" && (
           <AssetTable assets={assets} hideValues={hideValues} onEdit={handleEdit} onRefresh={refresh} />

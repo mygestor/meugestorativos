@@ -420,29 +420,34 @@ export function calculateSummary(assets: Asset[], dividends?: DividendRecord[]):
   const totalInvested = assets.reduce((s, a) => s + a.investedAmount, 0);
   const totalCurrentValue = assets.reduce((s, a) => s + a.currentPrice * a.quantity, 0);
 
-  // Calculate monthly dividend from real records (last 12 months) if available
-  let monthlyFromRecords = 0;
+  const assetDivMap: Record<string, number> = {};
   if (dividends && dividends.length > 0) {
-    const sorted = [...dividends].sort((a, b) => b.payment.localeCompare(a.payment));
-    const last12 = sorted.slice(0, 12);
-    const byMonth: Record<string, number> = {};
-    for (const d of last12) {
-      byMonth[d.monthYear] = (byMonth[d.monthYear] ?? 0) + d.totalValue;
+    const byTicker: Record<string, Record<string, number>> = {};
+    for (const d of dividends) {
+      const key = d.ticker.toUpperCase();
+      if (!byTicker[key]) byTicker[key] = {};
+      byTicker[key][d.monthYear] = (byTicker[key][d.monthYear] ?? 0) + d.totalValue;
     }
-    const monthKeys = Object.keys(byMonth);
-    if (monthKeys.length > 0) {
-      monthlyFromRecords = monthKeys.reduce((s, k) => s + byMonth[k], 0) / monthKeys.length;
+    for (const [ticker, months] of Object.entries(byTicker)) {
+      const vals = Object.values(months);
+      if (vals.length > 0) {
+        assetDivMap[ticker] = vals.reduce((s, v) => s + v, 0) / vals.length;
+      }
     }
   }
 
-  const monthlyDividend = monthlyFromRecords > 0 ? monthlyFromRecords : assets.reduce((s, a) => {
+  const monthlyDividend = assets.reduce((s, a) => {
+    const fromRecords = assetDivMap[a.ticker.toUpperCase()] ?? 0;
+    if (fromRecords > 0) return s + fromRecords;
     const divPerShare = a.dividendPerShare || 0;
     return s + (divPerShare > 0 ? divPerShare * a.quantity : a.currentDividend);
   }, 0);
 
   const annualDividend = monthlyDividend * 12;
 
-  const projectedMonthlyDividend = monthlyFromRecords > 0 ? monthlyFromRecords : assets.reduce((s, a) => {
+  const projectedMonthlyDividend = assets.reduce((s, a) => {
+    const fromRecords = assetDivMap[a.ticker.toUpperCase()] ?? 0;
+    if (fromRecords > 0) return s + fromRecords;
     const divPerShare = a.dividendPerShare || 0;
     if (divPerShare <= 0) return s + a.currentDividend;
     if (a.targetTotal > 0 && a.avgPrice > 0) {

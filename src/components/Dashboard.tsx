@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import type { Asset, PortfolioSummary, ContributionRecord, TradeRecord } from "../types";
+import type { Asset, PortfolioSummary, ContributionRecord, TradeRecord, DividendRecord } from "../types";
 import { formatCurrency, formatCompact, formatPercent } from "../format";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, AreaChart, Area, XAxis, YAxis } from "recharts";
 import { AssetLogo } from "./AssetLogo";
@@ -10,6 +10,7 @@ interface Props {
   hideValues: boolean;
   contributions: ContributionRecord[];
   trades: TradeRecord[];
+  dividends?: DividendRecord[];
 }
 
 function mask(v: number, hidden: boolean) {
@@ -45,7 +46,7 @@ function getTypeColor(type: string): string {
   return map[type] ?? "#6b7280";
 }
 
-export function Dashboard({ summary, assets, hideValues, contributions, trades }: Props) {
+export function Dashboard({ summary, assets, hideValues, contributions, trades, dividends }: Props) {
   const [selectedSegment, setSelectedSegment] = useState<string | null>(null);
 
   const typeData = Object.entries(summary.types)
@@ -69,14 +70,34 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades }
   }, [assets]);
 
   const dividendBreakdown = useMemo(() => {
+    const assetDivMap: Record<string, number> = {};
+    if (dividends && dividends.length > 0) {
+      const byTicker: Record<string, Record<string, number>> = {};
+      for (const d of dividends) {
+        const key = d.ticker.toUpperCase();
+        if (!byTicker[key]) byTicker[key] = {};
+        byTicker[key][d.monthYear] = (byTicker[key][d.monthYear] ?? 0) + d.totalValue;
+      }
+      for (const [ticker, months] of Object.entries(byTicker)) {
+        const vals = Object.values(months);
+        if (vals.length > 0) {
+          assetDivMap[ticker] = vals.reduce((s, v) => s + v, 0) / vals.length;
+        }
+      }
+    }
     return assets
-      .filter(a => a.dividendPerShare > 0 || a.currentDividend > 0)
+      .filter(a => {
+        const fromRecords = assetDivMap[a.ticker.toUpperCase()] ?? 0;
+        return fromRecords > 0 || a.dividendPerShare > 0 || a.currentDividend > 0;
+      })
       .map(a => {
+        const fromRecords = assetDivMap[a.ticker.toUpperCase()] ?? 0;
+        if (fromRecords > 0) return { ...a, monthlyDiv: fromRecords, annualDiv: fromRecords * 12 };
         const raw = a.dividendPerShare > 0 ? a.dividendPerShare * a.quantity : a.currentDividend;
         return { ...a, monthlyDiv: raw, annualDiv: raw * 12 };
       })
       .sort((a, b) => b.annualDiv - a.annualDiv);
-  }, [assets]);
+  }, [assets, dividends]);
 
   const topAssets = [...assets]
     .sort((a, b) => b.currentDividend - a.currentDividend)
