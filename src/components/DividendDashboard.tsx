@@ -103,14 +103,19 @@ export function DividendDashboard({ dividends, hideValues, onRefresh }: Props) {
   const hasActiveFilters = filterType || filterYears.length > 0 || selectedTicker;
 
   const avgMonthly = useMemo(() => {
-    if (filtered.length === 0) return 0;
+    const currentYear = new Date().getFullYear();
+    let data = filtered;
+    if (filterYears.length === 0) {
+      data = data.filter((d) => d.year === currentYear);
+    }
+    if (data.length === 0) return 0;
     const byMonth = new Map<string, number>();
-    for (const d of filtered) {
+    for (const d of data) {
       byMonth.set(d.monthYear, (byMonth.get(d.monthYear) ?? 0) + d.totalValue);
     }
     const months = Array.from(byMonth.values());
     return months.length > 0 ? months.reduce((s, v) => s + v, 0) / months.length : 0;
-  }, [filtered]);
+  }, [filtered, filterYears]);
 
   const avgAnnual = avgMonthly * 12;
 
