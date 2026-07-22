@@ -24,7 +24,7 @@ import { UpdateToast } from "./components/UpdateToast";
 import { FIIAnalysis } from "./components/FIIAnalysis";
 import { logoutFirebase, onAuthChange } from "./firebase";
 import { FirebaseLogin } from "./components/FirebaseLogin";
-import { loadUserData, setLocalData, getAllLocalData, scheduleSave } from "./sync";
+import { loadUserData, setLocalData, getAllLocalData, scheduleSave, forceSaveNow } from "./sync";
 import { TrendingUp, Plus, Upload, Download, Trash2, Eye, EyeOff, LayoutDashboard, Briefcase, HandCoins, PiggyBank, ArrowLeftRight, Target, FileText, Building2 } from "lucide-react";
 
 type Tab = "dashboard" | "assets" | "dividendos" | "aportes" | "trades" | "planejamento" | "analise-fii";
@@ -73,12 +73,17 @@ export default function App() {
         const remoteData = await loadUserData(fbUser.uid);
         const localData = getAllLocalData();
         const hasLocal = localData.assets.length > 0;
+        console.log("[Sync] Firestore:", remoteData?.assets?.length ?? 0, "Local:", localData.assets.length);
         if (remoteData && remoteData.assets?.length > 0) {
           // Firestore tem dados — usar eles
+          console.log("[Sync] Carregando do Firestore");
           setLocalData(remoteData);
         } else if (hasLocal) {
           // Local tem dados mas Firestore não — salvar no Firestore
-          scheduleSave(fbUser.uid, localData);
+          console.log("[Sync] Salvando dados locais no Firestore");
+          await forceSaveNow(fbUser.uid);
+        } else {
+          console.log("[Sync] Sem dados em nenhum lugar");
         }
       } else {
         setFirebaseUser(null);
@@ -97,7 +102,7 @@ export default function App() {
     setContributions([...getContributions()]);
     setTrades([...getTrades()]);
     if (firebaseUser) {
-      scheduleSave(firebaseUser.uid, getAllLocalData());
+      forceSaveNow(firebaseUser.uid);
     }
   }
 

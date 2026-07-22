@@ -17,8 +17,10 @@ export async function loadUserData(uid: string): Promise<UserData | null> {
     const ref = doc(firestore, "users", uid);
     const snap = await getDoc(ref);
     if (snap.exists()) {
+      console.log("[Firestore] Dados carregados para:", uid);
       return snap.data() as UserData;
     }
+    console.log("[Firestore] Nenhum dado encontrado para:", uid);
     return null;
   } catch (e) {
     console.error("[Firestore] Erro ao carregar:", e);
@@ -26,24 +28,40 @@ export async function loadUserData(uid: string): Promise<UserData | null> {
   }
 }
 
-export async function saveUserData(uid: string, data: UserData): Promise<void> {
+export async function saveUserData(uid: string, data: UserData): Promise<boolean> {
   try {
     const ref = doc(firestore, "users", uid);
-    await setDoc(ref, { ...data, updatedAt: new Date().toISOString() });
+    const toSave = { ...data, updatedAt: new Date().toISOString() };
+    await setDoc(ref, toSave);
+    console.log("[Firestore] Dados salvos para:", uid, "- Ativos:", data.assets.length);
+    return true;
   } catch (e) {
     console.error("[Firestore] Erro ao salvar:", e);
+    return false;
   }
 }
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 let pendingUid: string | null = null;
+let pendingData: UserData | null = null;
 
 export function scheduleSave(uid: string, data: UserData) {
   pendingUid = uid;
+  pendingData = data;
   if (saveTimer) clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => {
-    if (pendingUid) saveUserData(pendingUid, data);
-  }, 1000);
+  saveTimer = setTimeout(async () => {
+    if (pendingUid && pendingData) {
+      await saveUserData(pendingUid, pendingData);
+      pendingUid = null;
+      pendingData = null;
+    }
+  }, 500);
+}
+
+export async function forceSaveNow(uid: string): Promise<boolean> {
+  if (saveTimer) clearTimeout(saveTimer);
+  const data = getAllLocalData();
+  return saveUserData(uid, data);
 }
 
 export function getAllLocalData(): UserData {
