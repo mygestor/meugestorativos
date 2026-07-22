@@ -347,6 +347,43 @@ export function DividendDashboard({ dividends, hideValues, onRefresh }: Props) {
                 </ResponsiveContainer>
               </div>
             </div>
+
+            {/* Year cards */}
+            {byYear.length > 0 && (
+              <div className="bg-card border border-border rounded-2xl p-5">
+                <h3 className="font-semibold text-sm mb-4">Dividendos por Ano</h3>
+                <div className="flex flex-wrap gap-2">
+                  {byYear.map((y) => (
+                    <div key={y.year} className="px-4 py-2 bg-surface rounded-xl text-xs">
+                      <p className="text-muted">{y.year}</p>
+                      <p className="font-semibold mt-0.5 tabular text-income">{mask(y.value, hideValues)}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Per-ticker summary */}
+            {(() => {
+              const byTicker: Record<string, number> = {};
+              filtered.forEach((d) => { byTicker[d.ticker] = (byTicker[d.ticker] ?? 0) + d.totalValue; });
+              const sorted = Object.entries(byTicker).sort((a, b) => b[1] - a[1]);
+              if (sorted.length === 0) return null;
+              return (
+                <div className="bg-card border border-border rounded-2xl p-5">
+                  <h3 className="font-semibold text-sm mb-4">Dividendos por Ativo</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {sorted.map(([ticker, value]) => (
+                      <div key={ticker} className="flex items-center gap-2 px-3 py-2 bg-surface rounded-xl text-xs">
+                        <AssetLogo ticker={ticker} size={16} />
+                        <span className="text-muted font-medium">{ticker}</span>
+                        <span className="font-semibold tabular text-income">{mask(value, hideValues)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         )}
       </div>
