@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { Asset, PortfolioSummary, ContributionRecord, TradeRecord } from "../types";
 import { formatCurrency, formatCompact, formatPercent } from "../format";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, AreaChart, Area, XAxis, YAxis } from "recharts";
@@ -46,6 +46,8 @@ function getTypeColor(type: string): string {
 }
 
 export function Dashboard({ summary, assets, hideValues, contributions, trades }: Props) {
+  const [selectedSegment, setSelectedSegment] = useState<string | null>(null);
+
   const typeData = Object.entries(summary.types)
     .map(([name, value]) => ({ name, value: Math.round(value) }))
     .sort((a, b) => b.value - a.value);
@@ -55,6 +57,16 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades }
     .sort((a, b) => b.value - a.value);
 
   const totalSector = sectorData.reduce((s, d) => s + d.value, 0);
+
+  const assetsBySegment = useMemo(() => {
+    const map: Record<string, Asset[]> = {};
+    for (const a of assets) {
+      const seg = a.sector || "A DEFINIR";
+      if (!map[seg]) map[seg] = [];
+      map[seg].push(a);
+    }
+    return map;
+  }, [assets]);
 
   const topAssets = [...assets]
     .sort((a, b) => b.currentDividend - a.currentDividend)
@@ -266,9 +278,20 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades }
                     label={({ name, percent }: { name: string; percent: number }) =>
                       `${name} ${(percent * 100).toFixed(0)}%`
                     }
+                    onClick={(_, index) => {
+                      const seg = sectorData[index]?.name;
+                      setSelectedSegment(prev => prev === seg ? null : seg);
+                    }}
+                    style={{ cursor: "pointer" }}
                   >
-                    {sectorData.map((_, i) => (
-                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                    {sectorData.map((s, i) => (
+                      <Cell
+                        key={i}
+                        fill={COLORS[i % COLORS.length]}
+                        opacity={selectedSegment === null || selectedSegment === s.name ? 1 : 0.3}
+                        stroke={selectedSegment === s.name ? "#fff" : undefined}
+                        strokeWidth={selectedSegment === s.name ? 2 : 0}
+                      />
                     ))}
                   </Pie>
                   <Tooltip
@@ -281,21 +304,45 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades }
             <div className="space-y-2">
               {sectorData.map((s, i) => {
                 const pct = (s.value / totalSector) * 100;
+                const isSelected = selectedSegment === s.name;
+                const segAssets = assetsBySegment[s.name] || [];
                 return (
                   <div key={s.name}>
-                    <div className="flex items-center justify-between text-xs mb-1">
-                      <div className="flex items-center gap-2">
-                        <span className="size-2.5 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                        <span className="text-muted">{s.name}</span>
+                    <button
+                      className={`w-full text-left rounded-lg p-2 transition-all ${isSelected ? "bg-surface ring-1 ring-border" : "hover:bg-surface/50"}`}
+                      onClick={() => setSelectedSegment(prev => prev === s.name ? null : s.name)}
+                    >
+                      <div className="flex items-center justify-between text-xs mb-1">
+                        <div className="flex items-center gap-2">
+                          <span className="size-2.5 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                          <span className="text-muted">{s.name}</span>
+                          {s.name === "A DEFINIR" && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-400 font-medium">
+                              {segAssets.length} ativo{segAssets.length !== 1 ? "s" : ""}
+                            </span>
+                          )}
+                        </div>
+                        <span className="font-medium">{formatCompact(s.value)}</span>
                       </div>
-                      <span className="font-medium">{formatCompact(s.value)}</span>
-                    </div>
-                    <div className="h-1.5 bg-surface rounded-full overflow-hidden">
-                      <div
-                        className="h-full rounded-full transition-all"
-                        style={{ width: `${pct}%`, backgroundColor: COLORS[i % COLORS.length] }}
-                      />
-                    </div>
+                      <div className="h-1.5 bg-surface rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all"
+                          style={{ width: `${pct}%`, backgroundColor: COLORS[i % COLORS.length] }}
+                        />
+                      </div>
+                    </button>
+                    {isSelected && segAssets.length > 0 && (
+                      <div className="mt-1 ml-4 space-y-1 border-l-2 border-border pl-3">
+                        {segAssets.map(a => (
+                          <div key={a.id} className="flex items-center gap-2 text-xs py-1">
+                            <AssetLogo ticker={a.ticker} size={20} />
+                            <span className="font-medium">{a.ticker}</span>
+                            <span className="text-muted">{a.type}</span>
+                            <span className="ml-auto tabular">{formatCompact(a.currentPrice * a.quantity)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 );
               })}
