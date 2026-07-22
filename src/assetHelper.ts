@@ -69,7 +69,6 @@ export function syncAssetsFromTrades(): void {
         avgPrice,
         quantity: pos.shares,
         investedAmount: +pos.invested.toFixed(2),
-        currentPrice: avgPrice,
         currentDividend: pos.shares * (a.dividendPerShare || 0),
         annualReturn: pos.shares * (a.dividendPerShare || 0) * 12,
       });
