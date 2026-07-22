@@ -163,36 +163,38 @@ export function DividendTable({ dividends, hideValues, onRefresh }: Props) {
               <Download className="size-4" />
             </button>
           </div>
-          <select
-            value={filterTicker}
-            onChange={(e) => setFilterTicker(e.target.value)}
-            className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-xs focus:outline-none focus:border-primary"
-          >
-            <option value="">Todos os ativos</option>
-            {tickers.map((t) => (
-              <option key={t} value={t}>{t}</option>
-            ))}
-          </select>
-          <select
-            value={filterMonth}
-            onChange={(e) => setFilterMonth(e.target.value)}
-            className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-xs focus:outline-none focus:border-primary"
-          >
-            <option value="">Todos os meses</option>
-            {months.map((m) => (
-              <option key={m} value={m}>{m}</option>
-            ))}
-          </select>
-          <select
-            value={filterYear}
-            onChange={(e) => setFilterYear(e.target.value)}
-            className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-xs focus:outline-none focus:border-primary"
-          >
-            <option value="">Todos os anos</option>
-            {years.map((y) => (
-              <option key={y} value={String(y)}>{y}</option>
-            ))}
-          </select>
+          <div className="flex gap-2">
+            <select
+              value={filterTicker}
+              onChange={(e) => setFilterTicker(e.target.value)}
+              className="flex-1 px-3 py-2 bg-surface border border-border rounded-lg text-xs focus:outline-none focus:border-primary"
+            >
+              <option value="">Ativo</option>
+              {tickers.map((t) => (
+                <option key={t} value={t}>{t}</option>
+              ))}
+            </select>
+            <select
+              value={filterMonth}
+              onChange={(e) => setFilterMonth(e.target.value)}
+              className="flex-1 px-3 py-2 bg-surface border border-border rounded-lg text-xs focus:outline-none focus:border-primary"
+            >
+              <option value="">Mês</option>
+              {months.map((m) => (
+                <option key={m} value={m}>{m}</option>
+              ))}
+            </select>
+            <select
+              value={filterYear}
+              onChange={(e) => setFilterYear(e.target.value)}
+              className="flex-1 px-3 py-2 bg-surface border border-border rounded-lg text-xs focus:outline-none focus:border-primary"
+            >
+              <option value="">Ano</option>
+              {years.map((y) => (
+                <option key={y} value={String(y)}>{y}</option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {sorted.length === 0 ? (

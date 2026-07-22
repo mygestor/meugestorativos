@@ -116,150 +116,103 @@ export function DividendDashboard({ dividends, hideValues, onRefresh }: Props) {
   const hasActiveFilters = filterType || filterYears.length > 0 || selectedTicker;
 
   return (
-    <div className="flex flex-col lg:flex-row gap-5">
-      {/* Left sidebar */}
-      <div className="w-full lg:w-64 space-y-4 shrink-0">
-        {/* Total card */}
-        <div className="bg-card border border-border rounded-2xl p-5">
-          <p className="text-xs text-muted font-medium uppercase tracking-wider mb-1">
-            Total de Dividendos
-          </p>
-          <p className="text-2xl font-bold tabular text-income">{mask(totalFiltered, hideValues)}</p>
-          <p className="text-xs text-muted mt-1">do total geral {mask(totalDividends, hideValues)}</p>
+    <div className="space-y-4">
+      {/* Summary cards */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="bg-card border border-border rounded-2xl p-4">
+          <p className="text-xs text-muted font-medium uppercase tracking-wider mb-1">Total Filtrado</p>
+          <p className="text-xl font-bold tabular text-income">{mask(totalFiltered, hideValues)}</p>
+          <p className="text-[10px] text-muted mt-0.5">de {mask(totalDividends, hideValues)}</p>
         </div>
-
-        {/* DY 12m card */}
-        <div className="bg-card border border-border rounded-2xl p-5">
+        <div className="bg-card border border-border rounded-2xl p-4">
           <div className="flex items-center justify-between mb-1">
-            <p className="text-xs text-muted font-medium uppercase tracking-wider">DY 12m (B3)</p>
+            <p className="text-xs text-muted font-medium uppercase tracking-wider">DY 12m</p>
             {loadingDy && <RefreshCw className="size-3 text-muted animate-spin" />}
           </div>
-          <p className="text-2xl font-bold tabular text-primary">
+          <p className="text-xl font-bold tabular text-primary">
             {dyData.size === 0 ? "-" : `${(Array.from(dyData.values()).reduce((s, d) => s + d.dy12m, 0) / dyData.size).toFixed(2)}%`}
           </p>
-          <p className="text-xs text-muted mt-1">médio dos ativos em carteira</p>
+          <p className="text-[10px] text-muted mt-0.5">médio dos ativos</p>
         </div>
-
-        {/* Filter: Tipo */}
-        <div className="bg-card border border-border rounded-2xl p-4">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-xs text-muted font-medium uppercase tracking-wider">Tipo de Ativo</p>
-            {filterType && (
-              <button onClick={handleClearType} className="text-muted hover:text-foreground transition-colors">
-                <X className="size-3" />
-              </button>
-            )}
-          </div>
-          <div className="space-y-0.5">
-            {availableTypes.length === 0 ? (
-              <p className="text-xs text-muted py-1">Nenhum tipo encontrado</p>
-            ) : (
-              availableTypes.map((type) => (
-                <button
-                  key={type}
-                  onClick={() => setFilterType(filterType === type ? "" : type)}
-                  className={`w-full text-left px-3 py-1.5 rounded-lg text-sm transition-colors ${
-                    filterType === type
-                      ? "bg-primary/10 text-primary font-medium"
-                      : "hover:bg-card-hover text-muted hover:text-foreground"
-                  }`}
-                >
-                  {type}
-                </button>
-              ))
-            )}
-          </div>
-        </div>
-
-        {/* Filter: Ano */}
-        {availableYears.length > 0 && (
-          <div className="bg-card border border-border rounded-2xl p-4">
-            <p className="text-xs text-muted font-medium uppercase tracking-wider mb-2">Ano</p>
-            <div className="space-y-1 max-h-48 overflow-y-auto">
-              {availableYears.map((y) => (
-                <label
-                  key={y}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm cursor-pointer transition-colors ${
-                    filterYears.includes(y)
-                      ? "bg-primary/5 text-primary font-medium"
-                      : "hover:bg-card-hover text-muted hover:text-foreground"
-                  }`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={filterYears.includes(y)}
-                    onChange={() => toggleYear(y)}
-                    className="accent-primary size-3.5 rounded"
-                  />
-                  {y}
-                </label>
-              ))}
-            </div>
-            {filterYears.length > 0 && (
-              <button
-                onClick={() => setFilterYears([])}
-                className="mt-2 text-xs text-muted hover:text-foreground transition-colors underline underline-offset-2"
-              >
-                Limpar seleção
-              </button>
-            )}
-          </div>
-        )}
-
-        {/* Ativos list */}
-        <div className="bg-card border border-border rounded-2xl p-4">
-          <p className="text-xs text-muted font-medium uppercase tracking-wider mb-2">Ativos</p>
-          <div className="space-y-0.5 max-h-64 overflow-y-auto">
-            {availableTickers.map((ticker) => {
-              const dy = dyData.get(ticker.toUpperCase());
-              return (
-                <button
-                  key={ticker}
-                  onClick={() => setSelectedTicker(selectedTicker === ticker ? "" : ticker)}
-                  className={`w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors ${
-                    selectedTicker === ticker
-                      ? "bg-primary/10 text-primary font-medium"
-                      : "hover:bg-card-hover text-muted hover:text-foreground"
-                  }`}
-                >
-                  <AssetLogo ticker={ticker} size={16} />
-                  <span className="flex-1 text-left">{ticker}</span>
-                  {dy && <span className="text-xs text-income tabular">{dy.dy12m.toFixed(2)}%</span>}
-                </button>
-              );
-            })}
-            {availableTickers.length === 0 && (
-              <p className="text-xs text-muted py-2">Nenhum ativo encontrado</p>
-            )}
-          </div>
-        </div>
-
-        {/* Action buttons */}
-        {hasActiveFilters && (
-          <button
-            onClick={handleClearFilters}
-            className="w-full px-4 py-2.5 bg-surface border border-border rounded-xl text-sm text-muted hover:text-foreground transition-colors"
-          >
-            Limpar todos os filtros
-          </button>
-        )}
-        <button
-          onClick={onRefresh}
-          className="w-full px-4 py-2.5 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary-dark transition-colors"
-        >
-          Atualizar
-        </button>
       </div>
 
-      {/* Main content */}
-      <div className="flex-1 min-w-0">
-        {filtered.length === 0 ? (
-          <div className="bg-card border border-border rounded-2xl p-12 text-center">
-            <p className="text-muted">Nenhum dividendo encontrado</p>
-            <p className="text-xs text-muted mt-1">Importe dividendos ou ajuste os filtros</p>
-          </div>
-        ) : (
-          <div className="space-y-5">
+      {/* Filters horizontal */}
+      <div className="bg-card border border-border rounded-2xl p-3">
+        <div className="flex gap-2">
+          <select
+            value={filterType}
+            onChange={(e) => setFilterType(e.target.value)}
+            className="flex-1 px-3 py-2 bg-surface border border-border rounded-lg text-xs focus:outline-none focus:border-primary"
+          >
+            <option value="">Tipo</option>
+            {availableTypes.map((t) => (
+              <option key={t} value={t}>{t}</option>
+            ))}
+          </select>
+          <select
+            value={filterYears.length === 1 ? String(filterYears[0]) : ""}
+            onChange={(e) => setFilterYears(e.target.value ? [Number(e.target.value)] : [])}
+            className="flex-1 px-3 py-2 bg-surface border border-border rounded-lg text-xs focus:outline-none focus:border-primary"
+          >
+            <option value="">Ano</option>
+            {availableYears.map((y) => (
+              <option key={y} value={String(y)}>{y}</option>
+            ))}
+          </select>
+          <select
+            value={selectedTicker}
+            onChange={(e) => setSelectedTicker(e.target.value)}
+            className="flex-1 px-3 py-2 bg-surface border border-border rounded-lg text-xs focus:outline-none focus:border-primary"
+          >
+            <option value="">Ativo</option>
+            {availableTickers.map((t) => (
+              <option key={t} value={t}>{t}</option>
+            ))}
+          </select>
+          {hasActiveFilters && (
+            <button
+              onClick={handleClearFilters}
+              className="px-3 py-2 bg-surface border border-border rounded-lg text-xs text-muted hover:text-foreground transition-colors"
+            >
+              Limpar
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Active filters summary */}
+      {hasActiveFilters && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs text-muted">Filtros:</span>
+          {filterType && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-primary/10 text-primary rounded-full text-xs font-medium">
+              {filterType}
+              <button onClick={handleClearType}><X className="size-3" /></button>
+            </span>
+          )}
+          {filterYears.length > 0 && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-primary/10 text-primary rounded-full text-xs font-medium">
+              {filterYears.join(", ")}
+              <button onClick={() => setFilterYears([])}><X className="size-3" /></button>
+            </span>
+          )}
+          {selectedTicker && (
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-primary/10 text-primary rounded-full text-xs font-medium">
+              {selectedTicker}
+              <button onClick={() => setSelectedTicker("")}><X className="size-3" /></button>
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Charts */}
+      {filtered.length === 0 ? (
+        <div className="bg-card border border-border rounded-2xl p-12 text-center">
+          <p className="text-muted">Nenhum dividendo encontrado</p>
+          <p className="text-xs text-muted mt-1">Importe dividendos ou ajuste os filtros</p>
+        </div>
+      ) : (
+        <div className="space-y-5">
             {/* Active filters summary */}
             {hasActiveFilters && (
               <div className="flex flex-wrap items-center gap-2 mb-4">
@@ -386,7 +339,6 @@ export function DividendDashboard({ dividends, hideValues, onRefresh }: Props) {
             })()}
           </div>
         )}
-      </div>
     </div>
   );
 }
