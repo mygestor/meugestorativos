@@ -213,9 +213,6 @@ export function FIIAnalysis({ fiiAssets, hideValues, onEdit, onRefresh }: Props)
       list = list.filter((r) => r.asset.ticker.toLowerCase().includes(s));
     }
     switch (filter) {
-      case "papel": list = list.filter((r) => r.asset.type === "FII" && r.asset.subtype === "Papel"); break;
-      case "tijolo": list = list.filter((r) => r.asset.type === "FII" && r.asset.subtype === "Tijolo"); break;
-      case "hibrido": list = list.filter((r) => r.asset.type === "FII" && r.asset.subtype === "Híbrido"); break;
       case "dy_alto": list = list.filter((r) => r.divYieldMensal > 1); break;
       case "meta_feita": list = list.filter((r) => r.missingValue <= 0); break;
       case "precisa_aporte": list = list.filter((r) => r.missingValue > 0); break;
@@ -354,9 +351,6 @@ export function FIIAnalysis({ fiiAssets, hideValues, onEdit, onRefresh }: Props)
       <div className="flex flex-wrap items-center gap-2">
         <SlidersHorizontal className="size-3.5 text-muted" />
         <FilterChip active={filter === "todos"} onClick={() => setFilter("todos")}>Todos</FilterChip>
-        <FilterChip active={filter === "papel"} onClick={() => setFilter("papel")}>Papel</FilterChip>
-        <FilterChip active={filter === "tijolo"} onClick={() => setFilter("tijolo")}>Tijolo</FilterChip>
-        <FilterChip active={filter === "hibrido"} onClick={() => setFilter("hibrido")}>Híbrido</FilterChip>
         <FilterChip active={filter === "dy_alto"} onClick={() => setFilter("dy_alto")}>DY &gt; 1%</FilterChip>
         <FilterChip active={filter === "meta_feita"} onClick={() => setFilter("meta_feita")}>Meta OK</FilterChip>
         <FilterChip active={filter === "precisa_aporte"} onClick={() => setFilter("precisa_aporte")}>Precisa Aporte</FilterChip>
