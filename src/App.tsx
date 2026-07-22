@@ -123,23 +123,24 @@ export default function App() {
     initFromRemoteData().then(() => refresh());
   }, []);
 
-  // Atualizar setores dos ativos que estão "A DEFINIR"
+  // Atualizar setores dos ativos que estão "A DEFINIR" (roda uma única vez)
   useEffect(() => {
     if (assets.length === 0) return;
-    let changed = 0;
+    let changed = false;
     for (const a of assets) {
       if (!a.sector || a.sector === "A DEFINIR") {
         const known = getKnownSector(a.ticker);
         if (known) {
           updateAsset(a.id, { sector: known });
-          changed++;
+          changed = true;
         }
       }
     }
-    if (changed > 0) {
-      setTimeout(() => refresh(), 100);
+    if (changed) {
+      setAssets([...getAssets()]);
     }
-  }, [assets.length > 0]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assets.length]);
 
   // Auto-fetch dividends on load with retry
   useEffect(() => {

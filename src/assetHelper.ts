@@ -1,6 +1,7 @@
 import { getAssets, updateAsset, addAsset, deleteAsset, getTrades, addLot, consumeLots, getLots } from "./store";
 import type { Asset } from "./types";
 import { detectAssetType } from "./detectType";
+import { getKnownSector } from "./sectorFetch";
 
 export function syncAssetsFromTrades(): void {
   const trades = getTrades();
@@ -63,9 +64,10 @@ export function syncAssetsFromTrades(): void {
       // Update existing asset from trade data
       const avgPrice = +((pos.invested / pos.shares).toFixed(2));
       const info = detectAssetType(a.ticker);
+      const sector = (a.sector && a.sector !== "A DEFINIR") ? a.sector : (getKnownSector(a.ticker) || info.sector);
       updateAsset(a.id, {
         type: info.type,
-        sector: info.sector,
+        sector,
         avgPrice,
         quantity: pos.shares,
         investedAmount: +pos.invested.toFixed(2),
@@ -87,12 +89,13 @@ export function syncAssetsFromTrades(): void {
 
     const info = detectAssetType(ticker);
     const avgPrice = +((pos.invested / pos.shares).toFixed(2));
+    const sector = getKnownSector(ticker) || info.sector;
 
     const asset: Omit<Asset, "id" | "createdAt" | "updatedAt"> = {
       ticker: ticker.toUpperCase(),
       type: info.type,
       subtype: "",
-      sector: info.sector,
+      sector,
       paymentDay: info.type === "FII" ? 14 : null,
       currentPrice: avgPrice,
       dividendPerShare: 0,
