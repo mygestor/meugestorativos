@@ -103,7 +103,7 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades }
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
         <SummaryCard label="Total Investido" value={mask(realInvested, hideValues)} accent="blue" />
         <SummaryCard label="Dividendo Mensal" value={mask(summary.monthlyDividend, hideValues)} accent="green" />
         <SummaryCard label="Dividendo Anual" value={mask(summary.annualDividend, hideValues)} accent="green" />

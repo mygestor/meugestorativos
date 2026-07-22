@@ -302,8 +302,8 @@ export function FIIAnalysis({ fiiAssets, hideValues, onEdit, onRefresh }: Props)
     <div className="space-y-6">
       {/* Settings modal */}
       {settingsOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-          <div className="bg-card border border-border rounded-2xl w-full max-w-sm mx-4 p-5 space-y-4">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="dialog-enter bg-card border border-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm sm:mx-4 mx-0 p-5 space-y-4">
             <h3 className="font-semibold">Configurações</h3>
             <label className="block text-sm">
               <span className="text-muted text-xs">Valor desejado por ativo (R$/mês)</span>

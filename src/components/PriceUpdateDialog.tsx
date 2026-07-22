@@ -36,8 +36,8 @@ export function PriceUpdateDialog({ assets, onClose, onComplete }: Props) {
   const errorCount = statuses.filter((s) => s.status === 'error').length;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="bg-card border border-border rounded-2xl w-full max-w-md mx-4">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm">
+      <div className="dialog-enter bg-card border border-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md sm:mx-4 mx-0">
         <div className="p-5 border-b border-border">
           <h2 className="font-semibold">Atualizar Cotações</h2>
           <p className="text-xs text-muted mt-1">Buscando preços ao vivo via brapi.dev</p>

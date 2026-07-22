@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import type { Asset, DividendRecord, ContributionRecord, TradeRecord } from "./types";
 import { getAssets, getDividends, getContributions, getTrades, calculateSummary, addAsset, clearAll, clearDividends, clearContributions, importFullBackup, importSeedData, cleanupOrphanAssets, reclassifyAssets, initFromRemoteData, exportAllData } from "./store";
 import { syncAssetsFromTrades } from "./assetHelper";
@@ -59,11 +59,23 @@ export default function App() {
   });
   const [appName, setAppName] = useState(() => localStorage.getItem("gestor-app-name") || "Gestor de Ativos");
   const [editingName, setEditingName] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
     localStorage.setItem("gestor-theme", theme);
   }, [theme]);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (mobileMenuRef.current && !mobileMenuRef.current.contains(e.target as Node)) {
+        setMobileMenuOpen(false);
+      }
+    }
+    if (mobileMenuOpen) document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [mobileMenuOpen]);
 
   useEffect(() => {
     const unsub = onAuthChange(async (fbUser) => {
@@ -311,10 +323,10 @@ export default function App() {
   return (
     <div className="min-h-screen bg-surface">
       <header className="border-b border-border bg-card sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <TrendingUp className="size-5 text-primary" />
-            <div>
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 h-14 flex items-center justify-between">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <TrendingUp className="size-5 text-primary shrink-0" />
+            <div className="min-w-0">
               {editingName ? (
                 <input
                   autoFocus
@@ -322,29 +334,22 @@ export default function App() {
                   onChange={(e) => setAppName(e.target.value)}
                   onBlur={() => { setEditingName(false); localStorage.setItem("gestor-app-name", appName); }}
                   onKeyDown={(e) => { if (e.key === "Enter") { setEditingName(false); localStorage.setItem("gestor-app-name", appName); } }}
-                  className="font-bold text-base leading-tight bg-surface border border-border rounded-lg px-2 py-0.5 text-foreground w-56"
+                  className="font-bold text-sm sm:text-base leading-tight bg-surface border border-border rounded-lg px-2 py-0.5 text-foreground w-36 sm:w-56"
                 />
               ) : (
                 <h1
-                  className="font-bold text-base leading-tight cursor-pointer hover:text-primary transition-colors"
+                  className="font-bold text-sm sm:text-base leading-tight cursor-pointer hover:text-primary transition-colors truncate"
                   onClick={() => setEditingName(true)}
                   title="Clique para editar"
                 >
                   {appName}
                 </h1>
               )}
-              <p className="text-xs text-muted leading-tight">Portfólio de Investimentos</p>
+              <p className="text-[10px] sm:text-xs text-muted leading-tight hidden sm:block">Portfólio de Investimentos</p>
             </div>
           </div>
-          <div className="flex items-center gap-1">
-            {firebaseUser?.photoURL && <img src={firebaseUser.photoURL} alt={firebaseUser.displayName || ""} className="size-7 rounded-full" title={firebaseUser.displayName || firebaseUser.email || ""} />}
-            {firebaseUser && <button
-              onClick={logoutFirebase}
-              className="px-2 py-1 rounded-lg text-[10px] text-muted hover:text-foreground transition-colors"
-              title="Sair"
-            >
-              Sair
-            </button>}
+          <div className="flex items-center gap-0.5 sm:gap-1 shrink-0">
+            {firebaseUser?.photoURL && <img src={firebaseUser.photoURL} alt={firebaseUser.displayName || ""} className="size-7 rounded-full hidden sm:block" title={firebaseUser.displayName || firebaseUser.email || ""} />}
             <button
               onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
               className="p-2 rounded-lg hover:bg-card-hover text-muted transition-colors"
@@ -360,58 +365,81 @@ export default function App() {
               {hideValues ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
             </button>
             <DividendAlerts assets={assets} />
-            <button onClick={handleUpdatePrices} className="p-2 rounded-lg hover:bg-card-hover text-muted hover:text-primary transition-colors hidden sm:block" title="Atualizar preços e dividendos dos FIIs">
-              <svg className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>
-            </button>
-            <button onClick={handleSeedData} className="p-2 rounded-lg hover:bg-card-hover text-muted hover:text-primary transition-colors hidden sm:block" title="Adicionar dados de exemplo">
-              <svg className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
-            </button>
-            <button onClick={handleImportBackup} className="p-2 rounded-lg hover:bg-card-hover text-muted transition-colors" title="Importar backup">
-              <Upload className="size-4" />
-            </button>
-            <button onClick={handleExport} className="p-2 rounded-lg hover:bg-card-hover text-muted transition-colors" title="Exportar backup completo">
-              <Download className="size-4" />
-            </button>
-            <button onClick={handleCleanupOrphans} className="p-2 rounded-lg hover:bg-card-hover text-muted transition-colors hidden sm:block" title="Limpar ativos órfãos">
-              <svg className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
-            </button>
-            <button onClick={() => setIrpfOpen(true)} className="p-2 rounded-lg hover:bg-card-hover text-muted transition-colors hidden sm:block" title="Relatório IRPF">
-              <FileText className="size-4" />
-            </button>
+            <div className="relative" ref={mobileMenuRef}>
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="p-2 rounded-lg hover:bg-card-hover text-muted transition-colors"
+                title="Mais opções"
+              >
+                <svg className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+              </button>
+              {mobileMenuOpen && (
+                <div className="absolute right-0 top-full mt-1 bg-card border border-border rounded-xl shadow-xl py-1 w-56 z-50 dialog-enter">
+                  <button onClick={() => { handleUpdatePrices(); setMobileMenuOpen(false); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-muted hover:bg-card-hover hover:text-foreground transition-colors">
+                    <svg className="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"/></svg>
+                    Atualizar preços
+                  </button>
+                  <button onClick={() => { handleImportBackup(); setMobileMenuOpen(false); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-muted hover:bg-card-hover hover:text-foreground transition-colors">
+                    <Upload className="size-4 shrink-0" /> Importar backup
+                  </button>
+                  <button onClick={() => { handleExport(); setMobileMenuOpen(false); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-muted hover:bg-card-hover hover:text-foreground transition-colors">
+                    <Download className="size-4 shrink-0" /> Exportar backup
+                  </button>
+                  <button onClick={() => { handleSeedData(); setMobileMenuOpen(false); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-muted hover:bg-card-hover hover:text-foreground transition-colors">
+                    <svg className="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+                    Dados de exemplo
+                  </button>
+                  <button onClick={() => { handleCleanupOrphans(); setMobileMenuOpen(false); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-muted hover:bg-card-hover hover:text-foreground transition-colors">
+                    <svg className="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18M8 6V4a1 1 0 011-1h6a1 1 0 011 1v2M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
+                    Limpar órfãos
+                  </button>
+                  <button onClick={() => { setIrpfOpen(true); setMobileMenuOpen(false); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-muted hover:bg-card-hover hover:text-foreground transition-colors">
+                    <FileText className="size-4 shrink-0" /> Relatório IRPF
+                  </button>
+                  {firebaseUser && <>
+                    <div className="border-t border-border my-1" />
+                    <button onClick={() => { logoutFirebase(); setMobileMenuOpen(false); }} className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-red-400 hover:bg-card-hover transition-colors">
+                      <svg className="size-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+                      Sair da conta
+                    </button>
+                  </>}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 py-4">
-        <div className="relative mb-6">
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 py-3 sm:py-4">
+        <div className="relative mb-4 sm:mb-6">
+          <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 scrollbar-none">
           <TabButton active={tab === "dashboard"} onClick={() => setTab("dashboard")} icon={LayoutDashboard}>
-            Dashboard
+            <span className="hidden xs:inline">Dashboard</span><span className="xs:hidden">Home</span>
           </TabButton>
           <TabButton active={tab === "assets"} onClick={() => setTab("assets")} icon={Briefcase}>
-            Ativos ({assets.length})
+            Ativos <span className="text-[10px] opacity-70">({assets.length})</span>
           </TabButton>
           <TabButton active={tab === "dividendos"} onClick={() => setTab("dividendos")} icon={HandCoins}>
-            Dividendos ({dividends.length})
+            Divs <span className="text-[10px] opacity-70">({dividends.length})</span>
           </TabButton>
           <TabButton active={tab === "aportes"} onClick={() => setTab("aportes")} icon={PiggyBank}>
-            Aportes ({contributions.length})
+            Aportes <span className="text-[10px] opacity-70">({contributions.length})</span>
           </TabButton>
           <TabButton active={tab === "trades"} onClick={() => setTab("trades")} icon={ArrowLeftRight}>
-            Compra/Venda ({trades.length})
+            Operações <span className="text-[10px] opacity-70">({trades.length})</span>
           </TabButton>
           <TabButton active={tab === "analise-fii"} onClick={() => setTab("analise-fii")} icon={Building2}>
-            Análise FII ({fiiAssets.length})
+            FII <span className="text-[10px] opacity-70">({fiiAssets.length})</span>
           </TabButton>
           <TabButton active={tab === "planejamento"} onClick={() => setTab("planejamento")} icon={Target}>
-            Planejamento
+            Meta
           </TabButton>
           <div className="flex-1 min-w-4" />
           {tab === "assets" && (
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
               <button
                 onClick={handleReclassify}
-                className="flex items-center gap-2 px-3 py-2 bg-card text-muted hover:text-foreground rounded-xl text-sm font-medium border border-border transition-colors"
+                className="hidden sm:flex items-center gap-2 px-3 py-2 bg-card text-muted hover:text-foreground rounded-xl text-sm font-medium border border-border transition-colors"
                 title="Reclassificar ativos por tipo automaticamente"
               >
                 <svg className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M7 21V3m0 0l-4 4m4-4l4 4m6 12V7m0 0l-4 4m4-4l4 4"/></svg>
@@ -419,30 +447,30 @@ export default function App() {
               </button>
               <button
                 onClick={() => { setEditAsset(null); setDialogOpen(true); }}
-                className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary-dark transition-colors shrink-0"
+                className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-primary text-white rounded-xl text-xs sm:text-sm font-medium hover:bg-primary-dark transition-colors shrink-0 min-h-[40px]"
               >
-                <Plus className="size-4" /> Novo Ativo
+                <Plus className="size-4" /> <span className="hidden sm:inline">Novo </span>Ativo
               </button>
             </div>
           )}
           {tab === "dividendos" && <div className="flex items-center gap-2 shrink-0" />}
           {tab === "aportes" && (
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
               <button
                 onClick={() => setAportCsvOpen(true)}
-                className="flex items-center gap-2 px-3 py-2 bg-card text-muted hover:text-foreground rounded-xl text-sm font-medium border border-border transition-colors"
+                className="flex items-center gap-2 px-3 py-2 bg-card text-muted hover:text-foreground rounded-xl text-xs sm:text-sm font-medium border border-border transition-colors min-h-[40px]"
               >
-                <Upload className="size-4" /> Importar
+                <Upload className="size-4" /> <span className="hidden sm:inline">Importar</span><span className="sm:hidden">CSV</span>
               </button>
               <button
                 onClick={() => setAportDialogOpen(true)}
-                className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary-dark transition-colors"
+                className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-primary text-white rounded-xl text-xs sm:text-sm font-medium hover:bg-primary-dark transition-colors min-h-[40px]"
               >
-                <PiggyBank className="size-4" /> Novo Aporte
+                <PiggyBank className="size-4" /> <span className="hidden sm:inline">Novo </span>Aporte
               </button>
               <button
                 onClick={handleClearContributions}
-                className="p-2 rounded-lg hover:bg-card-hover text-muted hover:text-expense transition-colors"
+                className="p-2 rounded-lg hover:bg-card-hover text-muted hover:text-expense transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center"
                 title="Limpar aportes"
               >
                 <Trash2 className="size-4 text-expense" />
@@ -450,18 +478,18 @@ export default function App() {
             </div>
           )}
           {tab === "trades" && (
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
               <button
                 onClick={() => setTradeImportOpen(true)}
-                className="flex items-center gap-2 px-3 py-2 bg-card text-muted hover:text-foreground rounded-xl text-sm font-medium border border-border transition-colors"
+                className="flex items-center gap-2 px-3 py-2 bg-card text-muted hover:text-foreground rounded-xl text-xs sm:text-sm font-medium border border-border transition-colors min-h-[40px]"
               >
-                <Upload className="size-4" /> Importar
+                <Upload className="size-4" /> <span className="hidden sm:inline">Importar</span><span className="sm:hidden">CSV</span>
               </button>
               <button
                 onClick={() => { setEditTrade(null); setTradeDialogOpen(true); }}
-                className="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary-dark transition-colors"
+                className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-primary text-white rounded-xl text-xs sm:text-sm font-medium hover:bg-primary-dark transition-colors min-h-[40px]"
               >
-                <ArrowLeftRight className="size-4" /> Nova Operação
+                <ArrowLeftRight className="size-4" /> <span className="hidden sm:inline">Nova </span>Operação
               </button>
             </div>
           )}
@@ -569,11 +597,11 @@ function TabButton({ active, onClick, icon: Icon, children }: { active: boolean;
   return (
     <button
       onClick={onClick}
-      className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-sm font-medium transition-colors shrink-0 ${
-        active ? "bg-primary text-white" : "bg-card text-muted hover:text-foreground"
+      className={`flex items-center gap-1 sm:gap-1.5 px-3 sm:px-4 py-2.5 sm:py-2 rounded-xl text-xs sm:text-sm font-medium transition-colors shrink-0 min-h-[40px] ${
+        active ? "bg-primary text-white" : "bg-card text-muted hover:text-foreground active:bg-card-hover"
       }`}
     >
-      <Icon className="size-4" />
+      <Icon className="size-3.5 sm:size-4 shrink-0" />
       {children}
     </button>
   );
