@@ -1,12 +1,11 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import type { DividendRecord } from "../types";
 import { formatCurrency } from "../format";
-import { fetchDY12m } from "../prices";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell
 } from "recharts";
-import { X, RefreshCw } from "lucide-react";
+import { X } from "lucide-react";
 import { AssetLogo } from "./AssetLogo";
 
 interface Props {
@@ -26,18 +25,6 @@ export function DividendDashboard({ dividends, hideValues, onRefresh }: Props) {
   const [filterType, setFilterType] = useState("");
   const [filterYears, setFilterYears] = useState<number[]>([]);
   const [selectedTicker, setSelectedTicker] = useState("");
-  const [dyData, setDyData] = useState<Map<string, { dy12m: number; price: number; last12Sum: number }>>(new Map());
-  const [loadingDy, setLoadingDy] = useState(false);
-
-  useEffect(() => {
-    const tickers = [...new Set(dividends.map((d) => d.ticker))];
-    if (tickers.length === 0) return;
-    setLoadingDy(true);
-    fetchDY12m(tickers).then((map) => {
-      setDyData(map);
-      setLoadingDy(false);
-    });
-  }, [dividends]);
 
   const availableTypes = useMemo(() => {
     return Array.from(new Set(dividends.map((d) => d.type))).sort();
@@ -115,6 +102,18 @@ export function DividendDashboard({ dividends, hideValues, onRefresh }: Props) {
 
   const hasActiveFilters = filterType || filterYears.length > 0 || selectedTicker;
 
+  const avgMonthly = useMemo(() => {
+    if (filtered.length === 0) return 0;
+    const byMonth = new Map<string, number>();
+    for (const d of filtered) {
+      byMonth.set(d.monthYear, (byMonth.get(d.monthYear) ?? 0) + d.totalValue);
+    }
+    const months = Array.from(byMonth.values());
+    return months.length > 0 ? months.reduce((s, v) => s + v, 0) / months.length : 0;
+  }, [filtered]);
+
+  const avgAnnual = avgMonthly * 12;
+
   return (
     <div className="space-y-4">
       {/* Summary cards */}
@@ -125,14 +124,9 @@ export function DividendDashboard({ dividends, hideValues, onRefresh }: Props) {
           <p className="text-[10px] text-muted mt-0.5">de {mask(totalDividends, hideValues)}</p>
         </div>
         <div className="bg-card border border-border rounded-2xl p-4">
-          <div className="flex items-center justify-between mb-1">
-            <p className="text-xs text-muted font-medium uppercase tracking-wider">DY 12m</p>
-            {loadingDy && <RefreshCw className="size-3 text-muted animate-spin" />}
-          </div>
-          <p className="text-xl font-bold tabular text-primary">
-            {dyData.size === 0 ? "-" : `${(Array.from(dyData.values()).reduce((s, d) => s + d.dy12m, 0) / dyData.size).toFixed(2)}%`}
-          </p>
-          <p className="text-[10px] text-muted mt-0.5">médio dos ativos</p>
+          <p className="text-xs text-muted font-medium uppercase tracking-wider mb-1">Média Mensal</p>
+          <p className="text-xl font-bold tabular text-primary">{mask(avgMonthly, hideValues)}</p>
+          <p className="text-[10px] text-muted mt-0.5">anual: {mask(avgAnnual, hideValues)}</p>
         </div>
       </div>
 
