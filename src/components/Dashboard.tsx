@@ -47,6 +47,7 @@ function getTypeColor(type: string): string {
 
 export function Dashboard({ summary, assets, hideValues, contributions, trades }: Props) {
   const [selectedSegment, setSelectedSegment] = useState<string | null>(null);
+  const [showDivDetail, setShowDivDetail] = useState(false);
 
   const typeData = Object.entries(summary.types)
     .map(([name, value]) => ({ name, value: Math.round(value) }))
@@ -66,6 +67,16 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades }
       map[seg].push(a);
     }
     return map;
+  }, [assets]);
+
+  const dividendBreakdown = useMemo(() => {
+    return assets
+      .filter(a => a.dividendPerShare > 0 || a.currentDividend > 0)
+      .map(a => {
+        const monthly = a.dividendPerShare > 0 ? a.dividendPerShare * a.quantity : a.currentDividend;
+        return { ...a, monthlyDiv: monthly, annualDiv: monthly * 12 };
+      })
+      .sort((a, b) => b.annualDiv - a.annualDiv);
   }, [assets]);
 
   const topAssets = [...assets]
@@ -118,7 +129,14 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades }
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
         <SummaryCard label="Total Investido" value={mask(realInvested, hideValues)} accent="blue" />
         <SummaryCard label="Dividendo Mensal" value={mask(summary.monthlyDividend, hideValues)} accent="green" />
-        <SummaryCard label="Dividendo Anual" value={mask(summary.annualDividend, hideValues)} accent="green" />
+        <button
+          className={`bg-card border border-border rounded-2xl p-4 text-left border-l-2 border-l-emerald-500 transition-all ${showDivDetail ? "ring-1 ring-emerald-500/50" : "hover:bg-surface/50"}`}
+          onClick={() => setShowDivDetail(!showDivDetail)}
+        >
+          <p className="text-xs text-muted mb-1">Dividendo Anual</p>
+          <p className="text-lg font-bold tabular">{mask(summary.annualDividend, hideValues)}</p>
+          <p className="text-[10px] text-muted mt-0.5">{showDivDetail ? "▲ Ocultar" : "▼ Detalhar"}</p>
+        </button>
         <SummaryCard label="Carteira" value={String(summary.assetCount)} accent="purple" />
         <div className="bg-card border border-border rounded-2xl p-4 border-l-2 border-l-amber-500">
           <p className="text-xs text-muted mb-1">Patrimônio Atual</p>
@@ -126,6 +144,32 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades }
           <p className="text-xs text-muted mt-0.5">(investido: {mask(realInvested, hideValues)})</p>
         </div>
       </div>
+
+      {showDivDetail && dividendBreakdown.length > 0 && (
+        <div className="bg-card border border-border rounded-2xl p-4">
+          <h3 className="font-semibold text-sm mb-3">Detalhamento do Dividendo Anual</h3>
+          <div className="space-y-1.5 max-h-64 overflow-y-auto">
+            {dividendBreakdown.map(a => (
+              <div key={a.id} className="flex items-center gap-2 text-xs py-1 border-b border-border/50 last:border-0">
+                <AssetLogo ticker={a.ticker} size={20} />
+                <span className="font-medium w-16">{a.ticker}</span>
+                <span className="text-muted w-10">{a.type}</span>
+                <span className="text-muted flex-1">{a.dividendPerShare > 0 ? `${formatCurrency(a.dividendPerShare)}/cota × ${a.quantity}` : `fixo`}</span>
+                <span className="tabular w-20 text-right">{formatCurrency(a.monthlyDiv)}/mês</span>
+                <span className="font-medium tabular w-20 text-right">{formatCurrency(a.annualDiv)}</span>
+              </div>
+            ))}
+          </div>
+          <div className="flex justify-between text-xs font-semibold mt-3 pt-2 border-t border-border">
+            <span>Total/mês</span>
+            <span className="tabular">{formatCurrency(dividendBreakdown.reduce((s, a) => s + a.monthlyDiv, 0))}</span>
+          </div>
+          <div className="flex justify-between text-xs font-semibold">
+            <span>Total/ano</span>
+            <span className="tabular">{formatCurrency(dividendBreakdown.reduce((s, a) => s + a.annualDiv, 0))}</span>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-card border border-border rounded-2xl p-5">
