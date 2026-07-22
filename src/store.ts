@@ -423,33 +423,27 @@ export function calculateSummary(assets: Asset[], dividends?: DividendRecord[]):
   // Calculate monthly dividend from real records (last 12 months) if available
   let monthlyFromRecords = 0;
   if (dividends && dividends.length > 0) {
-    const sorted = [...dividends].sort((a, b) => b.payment.localeCompare(a.payment));
-    const last12 = sorted.slice(0, 12);
-    const byMonth: Record<string, number> = {};
-    for (const d of last12) {
-      byMonth[d.monthYear] = (byMonth[d.monthYear] ?? 0) + d.totalValue;
-    }
-    const monthKeys = Object.keys(byMonth);
-    if (monthKeys.length > 0) {
+    const now = new Date();
+    const twelveMonthsAgo = new Date(now.getFullYear() - 1, now.getMonth(), 1).toISOString().slice(0, 7);
+    const recentDividends = dividends.filter(d => d.monthYear >= twelveMonthsAgo);
+    if (recentDividends.length > 0) {
+      const byMonth: Record<string, number> = {};
+      for (const d of recentDividends) {
+        byMonth[d.monthYear] = (byMonth[d.monthYear] ?? 0) + d.totalValue;
+      }
+      const monthKeys = Object.keys(byMonth);
       monthlyFromRecords = monthKeys.reduce((s, k) => s + byMonth[k], 0) / monthKeys.length;
     }
   }
 
   const monthlyDividend = monthlyFromRecords > 0 ? monthlyFromRecords : assets.reduce((s, a) => {
-    const divPerShare = a.dividendPerShare || 0;
-    return s + (divPerShare > 0 ? divPerShare * a.quantity : a.currentDividend);
+    return s + (a.currentDividend || 0);
   }, 0);
 
   const annualDividend = monthlyDividend * 12;
 
   const projectedMonthlyDividend = monthlyFromRecords > 0 ? monthlyFromRecords : assets.reduce((s, a) => {
-    const divPerShare = a.dividendPerShare || 0;
-    if (divPerShare <= 0) return s + a.currentDividend;
-    if (a.targetTotal > 0 && a.avgPrice > 0) {
-      const projectedShares = a.targetTotal / a.avgPrice;
-      return s + projectedShares * divPerShare;
-    }
-    return s + divPerShare * a.quantity;
+    return s + (a.currentDividend || 0);
   }, 0);
 
   const types: Record<string, number> = {};
