@@ -20,6 +20,7 @@ export function DividendTable({ dividends, hideValues, onRefresh }: Props) {
   const [filterMonth, setFilterMonth] = useState("");
   const [filterYear, setFilterYear] = useState("");
   const [filterTicker, setFilterTicker] = useState("");
+  const [filterStatus, setFilterStatus] = useState<"all" | "received" | "pending">("all");
 
   const stats = useMemo(() => getDividendStats(dividends), [dividends]);
 
@@ -42,11 +43,15 @@ export function DividendTable({ dividends, hideValues, onRefresh }: Props) {
     return Array.from(set).sort();
   }, [dividends]);
 
+  const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
+
   const sorted = useMemo(() => {
     let filtered = dividends;
     if (filterMonth) filtered = filtered.filter((d) => d.monthYear === filterMonth);
     if (filterYear) filtered = filtered.filter((d) => String(d.year) === filterYear);
     if (filterTicker) filtered = filtered.filter((d) => d.ticker === filterTicker);
+    if (filterStatus === "received") filtered = filtered.filter((d) => d.payment <= today);
+    if (filterStatus === "pending") filtered = filtered.filter((d) => d.payment > today);
 
     return [...filtered].sort((a, b) => {
       const av = a[sortField] ?? "";
@@ -58,7 +63,7 @@ export function DividendTable({ dividends, hideValues, onRefresh }: Props) {
         ? String(av).localeCompare(String(bv))
         : String(bv).localeCompare(String(av));
     });
-  }, [dividends, sortField, sortAsc, filterMonth, filterYear, filterTicker]);
+  }, [dividends, sortField, sortAsc, filterMonth, filterYear, filterTicker, filterStatus, today]);
 
   function toggleSort(field: keyof DividendRecord) {
     if (sortField === field) setSortAsc(!sortAsc);
@@ -118,7 +123,27 @@ export function DividendTable({ dividends, hideValues, onRefresh }: Props) {
 
       <div className="bg-card border border-border rounded-2xl overflow-hidden">
         <div className="flex items-center justify-between p-4 border-b border-border">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center bg-surface border border-border rounded-lg overflow-hidden">
+              <button
+                onClick={() => setFilterStatus("all")}
+                className={`px-3 py-1.5 text-xs font-medium transition-colors ${filterStatus === "all" ? "bg-primary text-white" : "text-muted hover:text-foreground"}`}
+              >
+                Todos
+              </button>
+              <button
+                onClick={() => setFilterStatus("received")}
+                className={`px-3 py-1.5 text-xs font-medium transition-colors ${filterStatus === "received" ? "bg-income text-white" : "text-muted hover:text-foreground"}`}
+              >
+                Recebidos
+              </button>
+              <button
+                onClick={() => setFilterStatus("pending")}
+                className={`px-3 py-1.5 text-xs font-medium transition-colors ${filterStatus === "pending" ? "bg-amber-500 text-white" : "text-muted hover:text-foreground"}`}
+              >
+                A receber
+              </button>
+            </div>
             <select
               value={filterTicker}
               onChange={(e) => setFilterTicker(e.target.value)}
