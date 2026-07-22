@@ -411,7 +411,7 @@ export default function App() {
       </header>
 
       <div className="max-w-7xl mx-auto px-3 sm:px-4 py-3 sm:py-4">
-        <div className="relative mb-4 sm:mb-6">
+        <div className="relative mb-3 sm:mb-4">
           <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1 scrollbar-none">
           <TabButton active={tab === "dashboard"} onClick={() => setTab("dashboard")} icon={LayoutDashboard}>
             <span className="hidden xs:inline">Dashboard</span><span className="xs:hidden">Home</span>
@@ -426,7 +426,7 @@ export default function App() {
             Aportes <span className="text-[10px] opacity-70">({contributions.length})</span>
           </TabButton>
           <TabButton active={tab === "trades"} onClick={() => setTab("trades")} icon={ArrowLeftRight}>
-            Operações <span className="text-[10px] opacity-70">({trades.length})</span>
+            Lançamentos <span className="text-[10px] opacity-70">({trades.length})</span>
           </TabButton>
           <TabButton active={tab === "analise-fii"} onClick={() => setTab("analise-fii")} icon={Building2}>
             FII <span className="text-[10px] opacity-70">({fiiAssets.length})</span>
@@ -434,69 +434,72 @@ export default function App() {
           <TabButton active={tab === "planejamento"} onClick={() => setTab("planejamento")} icon={Target}>
             Meta
           </TabButton>
-          <div className="flex-1 min-w-4" />
-          {tab === "assets" && (
-            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-              <button
-                onClick={handleReclassify}
-                className="hidden sm:flex items-center gap-2 px-3 py-2 bg-card text-muted hover:text-foreground rounded-xl text-sm font-medium border border-border transition-colors"
-                title="Reclassificar ativos por tipo automaticamente"
-              >
-                <svg className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M7 21V3m0 0l-4 4m4-4l4 4m6 12V7m0 0l-4 4m4-4l4 4"/></svg>
-                Reclassificar
-              </button>
-              <button
-                onClick={() => { setEditAsset(null); setDialogOpen(true); }}
-                className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-primary text-white rounded-xl text-xs sm:text-sm font-medium hover:bg-primary-dark transition-colors shrink-0 min-h-[40px]"
-              >
-                <Plus className="size-4" /> <span className="hidden sm:inline">Novo </span>Ativo
-              </button>
-            </div>
-          )}
-          {tab === "dividendos" && <div className="flex items-center gap-2 shrink-0" />}
-          {tab === "aportes" && (
-            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-              <button
-                onClick={() => setAportCsvOpen(true)}
-                className="flex items-center gap-2 px-3 py-2 bg-card text-muted hover:text-foreground rounded-xl text-xs sm:text-sm font-medium border border-border transition-colors min-h-[40px]"
-              >
-                <Upload className="size-4" /> <span className="hidden sm:inline">Importar</span><span className="sm:hidden">CSV</span>
-              </button>
-              <button
-                onClick={() => setAportDialogOpen(true)}
-                className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-primary text-white rounded-xl text-xs sm:text-sm font-medium hover:bg-primary-dark transition-colors min-h-[40px]"
-              >
-                <PiggyBank className="size-4" /> <span className="hidden sm:inline">Novo </span>Aporte
-              </button>
-              <button
-                onClick={handleClearContributions}
-                className="p-2 rounded-lg hover:bg-card-hover text-muted hover:text-expense transition-colors min-h-[40px] min-w-[40px] flex items-center justify-center"
-                title="Limpar aportes"
-              >
-                <Trash2 className="size-4 text-expense" />
-              </button>
-            </div>
-          )}
-          {tab === "trades" && (
-            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-              <button
-                onClick={() => setTradeImportOpen(true)}
-                className="flex items-center gap-2 px-3 py-2 bg-card text-muted hover:text-foreground rounded-xl text-xs sm:text-sm font-medium border border-border transition-colors min-h-[40px]"
-              >
-                <Upload className="size-4" /> <span className="hidden sm:inline">Importar</span><span className="sm:hidden">CSV</span>
-              </button>
-              <button
-                onClick={() => { setEditTrade(null); setTradeDialogOpen(true); }}
-                className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-primary text-white rounded-xl text-xs sm:text-sm font-medium hover:bg-primary-dark transition-colors min-h-[40px]"
-              >
-                <ArrowLeftRight className="size-4" /> <span className="hidden sm:inline">Nova </span>Operação
-              </button>
-            </div>
-          )}
           </div>
           <div className="pointer-events-none absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-surface to-transparent sm:hidden" />
           <div className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-surface to-transparent sm:hidden" />
         </div>
+
+        {tab === "assets" && (
+          <div className="flex items-center gap-2 mb-4">
+            <button
+              onClick={handleReclassify}
+              className="hidden sm:flex items-center gap-2 px-3 py-2 bg-card text-muted hover:text-foreground rounded-xl text-sm font-medium border border-border transition-colors"
+              title="Reclassificar ativos por tipo automaticamente"
+            >
+              <svg className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M7 21V3m0 0l-4 4m4-4l4 4m6 12V7m0 0l-4 4m4-4l4 4"/></svg>
+              Reclassificar
+            </button>
+            <div className="flex-1" />
+            <button
+              onClick={() => { setEditAsset(null); setDialogOpen(true); }}
+              className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-primary text-white rounded-xl text-xs sm:text-sm font-medium hover:bg-primary-dark transition-colors min-h-[40px]"
+            >
+              <Plus className="size-4" /> <span className="hidden sm:inline">Novo </span>Ativo
+            </button>
+          </div>
+        )}
+
+        {tab === "aportes" && (
+          <div className="flex items-center gap-2 mb-4">
+            <button
+              onClick={handleClearContributions}
+              className="flex items-center gap-1 px-3 py-2 text-xs text-red-400 hover:bg-card rounded-lg transition-colors min-h-[40px]"
+            >
+              <Trash2 className="size-3.5" /> Limpar
+            </button>
+            <div className="flex-1" />
+            <button
+              onClick={() => setAportCsvOpen(true)}
+              className="flex items-center gap-2 px-3 py-2 bg-card text-muted hover:text-foreground rounded-xl text-xs sm:text-sm font-medium border border-border transition-colors min-h-[40px]"
+            >
+              <Upload className="size-4" /> CSV
+            </button>
+            <button
+              onClick={() => setAportDialogOpen(true)}
+              className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-primary text-white rounded-xl text-xs sm:text-sm font-medium hover:bg-primary-dark transition-colors min-h-[40px]"
+            >
+              <PiggyBank className="size-4" /> <span className="hidden sm:inline">Novo </span>Aporte
+            </button>
+          </div>
+        )}
+
+        {tab === "trades" && (
+          <div className="flex items-center gap-2 mb-4">
+            <div className="flex-1" />
+            <button
+              onClick={() => setTradeImportOpen(true)}
+              className="flex items-center gap-2 px-3 py-2 bg-card text-muted hover:text-foreground rounded-xl text-xs sm:text-sm font-medium border border-border transition-colors min-h-[40px]"
+            >
+              <Upload className="size-4" /> CSV
+            </button>
+            <button
+              onClick={() => { setEditTrade(null); setTradeDialogOpen(true); }}
+              className="flex items-center gap-2 px-3 sm:px-4 py-2 bg-primary text-white rounded-xl text-xs sm:text-sm font-medium hover:bg-primary-dark transition-colors min-h-[40px]"
+            >
+              <ArrowLeftRight className="size-4" /> <span className="hidden sm:inline">Nova </span>Lançamento
+            </button>
+          </div>
+        )}
 
         {tab === "dashboard" && <Dashboard summary={summary} assets={assets} hideValues={hideValues} contributions={contributions} trades={trades} />}
 

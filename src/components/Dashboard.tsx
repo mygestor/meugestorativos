@@ -107,7 +107,7 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades }
         <SummaryCard label="Total Investido" value={mask(realInvested, hideValues)} accent="blue" />
         <SummaryCard label="Dividendo Mensal" value={mask(summary.monthlyDividend, hideValues)} accent="green" />
         <SummaryCard label="Dividendo Anual" value={mask(summary.annualDividend, hideValues)} accent="green" />
-        <SummaryCard label="Ativos" value={String(summary.assetCount)} accent="purple" />
+        <SummaryCard label="Carteira" value={String(summary.assetCount)} accent="purple" />
         <div className="bg-card border border-border rounded-2xl p-4 border-l-2 border-l-amber-500">
           <p className="text-xs text-muted mb-1">Patrimônio Atual</p>
           <p className="text-lg font-bold tabular">{mask(summary.totalCurrentValue, hideValues)}</p>
