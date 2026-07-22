@@ -437,28 +437,23 @@ export function calculateSummary(assets: Asset[], dividends?: DividendRecord[]):
   }
 
   const monthlyDividend = monthlyFromRecords > 0 ? monthlyFromRecords : assets.reduce((s, a) => {
-    // Para FII: dividendPerShare já é mensal
-    // Para AÇÃO: dividendPerShare pode ser trimestral (último pagamento), então divide por 3
     const dps = a.dividendPerShare || 0;
-    const price = a.currentPrice || 1;
-    const dyPerPayment = dps / price;
-    if (a.type === "FII" || dyPerPayment <= 0.03) {
-      return s + (a.currentDividend || 0);
-    }
-    // Ação com DY alto por pagamento = provável trimestral
-    return s + (a.currentDividend || 0) / 3;
+    if (dps <= 0) return s;
+    const monthly = a.type === "FII" ? dps * a.quantity : (dps * a.quantity) / 3;
+    return s + monthly;
   }, 0);
 
   const annualDividend = monthlyDividend * 12;
 
   const projectedMonthlyDividend = monthlyFromRecords > 0 ? monthlyFromRecords : assets.reduce((s, a) => {
     const dps = a.dividendPerShare || 0;
-    const price = a.currentPrice || 1;
-    const dyPerPayment = dps / price;
-    if (a.type === "FII" || dyPerPayment <= 0.03) {
-      return s + (a.currentDividend || 0);
+    if (dps <= 0) return s;
+    if (a.type !== "FII" && a.targetTotal > 0 && a.avgPrice > 0) {
+      const projectedShares = a.targetTotal / a.avgPrice;
+      return s + (projectedShares * dps) / 3;
     }
-    return s + (a.currentDividend || 0) / 3;
+    const monthly = a.type === "FII" ? dps * a.quantity : (dps * a.quantity) / 3;
+    return s + monthly;
   }, 0);
 
   const types: Record<string, number> = {};
