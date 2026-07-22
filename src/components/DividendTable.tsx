@@ -22,7 +22,19 @@ export function DividendTable({ dividends, hideValues, onRefresh }: Props) {
   const [filterTicker, setFilterTicker] = useState("");
   const [filterStatus, setFilterStatus] = useState<"all" | "received" | "pending">("all");
 
+  const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
+
   const stats = useMemo(() => getDividendStats(dividends), [dividends]);
+
+  const filteredTotal = useMemo(() => {
+    let filtered = dividends;
+    if (filterMonth) filtered = filtered.filter((d) => d.monthYear === filterMonth);
+    if (filterYear) filtered = filtered.filter((d) => String(d.year) === filterYear);
+    if (filterTicker) filtered = filtered.filter((d) => d.ticker === filterTicker);
+    if (filterStatus === "received") filtered = filtered.filter((d) => d.payment <= today);
+    if (filterStatus === "pending") filtered = filtered.filter((d) => d.payment > today);
+    return filtered.reduce((s, d) => s + d.totalValue, 0);
+  }, [dividends, filterMonth, filterYear, filterTicker, filterStatus, today]);
 
   const months = useMemo(() => {
     const set = new Set(dividends.map((d) => d.monthYear));
@@ -42,8 +54,6 @@ export function DividendTable({ dividends, hideValues, onRefresh }: Props) {
     const set = new Set(dividends.map((d) => d.ticker));
     return Array.from(set).sort();
   }, [dividends]);
-
-  const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
   const sorted = useMemo(() => {
     let filtered = dividends;
@@ -102,8 +112,13 @@ export function DividendTable({ dividends, hideValues, onRefresh }: Props) {
     <div className="space-y-4">
       <div className="grid grid-cols-3 gap-3">
         <div className="bg-card border border-border rounded-2xl p-4">
-          <p className="text-xs text-muted mb-1">Total Recebido</p>
-          <p className="text-lg font-bold tabular text-income">{mask(stats.total, hideValues)}</p>
+          <p className="text-xs text-muted mb-1">Total</p>
+          <p className="text-lg font-bold tabular text-income">{mask(filteredTotal, hideValues)}</p>
+          {filterStatus !== "all" && (
+            <p className="text-[10px] text-muted mt-1">
+              {filterStatus === "received" ? "Recebidos" : "A receber"} ({sorted.length})
+            </p>
+          )}
         </div>
         <div className="bg-card border border-border rounded-2xl p-4 col-span-2">
           <p className="text-xs text-muted mb-2">Top Ativos</p>
