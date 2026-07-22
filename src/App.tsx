@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import type { Asset, DividendRecord, ContributionRecord, TradeRecord } from "./types";
-import { getAssets, getDividends, getContributions, getTrades, calculateSummary, addAsset, clearAll, clearDividends, clearContributions, importFullBackup, importSeedData, cleanupOrphanAssets, reclassifyAssets, initFromRemoteData, exportAllData } from "./store";
+import { getAssets, getDividends, getContributions, getTrades, calculateSummary, addAsset, clearAll, clearDividends, clearContributions, importFullBackup, importSeedData, cleanupOrphanAssets, initFromRemoteData, exportAllData } from "./store";
 import { syncAssetsFromTrades } from "./assetHelper";
 import { Dashboard } from "./components/Dashboard";
 import { AssetTable } from "./components/AssetTable";
@@ -209,12 +209,6 @@ export default function App() {
       importSeedData();
       refresh();
     }
-  }
-
-  function handleReclassify() {
-    const changed = reclassifyAssets();
-    refresh();
-    alert(`${changed} ativo(s) reclassificado(s)`);
   }
 
   function handleCleanupOrphans() {
@@ -441,14 +435,6 @@ export default function App() {
 
         {tab === "assets" && (
           <div className="flex items-center gap-2 mb-4">
-            <button
-              onClick={handleReclassify}
-              className="hidden sm:flex items-center gap-2 px-3 py-2 bg-card text-muted hover:text-foreground rounded-xl text-sm font-medium border border-border transition-colors"
-              title="Reclassificar ativos por tipo automaticamente"
-            >
-              <svg className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M7 21V3m0 0l-4 4m4-4l4 4m6 12V7m0 0l-4 4m4-4l4 4"/></svg>
-              Reclassificar
-            </button>
             <div className="flex-1" />
             <button
               onClick={() => { setEditAsset(null); setDialogOpen(true); }}
