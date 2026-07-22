@@ -50,16 +50,26 @@ export function FirebaseLogin({ onLogin }: Props) {
   }
 
   function handleSetupConfig() {
+    setError("");
     try {
-      const parsed = JSON.parse(configText);
+      let text = configText.trim();
+      // Remove "const firebaseConfig = " ou "let firebaseConfig = " etc
+      text = text.replace(/^const\s+\w+\s*=\s*/i, "");
+      text = text.replace(/^let\s+\w+\s*=\s*/i, "");
+      text = text.replace(/^var\s+\w+\s*=\s*/i, "");
+      // Remove trailing comma
+      text = text.replace(/,\s*$/, "");
+      const parsed = JSON.parse(text);
       if (parsed.apiKey && parsed.projectId) {
         saveFirebaseConfig(parsed);
+        setError("");
+        alert("Configuração salva! Recarregando...");
         window.location.reload();
       } else {
-        setError("Configuração inválida. Precisa de apiKey e projectId.");
+        setError("JSON inválido. Precisa conter apiKey e projectId.");
       }
-    } catch {
-      setError("JSON inválido. Cole o firebaseConfig completo.");
+    } catch (e) {
+      setError("Erro ao ler JSON. Verifique se copiou completo.");
     }
   }
 
