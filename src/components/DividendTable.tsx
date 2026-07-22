@@ -137,8 +137,8 @@ export function DividendTable({ dividends, hideValues, onRefresh }: Props) {
       </div>
 
       <div className="bg-card border border-border rounded-2xl overflow-hidden">
-        <div className="flex items-center justify-between p-4 border-b border-border">
-          <div className="flex items-center gap-2 flex-wrap">
+        <div className="p-4 border-b border-border space-y-3">
+          <div className="flex items-center justify-between">
             <div className="flex items-center bg-surface border border-border rounded-lg overflow-hidden">
               <button
                 onClick={() => setFilterStatus("all")}
@@ -159,40 +159,40 @@ export function DividendTable({ dividends, hideValues, onRefresh }: Props) {
                 A receber
               </button>
             </div>
-            <select
-              value={filterTicker}
-              onChange={(e) => setFilterTicker(e.target.value)}
-              className="px-3 py-1.5 bg-surface border border-border rounded-lg text-xs focus:outline-none focus:border-primary"
-            >
-              <option value="">Todos os ativos</option>
-              {tickers.map((t) => (
-                <option key={t} value={t}>{t}</option>
-              ))}
-            </select>
-            <select
-              value={filterMonth}
-              onChange={(e) => setFilterMonth(e.target.value)}
-              className="px-3 py-1.5 bg-surface border border-border rounded-lg text-xs focus:outline-none focus:border-primary"
-            >
-              <option value="">Todos os meses</option>
-              {months.map((m) => (
-                <option key={m} value={m}>{m}</option>
-              ))}
-            </select>
-            <select
-              value={filterYear}
-              onChange={(e) => setFilterYear(e.target.value)}
-              className="px-3 py-1.5 bg-surface border border-border rounded-lg text-xs focus:outline-none focus:border-primary"
-            >
-              <option value="">Todos os anos</option>
-              {years.map((y) => (
-                <option key={y} value={String(y)}>{y}</option>
-              ))}
-            </select>
+            <button onClick={handleExport} className="p-1.5 rounded-lg hover:bg-surface text-muted transition-colors" title="Exportar dividendos">
+              <Download className="size-4" />
+            </button>
           </div>
-          <button onClick={handleExport} className="p-1.5 rounded-lg hover:bg-surface text-muted transition-colors" title="Exportar dividendos">
-            <Download className="size-4" />
-          </button>
+          <select
+            value={filterTicker}
+            onChange={(e) => setFilterTicker(e.target.value)}
+            className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-xs focus:outline-none focus:border-primary"
+          >
+            <option value="">Todos os ativos</option>
+            {tickers.map((t) => (
+              <option key={t} value={t}>{t}</option>
+            ))}
+          </select>
+          <select
+            value={filterMonth}
+            onChange={(e) => setFilterMonth(e.target.value)}
+            className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-xs focus:outline-none focus:border-primary"
+          >
+            <option value="">Todos os meses</option>
+            {months.map((m) => (
+              <option key={m} value={m}>{m}</option>
+            ))}
+          </select>
+          <select
+            value={filterYear}
+            onChange={(e) => setFilterYear(e.target.value)}
+            className="w-full px-3 py-2 bg-surface border border-border rounded-lg text-xs focus:outline-none focus:border-primary"
+          >
+            <option value="">Todos os anos</option>
+            {years.map((y) => (
+              <option key={y} value={String(y)}>{y}</option>
+            ))}
+          </select>
         </div>
 
         {sorted.length === 0 ? (
