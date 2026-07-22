@@ -48,26 +48,54 @@ function getTypeColor(type: string): string {
 
 export function Dashboard({ summary, assets, hideValues, contributions, trades, dividends }: Props) {
   const [selectedSegment, setSelectedSegment] = useState<string | null>(null);
+  const [selectedFIISegment, setSelectedFIISegment] = useState<string | null>(null);
 
   const typeData = Object.entries(summary.types)
     .map(([name, value]) => ({ name, value: Math.round(value) }))
     .sort((a, b) => b.value - a.value);
 
-  const sectorData = Object.entries(summary.sectors)
-    .map(([name, value]) => ({ name, value: Math.round(value) }))
-    .sort((a, b) => b.value - a.value);
+  const { fiiSectorData, otherSectorData, fiiAssetsBySegment, otherAssetsBySegment } = useMemo(() => {
+    const fiiSectors: Record<string, number> = {};
+    const otherSectors: Record<string, number> = {};
+    const fiiMap: Record<string, Asset[]> = {};
+    const otherMap: Record<string, Asset[]> = {};
 
-  const totalSector = sectorData.reduce((s, d) => s + d.value, 0);
-
-  const assetsBySegment = useMemo(() => {
-    const map: Record<string, Asset[]> = {};
     for (const a of assets) {
       const seg = a.sector || "A DEFINIR";
+      const isFII = a.type === "FII";
+      const target = isFII ? fiiSectors : otherSectors;
+      const map = isFII ? fiiMap : otherMap;
+      target[seg] = (target[seg] ?? 0) + a.investedAmount;
       if (!map[seg]) map[seg] = [];
       map[seg].push(a);
     }
-    return map;
+
+    function buildData(sectors: Record<string, number>) {
+      const total = Object.values(sectors).reduce((s, v) => s + v, 0);
+      const sorted = Object.entries(sectors)
+        .map(([name, value]) => ({ name, value: Math.round(value) }))
+        .sort((a, b) => b.value - a.value);
+      const threshold = total * 0.03;
+      const main: typeof sorted = [];
+      let otherValue = 0;
+      for (const item of sorted) {
+        if (item.value >= threshold) main.push(item);
+        else otherValue += item.value;
+      }
+      if (otherValue > 0) main.push({ name: "Outros", value: otherValue });
+      return main;
+    }
+
+    return {
+      fiiSectorData: buildData(fiiSectors),
+      otherSectorData: buildData(otherSectors),
+      fiiAssetsBySegment: fiiMap,
+      otherAssetsBySegment: otherMap,
+    };
   }, [assets]);
+
+  const totalFIISector = fiiSectorData.reduce((s, d) => s + d.value, 0);
+  const totalOtherSector = otherSectorData.reduce((s, d) => s + d.value, 0);
 
   const dividendBreakdown = useMemo(() => {
     const assetDivMap: Record<string, number> = {};
@@ -323,15 +351,15 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
         </div>
       )}
 
-      {sectorData.length > 0 && (
+      {fiiSectorData.length > 0 && (
         <div className="bg-card border border-border rounded-2xl p-5">
-          <h3 className="font-semibold text-sm mb-4">Segmentos</h3>
+          <h3 className="font-semibold text-sm mb-4">Fundos Imobiliários por Segmento</h3>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             <div className="h-56">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
-                    data={sectorData}
+                    data={fiiSectorData}
                     dataKey="value"
                     nameKey="name"
                     cx="50%"
@@ -342,12 +370,103 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
                       `${name} ${(percent * 100).toFixed(0)}%`
                     }
                     onClick={(_, index) => {
-                      const seg = sectorData[index]?.name;
+                      const seg = fiiSectorData[index]?.name;
+                      setSelectedFIISegment(prev => prev === seg ? null : seg);
+                    }}
+                    style={{ cursor: "pointer" }}
+                  >
+                    {fiiSectorData.map((s, i) => (
+                      <Cell
+                        key={i}
+                        fill={COLORS[i % COLORS.length]}
+                        opacity={selectedFIISegment === null || selectedFIISegment === s.name ? 1 : 0.3}
+                        stroke={selectedFIISegment === s.name ? "#fff" : undefined}
+                        strokeWidth={selectedFIISegment === s.name ? 2 : 0}
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={tooltipContentStyle}
+                    formatter={(v: number) => formatCurrency(v)}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="space-y-2">
+              {fiiSectorData.map((s, i) => {
+                const pct = (s.value / totalFIISector) * 100;
+                const isSelected = selectedFIISegment === s.name;
+                const segAssets = fiiAssetsBySegment[s.name] || [];
+                return (
+                  <div key={s.name}>
+                    <button
+                      className={`w-full text-left rounded-lg p-2 transition-all ${isSelected ? "bg-surface ring-1 ring-border" : "hover:bg-surface/50"}`}
+                      onClick={() => setSelectedFIISegment(prev => prev === s.name ? null : s.name)}
+                    >
+                      <div className="flex items-center justify-between text-xs mb-1">
+                        <div className="flex items-center gap-2">
+                          <span className="size-2.5 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                          <span className="text-muted">{s.name}</span>
+                          {s.name === "A DEFINIR" && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/20 text-amber-400 font-medium">
+                              {segAssets.length} ativo{segAssets.length !== 1 ? "s" : ""}
+                            </span>
+                          )}
+                        </div>
+                        <span className="font-medium">{formatCompact(s.value)}</span>
+                      </div>
+                      <div className="h-1.5 bg-surface rounded-full overflow-hidden">
+                        <div
+                          className="h-full rounded-full transition-all"
+                          style={{ width: `${pct}%`, backgroundColor: COLORS[i % COLORS.length] }}
+                        />
+                      </div>
+                    </button>
+                    {isSelected && segAssets.length > 0 && (
+                      <div className="mt-1 ml-4 space-y-1 border-l-2 border-border pl-3">
+                        {segAssets.map(a => (
+                          <div key={a.id} className="flex items-center gap-2 text-xs py-1">
+                            <AssetLogo ticker={a.ticker} size={20} />
+                            <span className="font-medium">{a.ticker}</span>
+                            <span className="text-muted">{a.type}</span>
+                            <span className="ml-auto tabular">{formatCompact(a.currentPrice * a.quantity)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {otherSectorData.length > 0 && (
+        <div className="bg-card border border-border rounded-2xl p-5">
+          <h3 className="font-semibold text-sm mb-4">Outros Ativos por Segmento</h3>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="h-56">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={otherSectorData}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={80}
+                    innerRadius={50}
+                    label={({ name, percent }: { name: string; percent: number }) =>
+                      `${name} ${(percent * 100).toFixed(0)}%`
+                    }
+                    onClick={(_, index) => {
+                      const seg = otherSectorData[index]?.name;
                       setSelectedSegment(prev => prev === seg ? null : seg);
                     }}
                     style={{ cursor: "pointer" }}
                   >
-                    {sectorData.map((s, i) => (
+                    {otherSectorData.map((s, i) => (
                       <Cell
                         key={i}
                         fill={COLORS[i % COLORS.length]}
@@ -365,15 +484,15 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
               </ResponsiveContainer>
             </div>
             <div className="space-y-2">
-              {sectorData.map((s, i) => {
-                const pct = (s.value / totalSector) * 100;
+              {otherSectorData.map((s, i) => {
+                const pct = (s.value / totalOtherSector) * 100;
                 const isSelected = selectedSegment === s.name;
-                const segAssets = assetsBySegment[s.name] || [];
+                const segAssets = otherAssetsBySegment[s.name] || [];
                 return (
                   <div key={s.name}>
                     <button
                       className={`w-full text-left rounded-lg p-2 transition-all ${isSelected ? "bg-surface ring-1 ring-border" : "hover:bg-surface/50"}`}
-                      onClick={() => setSelectedSegment(prev => prev === s.name ? null : s.name)}
+                      onClick={() => setSelectedSegment(prev => prev === seg ? null : seg)}
                     >
                       <div className="flex items-center justify-between text-xs mb-1">
                         <div className="flex items-center gap-2">
