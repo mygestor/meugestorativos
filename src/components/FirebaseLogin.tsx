@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { TrendingUp, Mail, Lock, UserPlus, LogIn } from "lucide-react";
-import { loginWithGoogle, loginWithEmail, registerWithEmail, saveFirebaseConfig } from "../firebase";
+import { loginWithGoogle, loginWithEmail, registerWithEmail, saveFirebaseConfig, isFirebaseConfigured } from "../firebase";
 
 interface Props {
   onLogin: () => void;
@@ -12,7 +12,7 @@ export function FirebaseLogin({ onLogin }: Props) {
   const [isRegister, setIsRegister] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [showSetup, setShowSetup] = useState(false);
+  const [showSetup, setShowSetup] = useState(!isFirebaseConfigured());
   const [configText, setConfigText] = useState("");
 
   async function handleGoogle() {

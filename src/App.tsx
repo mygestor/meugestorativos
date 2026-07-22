@@ -284,7 +284,7 @@ export default function App() {
     );
   }
 
-  if (isFirebaseConfigured() && !firebaseUser) {
+  if (!firebaseUser) {
     return <FirebaseLogin onLogin={() => {}} />;
   }
 
