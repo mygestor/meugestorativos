@@ -2,7 +2,7 @@ import type { Asset } from "../types";
 import { formatCurrency, formatPercent } from "../format";
 import { deleteAsset, getDividends, getTrades } from "../store";
 import { Pencil, Trash2, ChevronDown, ChevronUp, RefreshCw, Layers } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { PriceUpdateDialog } from "./PriceUpdateDialog";
 import { AssetLogo } from "./AssetLogo";
 import { AssetDetailPanel } from "./AssetDetailPanel";
@@ -29,7 +29,24 @@ export function AssetTable({ assets, hideValues, onEdit, onRefresh }: Props) {
   const [lotAsset, setLotAsset] = useState<Asset | null>(null);
   const [dyMap, setDyMap] = useState<Map<string, number>>(new Map());
   const [priceMap, setPriceMap] = useState<Map<string, number>>(new Map());
+  const [typeFilter, setTypeFilter] = useState<string | null>(null);
   const allDividends = getDividends();
+
+  const typeCards = [
+    { type: "Ação", label: "Ações", color: "#3b82f6" },
+    { type: "FII", label: "Fundos Imobiliários", color: "#10b981" },
+    { type: "ETF", label: "ETFs", color: "#f59e0b" },
+  ];
+
+  const totalInvested = assets.reduce((s, a) => s + a.investedAmount, 0);
+
+  const typeData = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const a of assets) {
+      map[a.type] = (map[a.type] ?? 0) + a.investedAmount;
+    }
+    return map;
+  }, [assets]);
 
   useEffect(() => {
     const tickers = assets.map((a) => a.ticker);
@@ -46,7 +63,12 @@ export function AssetTable({ assets, hideValues, onEdit, onRefresh }: Props) {
     });
   }, [assets]);
 
-  const sorted = [...assets].sort((a, b) => {
+  const filtered = useMemo(() => {
+    if (!typeFilter) return assets;
+    return assets.filter(a => a.type === typeFilter);
+  }, [assets, typeFilter]);
+
+  const sorted = [...filtered].sort((a, b) => {
     const av = a[sortField] ?? 0;
     const bv = b[sortField] ?? 0;
     return sortAsc ? (av > bv ? 1 : -1) : av > bv ? -1 : 1;
@@ -92,9 +114,55 @@ export function AssetTable({ assets, hideValues, onEdit, onRefresh }: Props) {
 
   return (
     <>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+        {typeCards.map((tc) => {
+          const invested = typeData[tc.type] ?? 0;
+          const pct = totalInvested > 0 ? (invested / totalInvested) * 100 : 0;
+          const isActive = typeFilter === tc.type;
+          const circumference = 2 * Math.PI * 18;
+          const dashoffset = circumference - (pct / 100) * circumference;
+          return (
+            <button
+              key={tc.type}
+              onClick={() => setTypeFilter(isActive ? null : tc.type)}
+              className={`flex items-center gap-4 p-4 rounded-2xl border transition-all ${
+                isActive
+                  ? "bg-surface border-primary/50 ring-1 ring-primary/30"
+                  : "bg-card border-border hover:border-border/80"
+              }`}
+            >
+              <div className="relative size-12 shrink-0">
+                <svg className="size-12 -rotate-90" viewBox="0 0 40 40">
+                  <circle cx="20" cy="20" r="18" fill="none" stroke="currentColor" strokeWidth="3" className="text-surface" />
+                  <circle
+                    cx="20" cy="20" r="18" fill="none"
+                    stroke={tc.color}
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                    strokeDasharray={circumference}
+                    strokeDashoffset={dashoffset}
+                  />
+                </svg>
+                <span className="absolute inset-0 flex items-center justify-center text-[10px] font-semibold tabular">
+                  {pct.toFixed(1)}%
+                </span>
+              </div>
+              <div className="flex-1 text-left min-w-0">
+                <p className="font-semibold text-sm">{tc.label}</p>
+                <p className="text-xs text-muted">Saldo</p>
+                <p className="text-sm font-medium tabular">{mask(invested, hideValues)}</p>
+              </div>
+              <ChevronDown className={`size-4 text-muted transition-transform ${isActive ? "rotate-180" : ""}`} />
+            </button>
+          );
+        })}
+      </div>
+
       <div className="bg-card border border-border rounded-2xl overflow-hidden">
         <div className="flex items-center justify-between p-3 border-b border-border">
-          <p className="text-xs text-muted font-medium uppercase tracking-wider">{assets.length} ativos</p>
+          <p className="text-xs text-muted font-medium uppercase tracking-wider">
+            {typeFilter ? `${typeFilter}s — ` : ""}{filtered.length} ativos
+          </p>
           <button
             onClick={() => setPriceOpen(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface text-muted hover:text-foreground text-xs transition-colors"
