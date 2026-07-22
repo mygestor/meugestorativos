@@ -72,8 +72,12 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
   const dividendBreakdown = useMemo(() => {
     const assetDivMap: Record<string, number> = {};
     if (dividends && dividends.length > 0) {
+      const now = new Date();
+      const cutoff = new Date(now.getFullYear() - 1, now.getMonth() + 1, 1);
+      const cutoffStr = `${cutoff.getFullYear()}-${String(cutoff.getMonth() + 1).padStart(2, "0")}`;
+      const recent = dividends.filter(d => d.monthYear >= cutoffStr);
       const byTicker: Record<string, Record<string, number>> = {};
-      for (const d of dividends) {
+      for (const d of recent) {
         const key = d.ticker.toUpperCase();
         if (!byTicker[key]) byTicker[key] = {};
         byTicker[key][d.monthYear] = (byTicker[key][d.monthYear] ?? 0) + d.totalValue;
