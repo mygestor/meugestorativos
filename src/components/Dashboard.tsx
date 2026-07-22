@@ -70,10 +70,11 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades }
 
   const dividendBreakdown = useMemo(() => {
     return assets
-      .filter(a => (a.dividendPerShare || 0) > 0)
+      .filter(a => (a.dividendPerShare || 0) > 0 || (a.currentDividend || 0) > 0)
       .map(a => {
-        const dps = a.dividendPerShare;
-        const monthly = a.type === "FII" ? dps * a.quantity : (dps * a.quantity) / 3;
+        const dps = a.dividendPerShare || 0;
+        const raw = dps > 0 ? dps * a.quantity : a.currentDividend;
+        const monthly = a.type === "FII" ? raw : raw / 3;
         return { ...a, monthlyDiv: monthly, annualDiv: monthly * 12, isQuarterly: a.type !== "FII" };
       })
       .sort((a, b) => b.annualDiv - a.annualDiv);

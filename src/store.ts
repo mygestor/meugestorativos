@@ -438,22 +438,26 @@ export function calculateSummary(assets: Asset[], dividends?: DividendRecord[]):
 
   const monthlyDividend = monthlyFromRecords > 0 ? monthlyFromRecords : assets.reduce((s, a) => {
     const dps = a.dividendPerShare || 0;
-    if (dps <= 0) return s;
-    const monthly = a.type === "FII" ? dps * a.quantity : (dps * a.quantity) / 3;
-    return s + monthly;
+    const curDiv = a.currentDividend || 0;
+    const raw = dps > 0 ? dps * a.quantity : curDiv;
+    if (raw <= 0) return s;
+    if (a.type === "FII") return s + raw;
+    return s + raw / 3;
   }, 0);
 
   const annualDividend = monthlyDividend * 12;
 
   const projectedMonthlyDividend = monthlyFromRecords > 0 ? monthlyFromRecords : assets.reduce((s, a) => {
     const dps = a.dividendPerShare || 0;
-    if (dps <= 0) return s;
-    if (a.type !== "FII" && a.targetTotal > 0 && a.avgPrice > 0) {
+    const curDiv = a.currentDividend || 0;
+    const raw = dps > 0 ? dps * a.quantity : curDiv;
+    if (raw <= 0) return s;
+    if (a.type === "FII") return s + raw;
+    if (a.targetTotal > 0 && a.avgPrice > 0) {
       const projectedShares = a.targetTotal / a.avgPrice;
       return s + (projectedShares * dps) / 3;
     }
-    const monthly = a.type === "FII" ? dps * a.quantity : (dps * a.quantity) / 3;
-    return s + monthly;
+    return s + raw / 3;
   }, 0);
 
   const types: Record<string, number> = {};
