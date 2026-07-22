@@ -70,12 +70,10 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades }
 
   const dividendBreakdown = useMemo(() => {
     return assets
-      .filter(a => (a.dividendPerShare || 0) > 0 || (a.currentDividend || 0) > 0)
+      .filter(a => a.dividendPerShare > 0 || a.currentDividend > 0)
       .map(a => {
-        const dps = a.dividendPerShare || 0;
-        const raw = dps > 0 ? dps * a.quantity : a.currentDividend;
-        const monthly = a.type === "FII" ? raw : raw / 3;
-        return { ...a, monthlyDiv: monthly, annualDiv: monthly * 12, isQuarterly: a.type !== "FII" };
+        const raw = a.dividendPerShare > 0 ? a.dividendPerShare * a.quantity : a.currentDividend;
+        return { ...a, monthlyDiv: raw, annualDiv: raw * 12 };
       })
       .sort((a, b) => b.annualDiv - a.annualDiv);
   }, [assets]);
@@ -148,7 +146,7 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades }
                 <AssetLogo ticker={a.ticker} size={20} />
                 <span className="font-medium w-16">{a.ticker}</span>
                 <span className="text-muted w-10">{a.type}</span>
-                <span className="text-muted flex-1">{a.ticker} • {a.quantity} cotas{a.isQuarterly ? " (trim.)" : ""}</span>
+                <span className="text-muted flex-1">{a.ticker} • {a.quantity} cotas</span>
                 <span className="tabular w-20 text-right">{formatCurrency(a.monthlyDiv)}/mês</span>
                 <span className="font-medium tabular w-20 text-right">{formatCurrency(a.annualDiv)}</span>
               </div>
