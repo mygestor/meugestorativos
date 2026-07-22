@@ -132,9 +132,11 @@ export function FirebaseLogin({ onLogin }: Props) {
               </button>
             </div>
 
-            <button onClick={() => setShowSetup(true)} className="w-full text-center text-[10px] text-muted hover:text-foreground transition-colors">
-              Configurar Firebase
-            </button>
+            <div className="pt-2 border-t border-border">
+              <button onClick={() => setShowSetup(true)} className="w-full text-center text-xs text-muted hover:text-foreground transition-colors py-1">
+                ⚙️ Configurar Firebase
+              </button>
+            </div>
           </>
         )}
       </div>
