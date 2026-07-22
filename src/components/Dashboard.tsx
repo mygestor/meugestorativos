@@ -72,7 +72,12 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades }
     return assets
       .filter(a => a.currentDividend > 0)
       .map(a => {
-        return { ...a, monthlyDiv: a.currentDividend, annualDiv: a.currentDividend * 12 };
+        const dps = a.dividendPerShare || 0;
+        const price = a.currentPrice || 1;
+        const dyPerPayment = dps / price;
+        const isQuarterly = a.type !== "FII" && dyPerPayment > 0.03;
+        const monthly = isQuarterly ? a.currentDividend / 3 : a.currentDividend;
+        return { ...a, monthlyDiv: monthly, annualDiv: monthly * 12, isQuarterly };
       })
       .sort((a, b) => b.annualDiv - a.annualDiv);
   }, [assets]);
@@ -145,7 +150,7 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades }
                 <AssetLogo ticker={a.ticker} size={20} />
                 <span className="font-medium w-16">{a.ticker}</span>
                 <span className="text-muted w-10">{a.type}</span>
-                <span className="text-muted flex-1">{a.ticker} • {a.quantity} cotas</span>
+                <span className="text-muted flex-1">{a.ticker} • {a.quantity} cotas{a.isQuarterly ? " (trim.)" : ""}</span>
                 <span className="tabular w-20 text-right">{formatCurrency(a.monthlyDiv)}/mês</span>
                 <span className="font-medium tabular w-20 text-right">{formatCurrency(a.annualDiv)}</span>
               </div>
