@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import type { Asset, DividendRecord, ContributionRecord, TradeRecord } from "./types";
-import { getAssets, getDividends, getContributions, getTrades, calculateSummary, addAsset, clearAll, clearDividends, clearContributions, importFullBackup, importSeedData, cleanupOrphanAssets, initFromRemoteData, exportAllData } from "./store";
+import { getAssets, getDividends, getContributions, getTrades, calculateSummary, addAsset, updateAsset, clearAll, clearDividends, clearContributions, importFullBackup, importSeedData, cleanupOrphanAssets, initFromRemoteData, exportAllData } from "./store";
 import { syncAssetsFromTrades } from "./assetHelper";
 import { Dashboard } from "./components/Dashboard";
 import { AssetTable } from "./components/AssetTable";
@@ -25,6 +25,7 @@ import { FIIAnalysis } from "./components/FIIAnalysis";
 import { logoutFirebase, onAuthChange } from "./firebase";
 import { FirebaseLogin } from "./components/FirebaseLogin";
 import { loadUserData, setLocalData, getAllLocalData, scheduleSave, forceSaveNow } from "./sync";
+import { getKnownSector } from "./sectorFetch";
 import { TrendingUp, Plus, Upload, Download, Trash2, Eye, EyeOff, LayoutDashboard, Briefcase, HandCoins, PiggyBank, ArrowLeftRight, Target, FileText, Building2 } from "lucide-react";
 
 type Tab = "dashboard" | "assets" | "dividendos" | "aportes" | "trades" | "planejamento" | "analise-fii";
@@ -121,6 +122,24 @@ export default function App() {
   useEffect(() => {
     initFromRemoteData().then(() => refresh());
   }, []);
+
+  // Atualizar setores dos ativos que estão "A DEFINIR"
+  useEffect(() => {
+    if (assets.length === 0) return;
+    let changed = 0;
+    for (const a of assets) {
+      if (!a.sector || a.sector === "A DEFINIR") {
+        const known = getKnownSector(a.ticker);
+        if (known) {
+          updateAsset(a.id, { sector: known });
+          changed++;
+        }
+      }
+    }
+    if (changed > 0) {
+      setTimeout(() => refresh(), 100);
+    }
+  }, [assets.length > 0]);
 
   // Auto-fetch dividends on load with retry
   useEffect(() => {
