@@ -250,33 +250,56 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades }
 
       {sectorData.length > 0 && (
         <div className="bg-card border border-border rounded-2xl p-5">
-          <h3 className="font-semibold text-sm mb-4">Alocação por Setor</h3>
-          <div className="h-6 bg-surface rounded-full overflow-hidden flex">
-            {sectorData.map((s, i) => {
-              const pct = (s.value / totalSector) * 100;
-              return (
-                <div
-                  key={s.name}
-                  className="h-full flex items-center justify-center text-[10px] font-medium text-white transition-all"
-                  style={{
-                    width: `${pct}%`,
-                    backgroundColor: COLORS[i % COLORS.length],
-                  }}
-                  title={`${s.name}: ${formatPercent(pct)}`}
-                >
-                  {pct > 8 ? s.name : null}
-                </div>
-              );
-            })}
-          </div>
-          <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-3 text-xs">
-            {sectorData.map((s, i) => (
-              <div key={s.name} className="flex items-center gap-1.5">
-                <span className="size-2.5 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                <span className="text-muted">{s.name}</span>
-                <span className="font-medium">{formatPercent((s.value / totalSector) * 100)}</span>
-              </div>
-            ))}
+          <h3 className="font-semibold text-sm mb-4">Segmentos</h3>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div className="h-56">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={sectorData}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={80}
+                    innerRadius={50}
+                    label={({ name, percent }: { name: string; percent: number }) =>
+                      `${name} ${(percent * 100).toFixed(0)}%`
+                    }
+                  >
+                    {sectorData.map((_, i) => (
+                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={tooltipContentStyle}
+                    formatter={(v: number) => formatCurrency(v)}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+            <div className="space-y-2">
+              {sectorData.map((s, i) => {
+                const pct = (s.value / totalSector) * 100;
+                return (
+                  <div key={s.name}>
+                    <div className="flex items-center justify-between text-xs mb-1">
+                      <div className="flex items-center gap-2">
+                        <span className="size-2.5 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                        <span className="text-muted">{s.name}</span>
+                      </div>
+                      <span className="font-medium">{formatCompact(s.value)}</span>
+                    </div>
+                    <div className="h-1.5 bg-surface rounded-full overflow-hidden">
+                      <div
+                        className="h-full rounded-full transition-all"
+                        style={{ width: `${pct}%`, backgroundColor: COLORS[i % COLORS.length] }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
       )}
