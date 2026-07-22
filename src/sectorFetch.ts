@@ -27,6 +27,7 @@ const KNOWN_SECTORS: Record<string, string> = {
   MGLU3: "VAREJO", LREN3: "VAREJO", AMER3: "VAREJO", SARE3: "VAREJO",
   // Ações - Alimentos
   ABEV3: "ALIMENTOS", BEEF3: "ALIMENTOS", JBSS3: "ALIMENTOS", BRFS3: "ALIMENTOS",
+  CSAN3: "ALIMENTOS",
   // Ações - Siderurgia
   GGBR4: "SIDERURGIA", CSNA3: "SIDERURGIA", USIM3: "SIDERURGIA", USIM5: "SIDERURGIA",
   // Ações - Telecom
@@ -41,6 +42,18 @@ const KNOWN_SECTORS: Record<string, string> = {
   GOLL4: "TRANSPORTE", AZUL4: "TRANSPORTE", RENT3: "TRANSPORTE",
   // Ações - Utilidades
   SOJA3: "UTILIDADES", CORR4: "UTILIDADES",
+  // Ações - Defesa/Indústria
+  TASA4: "DEFESA",
+  // Ações - Financeiro
+  BIDI4: "FINANCEIRO", CIEL3: "PAGAMENTOS", BBSE3: "SEGUROS",
+  // Ações - Papel e Celulose
+  KLBN11: "PAPEL E CELULOSE",
+  // Ações - Energia
+  CPLE3: "ENERGIA", TAEE3: "TRANSMISSÃO",
+  // Ações - Saneamento
+  SAPR4: "SANEAMENTO", CSMG3: "SANEAMENTO",
+  // Ações - Diversos
+  CASH3: "TECNOLOGIA", CXSE3: "FINANCEIRO", AURE3: "ENERGIA",
   // ETFs
   BOVA11: "ETF", IVVB11: "ETF", SMAL11: "ETF", HASH11: "ETF",
 };
