@@ -129,14 +129,7 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades }
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
         <SummaryCard label="Total Investido" value={mask(realInvested, hideValues)} accent="blue" />
         <SummaryCard label="Dividendo Mensal" value={mask(summary.monthlyDividend, hideValues)} accent="green" />
-        <button
-          className={`bg-card border border-border rounded-2xl p-4 text-left border-l-2 border-l-emerald-500 transition-all ${showDivDetail ? "ring-1 ring-emerald-500/50" : "hover:bg-surface/50"}`}
-          onClick={() => setShowDivDetail(!showDivDetail)}
-        >
-          <p className="text-xs text-muted mb-1">Dividendo Anual</p>
-          <p className="text-lg font-bold tabular">{mask(summary.annualDividend, hideValues)}</p>
-          <p className="text-[10px] text-muted mt-0.5">{showDivDetail ? "▲ Ocultar" : "▼ Detalhar"}</p>
-        </button>
+        <SummaryCard label="Dividendo Anual" value={mask(summary.annualDividend, hideValues)} accent="green" />
         <SummaryCard label="Carteira" value={String(summary.assetCount)} accent="purple" />
         <div className="bg-card border border-border rounded-2xl p-4 border-l-2 border-l-amber-500">
           <p className="text-xs text-muted mb-1">Patrimônio Atual</p>
@@ -144,6 +137,13 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades }
           <p className="text-xs text-muted mt-0.5">(investido: {mask(realInvested, hideValues)})</p>
         </div>
       </div>
+
+      <button
+        className="text-xs text-emerald-400 hover:text-emerald-300 transition-colors"
+        onClick={() => setShowDivDetail(!showDivDetail)}
+      >
+        {showDivDetail ? "▲ Ocultar detalhes do dividendo" : "▼ Detalhar Dividendo Anual por ativo"}
+      </button>
 
       {showDivDetail && dividendBreakdown.length > 0 && (
         <div className="bg-card border border-border rounded-2xl p-4">
