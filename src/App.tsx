@@ -22,7 +22,7 @@ import { DividendAlerts } from "./components/DividendAlerts";
 import { DividendCalendar } from "./components/DividendCalendar";
 import { UpdateToast } from "./components/UpdateToast";
 import { FIIAnalysis } from "./components/FIIAnalysis";
-import { logoutFirebase, onAuthChange, isFirebaseConfigured } from "./firebase";
+import { logoutFirebase, onAuthChange } from "./firebase";
 import { FirebaseLogin } from "./components/FirebaseLogin";
 import { TrendingUp, Plus, Upload, Download, Trash2, Eye, EyeOff, LayoutDashboard, Briefcase, HandCoins, PiggyBank, ArrowLeftRight, Target, FileText, Building2 } from "lucide-react";
 
