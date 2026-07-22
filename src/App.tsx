@@ -120,14 +120,15 @@ export default function App() {
   }
 
   useEffect(() => {
-    initFromRemoteData().then(() => refresh());
+    initFromRemoteData().then(() => {
+      updateMissingSectors();
+      refresh();
+    });
   }, []);
 
-  // Atualizar setores dos ativos que estão "A DEFINIR" (roda uma única vez)
-  useEffect(() => {
-    if (assets.length === 0) return;
+  function updateMissingSectors() {
     let changed = false;
-    for (const a of assets) {
+    for (const a of getAssets()) {
       if (!a.sector || a.sector === "A DEFINIR") {
         const known = getKnownSector(a.ticker);
         if (known) {
@@ -136,11 +137,7 @@ export default function App() {
         }
       }
     }
-    if (changed) {
-      setAssets([...getAssets()]);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [assets.length]);
+  }
 
   // Auto-fetch dividends on load with retry
   useEffect(() => {
