@@ -72,18 +72,20 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
   const dividendBreakdown = useMemo(() => {
     const assetDivMap: Record<string, number> = {};
     if (dividends && dividends.length > 0) {
-      const now = new Date();
-      const cutoffMonth = new Date(now.getFullYear() - 1, now.getMonth() + 1, 1);
-      const cutoffStr = `${String(cutoffMonth.getMonth() + 1).padStart(2, "0")}/${cutoffMonth.getFullYear()}`;
-      const recent = dividends.filter(d => d.monthYear >= cutoffStr);
-      const byTicker: Record<string, Record<string, number>> = {};
-      for (const d of recent) {
+      const byTicker: Record<string, DividendRecord[]> = {};
+      for (const d of dividends) {
         const key = d.ticker.toUpperCase();
-        if (!byTicker[key]) byTicker[key] = {};
-        byTicker[key][d.monthYear] = (byTicker[key][d.monthYear] ?? 0) + d.totalValue;
+        if (!byTicker[key]) byTicker[key] = [];
+        byTicker[key].push(d);
       }
-      for (const [ticker, months] of Object.entries(byTicker)) {
-        const vals = Object.values(months);
+      for (const [ticker, records] of Object.entries(byTicker)) {
+        const sorted = [...records].sort((a, b) => b.payment.localeCompare(a.payment));
+        const last12 = sorted.slice(0, 12);
+        const byMonth: Record<string, number> = {};
+        for (const d of last12) {
+          byMonth[d.monthYear] = (byMonth[d.monthYear] ?? 0) + d.totalValue;
+        }
+        const vals = Object.values(byMonth);
         if (vals.length > 0) {
           assetDivMap[ticker] = vals.reduce((s, v) => s + v, 0) / vals.length;
         }
