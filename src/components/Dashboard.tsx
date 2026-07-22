@@ -47,7 +47,6 @@ function getTypeColor(type: string): string {
 
 export function Dashboard({ summary, assets, hideValues, contributions, trades }: Props) {
   const [selectedSegment, setSelectedSegment] = useState<string | null>(null);
-  const [showDivDetail, setShowDivDetail] = useState(false);
 
   const typeData = Object.entries(summary.types)
     .map(([name, value]) => ({ name, value: Math.round(value) }))
@@ -138,14 +137,7 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades }
         </div>
       </div>
 
-      <button
-        className="text-xs text-emerald-400 hover:text-emerald-300 transition-colors"
-        onClick={() => setShowDivDetail(!showDivDetail)}
-      >
-        {showDivDetail ? "▲ Ocultar detalhes do dividendo" : "▼ Detalhar Dividendo Anual por ativo"}
-      </button>
-
-      {showDivDetail && dividendBreakdown.length > 0 && (
+      {dividendBreakdown.length > 0 && (
         <div className="bg-card border border-border rounded-2xl p-4">
           <h3 className="font-semibold text-sm mb-3">Detalhamento do Dividendo Anual</h3>
           <div className="space-y-1.5 max-h-64 overflow-y-auto">
