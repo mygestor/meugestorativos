@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import type { Asset } from "../types";
 import { addAsset, updateAsset } from "../store";
 import { detectAssetType } from "../detectType";
+import { fetchSector } from "../sectorFetch";
 import { X } from "lucide-react";
 
 interface Props {
@@ -161,7 +162,9 @@ export function AssetDialog({ asset, onClose }: Props) {
               if (!asset && v.length >= 4) {
                 const info = detectAssetType(v);
                 update("type", info.type);
-                update("sector", info.sector);
+                fetchSector(v).then((sector) => {
+                  if (sector) update("sector", sector);
+                });
               }
             }} placeholder="ALZR11" required />
             <SelectField

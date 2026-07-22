@@ -1,3 +1,5 @@
+import { getKnownSector } from "./sectorFetch";
+
 const BRAPI_BASE = "https://brapi.dev/api";
 const BRAPI_TOKEN = "cP3aB5r1TD7C8fjNYW5F14";
 
@@ -107,7 +109,13 @@ export async function updatePrices(
 
         // Salvar mesmo que parcial (preço SEM dividend, ou dividend SEM preço)
         if (hasUpdate) {
-          updateAsset(asset.id, updates);
+          // Atualizar setor se vazio
+          const knownSector = getKnownSector(asset.ticker);
+          if (knownSector) {
+            updateAsset(asset.id, { ...updates, sector: knownSector } as any);
+          } else {
+            updateAsset(asset.id, updates);
+          }
           updated++;
           onProgress(asset.ticker, 'ok', quote?.regularMarketPrice ?? undefined);
         } else {

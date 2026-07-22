@@ -142,7 +142,7 @@ export function AssetTable({ assets, hideValues, onEdit, onRefresh }: Props) {
                         <AssetLogo ticker={a.ticker} />
                         <div>
                           <p className="font-semibold text-sm">{a.ticker}</p>
-                          <p className="text-xs text-muted hidden sm:block">{a.sector}</p>
+                          <p className="text-xs text-muted">{a.sector || a.subtype || a.type}</p>
                         </div>
                       </div>
                     </td>
@@ -193,6 +193,7 @@ export function AssetTable({ assets, hideValues, onEdit, onRefresh }: Props) {
                     <tr>
                       <td colSpan={10} className="p-4 bg-surface/50">
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
+                          <DetailItem label="Segmento" value={a.sector || a.subtype || a.type} />
                           <DetailItem label="Preço Médio" value={mask(a.avgPrice, hideValues)} />
                           <DetailItem label="Total Necessário" value={mask(a.targetTotal, hideValues)} />
                           <DetailItem label="Cotas Necessárias" value={String(a.sharesNeeded)} />
