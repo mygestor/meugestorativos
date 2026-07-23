@@ -22,7 +22,7 @@ import { DividendAlerts } from "./components/DividendAlerts";
 import { DividendCalendar } from "./components/DividendCalendar";
 import { UpdateToast } from "./components/UpdateToast";
 import { FIIAnalysis } from "./components/FIIAnalysis";
-import { logoutFirebase, onAuthChange } from "./firebase";
+import { logoutFirebase, onAuthChange, handleRedirectResult } from "./firebase";
 import { FirebaseLogin } from "./components/FirebaseLogin";
 import { loadUserData, setLocalData, getAllLocalData, scheduleSave, forceSaveNow } from "./sync";
 import { getKnownSector } from "./sectorFetch";
@@ -120,6 +120,13 @@ export default function App() {
   }
 
   useEffect(() => {
+    // Handle redirect result from Google login
+    handleRedirectResult().then((user) => {
+      if (user) {
+        console.log("[Auth] Redirect result user:", user.email);
+      }
+    });
+
     initFromRemoteData().then(() => {
       updateMissingSectors();
       refresh();
