@@ -3,7 +3,10 @@
   "appName": "Gestor de Ativos",
   "webDir": "www",
   "server": {
-    "androidScheme": "https"
+    "androidScheme": "https",
+    "url": "https://meugestorativos.pages.dev/",
+    "cleartext": true,
+    "allowNavigation": ["*"]
   },
   "android": {
     "allowMixedContent": true

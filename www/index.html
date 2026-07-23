@@ -5,33 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="theme-color" content="#10b981">
   <title>Gestor de Ativos</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    html, body { width: 100%; height: 100%; overflow: hidden; background: #10b981; }
-    #app { width: 100%; height: 100%; border: none; }
-    #loading {
-      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      background: #10b981; color: white; font-family: sans-serif; z-index: 9999;
-    }
-    #loading .spinner {
-      width: 40px; height: 40px; border: 4px solid rgba(255,255,255,0.3);
-      border-top-color: white; border-radius: 50%; animation: spin 0.8s linear infinite;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-  </style>
+  <script>
+    // Redirect to the app URL directly
+    window.location.replace('https://meugestorativos.pages.dev/');
+  </script>
 </head>
 <body>
-  <div id="loading">
-    <div class="spinner"></div>
-    <p style="margin-top: 16px;">Carregando...</p>
-  </div>
-  <iframe id="app" src="https://meugestorativos.pages.dev/" allow="cross-origin-isolated"></iframe>
-  <script>
-    var app = document.getElementById('app');
-    var loading = document.getElementById('loading');
-    app.onload = function() { loading.style.display = 'none'; };
-    setTimeout(function() { loading.style.display = 'none'; }, 8000);
-  </script>
 </body>
 </html>
