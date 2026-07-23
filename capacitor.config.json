@@ -1,7 +1,7 @@
 {
   "appId": "com.gestorativos.app",
   "appName": "Gestor de Ativos",
-  "webDir": "dist",
+  "webDir": "www",
   "server": {
     "androidScheme": "https"
   },
