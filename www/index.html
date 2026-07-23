@@ -5,11 +5,25 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="theme-color" content="#10b981">
   <title>Gestor de Ativos</title>
-  <script>
-    // Redirect to the app URL directly
-    window.location.replace('https://meugestorativos.pages.dev/');
-  </script>
 </head>
 <body>
+  <script>
+    // Check if we're returning from Google Auth
+    var url = new URL(window.location.href);
+    var hash = window.location.hash;
+    var search = window.location.search;
+
+    // If there's an auth response in the URL, handle it
+    if (hash && hash.includes('state')) {
+      // We're returning from Firebase Auth, redirect to the app
+      window.location.replace('https://meugestorativos.pages.dev/' + hash);
+    } else if (search && search.includes('code')) {
+      // Authorization code flow
+      window.location.replace('https://meugestorativos.pages.dev/' + search);
+    } else {
+      // Normal load, go to the app
+      window.location.replace('https://meugestorativos.pages.dev/');
+    }
+  </script>
 </body>
 </html>
