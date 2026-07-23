@@ -1,8 +1,8 @@
 node_modules/
-www/
+dist/
 android/app/build/
 android/.gradle/
 android/local.properties
-*.log
+.env
+*.local
 .DS_Store
-Thumbs.db
