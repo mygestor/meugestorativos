@@ -10,7 +10,7 @@
   },
   "dependencies": {
     "@capacitor/core": "^8.4.2",
-    "@codetrix-studio/capacitor-google-auth": "^3.4.4",
+    "@codetrix-studio/capacitor-google-auth": "^3.4.0-rc.4",
     "@vitejs/plugin-react": "^6.0.3",
     "firebase": "^12.16.0",
     "lucide-react": "^0.575.0",
