@@ -12,8 +12,10 @@
     "webContentsDebuggingEnabled": true
   },
   "plugins": {
-    "App": {
-      "launchUrl": "https://meugestorativos.pages.dev/"
+    "GoogleAuth": {
+      "scopes": ["profile", "email"],
+      "serverClientId": "384515121918-9e697a52b1647ed833bbaf.apps.googleusercontent.com",
+      "forceCodeForRefreshToken": false
     }
   }
 }
