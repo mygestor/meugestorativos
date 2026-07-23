@@ -1,6 +1,7 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider, signInWithRedirect, getRedirectResult, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, type User } from "firebase/auth";
+import { getAuth, GoogleAuthProvider, signInWithCredential, signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, onAuthStateChanged, type User } from "firebase/auth";
 import { getDatabase, ref, get, set } from "firebase/database";
+import { Capacitor } from "@capacitor/core";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBXPrvvSmG354MlN5T3mfbbK-DQGipXu8o",
@@ -25,13 +26,32 @@ export function onAuthChange(callback: (user: User | null) => void): () => void 
 }
 
 export async function loginWithGoogle(): Promise<User> {
-  const provider = new GoogleAuthProvider();
-  await signInWithRedirect(auth, provider);
-  throw new Error("Redirecting...");
+  const isNative = Capacitor.isNativePlatform();
+
+  if (isNative) {
+    // Use native Google Sign-In
+    const { GoogleAuth } = await import("@codetrix-studio/capacitor-google-auth");
+    await GoogleAuth.initialize({
+      clientId: "384515121918-9e697a52b1647ed833bbaf.apps.googleusercontent.com",
+      scopes: ["profile", "email"],
+      grantOfflineAccess: false,
+    });
+    const googleUser = await GoogleAuth.signIn();
+    const credential = GoogleAuthProvider.credential(googleUser.authentication.idToken);
+    const result = await signInWithCredential(auth, credential);
+    return result.user;
+  } else {
+    // Web: use redirect
+    const provider = new GoogleAuthProvider();
+    const { signInWithRedirect, getRedirectResult } = await import("firebase/auth");
+    await signInWithRedirect(auth, provider);
+    throw new Error("Redirecting...");
+  }
 }
 
 export async function handleRedirectResult(): Promise<User | null> {
   try {
+    const { getRedirectResult } = await import("firebase/auth");
     const result = await getRedirectResult(auth);
     if (result) {
       return result.user;
