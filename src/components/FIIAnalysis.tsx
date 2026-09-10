@@ -440,6 +440,14 @@ export function FIIAnalysis({ fiiAssets, hideValues, onEdit, onRefresh }: Props)
                 );
               })}
             </tbody>
+            <tfoot className="border-t-2 border-border bg-surface/50">
+              <tr className="font-semibold text-xs">
+                <td colSpan={9} className="p-2 text-right text-muted">Total</td>
+                <td className="p-2 tabular text-income hidden lg:table-cell">{mask$(filtered.reduce((s, r) => s + r.realMonthlyDiv, 0))}</td>
+                <td className="p-2 tabular text-income hidden lg:table-cell">{mask$(filtered.reduce((s, r) => s + r.realMonthlyDiv * 12, 0))}</td>
+                <td className="p-2" />
+              </tr>
+            </tfoot>
           </table>
         </div>
       </div>
