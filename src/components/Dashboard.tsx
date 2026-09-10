@@ -110,6 +110,12 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
     const cutoffDate = new Date(now.getFullYear(), now.getMonth() - monthsBack, 1);
     const cutoffStr = cutoffDate.toISOString().slice(0, 7);
 
+    // Scale contributions by type filter ratio
+    const totalInvested = assets.reduce((s, a) => s + a.investedAmount, 0);
+    const contributionScale = typeFilter === "all" || totalInvested === 0
+      ? 1
+      : filteredTotalInvested / totalInvested;
+
     // Calculate cumulative dividends by month (filtered by type and time)
     const dividendsByMonth: Record<string, number> = {};
     let cumulativeDividends = 0;
@@ -126,12 +132,12 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
     // Calculate total gain (capital gains + dividends)
     const totalGain = filteredTotalValue + cumulativeDividends - filteredTotalInvested;
 
-    // First, calculate cumulative contributions up to the cutoff
+    // First, calculate cumulative contributions up to the cutoff (scaled by type)
     let cumulativeBeforeCutoff = 0;
     const sorted = [...contributions].sort((a, b) => a.date.localeCompare(b.date));
     for (const c of sorted) {
       if (c.date < cutoffStr) {
-        cumulativeBeforeCutoff += c.value;
+        cumulativeBeforeCutoff += c.value * contributionScale;
       }
     }
 
@@ -154,10 +160,10 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
     let lastDividends = 0;
 
     for (const month of allMonths) {
-      // Add contributions for this month
+      // Add contributions for this month (scaled by type)
       for (const c of sorted) {
         if (c.date.slice(0, 7) === month && c.date >= cutoffStr) {
-          cumulativeAportado += c.value;
+          cumulativeAportado += c.value * contributionScale;
         }
       }
 
@@ -195,7 +201,7 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
         "Valor aplicado": Math.round(monthlyData[month].aportado),
         "Ganho de Capital": Math.max(0, Math.round(monthlyData[month].patrimonio - monthlyData[month].aportado)),
       }));
-  }, [contributions, filteredDividends, filteredTotalValue, filteredTotalInvested, timePeriod]);
+  }, [contributions, filteredDividends, filteredTotalValue, filteredTotalInvested, timePeriod, assets, typeFilter]);
 
   // Assets by type for donut chart
   const typeData = useMemo(() => {
