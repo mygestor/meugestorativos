@@ -88,7 +88,9 @@ export function TradeTable({ trades, hideValues, onRefresh, onEdit }: Props) {
       if (sortField === "date") {
         const da = String(av).replace(/\D/g, "");
         const db = String(bv).replace(/\D/g, "");
-        return sortAsc ? da.localeCompare(db) : db.localeCompare(da);
+        const dateCmp = sortAsc ? da.localeCompare(db) : db.localeCompare(da);
+        if (dateCmp !== 0) return dateCmp;
+        return sortAsc ? a.id.localeCompare(b.id) : b.id.localeCompare(a.id);
       }
       return sortAsc
         ? String(av).localeCompare(String(bv))
