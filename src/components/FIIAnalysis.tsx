@@ -406,6 +406,7 @@ export function FIIAnalysis({ fiiAssets, hideValues, onEdit, onRefresh }: Props)
                 <SortH label="Investido" field="investido" current={sortField} asc={sortAsc} onClick={toggleSort} className="hidden md:table-cell" />
                 <SortH label="Falta" field="falta" current={sortField} asc={sortAsc} onClick={toggleSort} />
                 <SortH label="Div/Mês" field="dividendo_mensal" current={sortField} asc={sortAsc} onClick={toggleSort} className="hidden lg:table-cell" />
+                <SortH label="Div/Ano" field="dividendo_anual" current={sortField} asc={sortAsc} onClick={toggleSort} className="hidden lg:table-cell" />
                 <th className="p-2 w-6" />
               </tr>
             </thead>
@@ -431,6 +432,7 @@ export function FIIAnalysis({ fiiAssets, hideValues, onEdit, onRefresh }: Props)
                       )}
                     </td>
                     <td className="p-2 tabular text-income font-medium hidden lg:table-cell">{mask$(r.realMonthlyDiv)}</td>
+                    <td className="p-2 tabular text-income font-medium hidden lg:table-cell">{mask$(r.realMonthlyDiv * 12)}</td>
                     <td className="p-2">
                       <div className={`h-1.5 rounded-full ${progressColor(r.missingValue)}`} style={{ width: `${r.goalValue > 0 ? Math.min(100, (r.investedValue / r.goalValue) * 100) : 0}%` }} />
                     </td>
