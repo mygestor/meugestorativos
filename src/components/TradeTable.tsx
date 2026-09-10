@@ -207,8 +207,7 @@ export function TradeTable({ trades, hideValues, onRefresh, onEdit }: Props) {
                   <th className="p-2 text-right"><SortHeader field="quantity" label="Qtde" /></th>
                   <th className="p-2 text-right"><SortHeader field="price" label="Preço" /></th>
                   <th className="p-2 text-right hidden sm:table-cell"><SortHeader field="fees" label="Taxas" /></th>
-                  <th className="p-2 text-right hidden sm:table-cell"><SortHeader field="totalWithoutFees" label="Total s/ Taxas" /></th>
-                  <th className="p-2 text-right hidden md:table-cell"><SortHeader field="totalWithFees" label="Total c/ Taxas" /></th>
+                  <th className="p-2 text-right hidden lg:table-cell"><SortHeader field="totalWithFees" label="Total c/ Taxas" /></th>
                   <th className="p-2 text-right hidden lg:table-cell"><SortHeader field="totalShares" label="Cotas Acum." /></th>
                   <th className="p-2 text-right hidden lg:table-cell"><SortHeader field="avgPrice" label="Preço Médio" /></th>
                   <th className="p-2 text-right w-16" />
@@ -229,8 +228,7 @@ export function TradeTable({ trades, hideValues, onRefresh, onEdit }: Props) {
                     <td className="p-2 text-right tabular">{Math.abs(t.quantity)}</td>
                     <td className="p-2 text-right tabular">{mask(t.price, hideValues)}</td>
                     <td className="p-2 text-right tabular hidden sm:table-cell">{mask(t.fees, hideValues)}</td>
-                    <td className="p-2 text-right tabular hidden sm:table-cell">{mask(t.totalWithoutFees, hideValues)}</td>
-                    <td className="p-2 text-right tabular hidden md:table-cell">{mask(t.totalWithFees, hideValues)}</td>
+                    <td className="p-2 text-right tabular hidden lg:table-cell">{mask(t.totalWithFees, hideValues)}</td>
                     <td className="p-2 text-right tabular hidden lg:table-cell">{t.totalShares}</td>
                     <td className="p-2 text-right tabular hidden lg:table-cell">{mask(t.avgPrice, hideValues)}</td>
                      <td className="p-2 text-right flex gap-1 justify-end">

@@ -400,8 +400,6 @@ export function FIIAnalysis({ fiiAssets, hideValues, onEdit, onRefresh }: Props)
                 <SortH label="Tipo" field="" current="" asc={false} onClick={() => {}} className="hidden lg:table-cell" />
                 <SortH label="Pag" field="" current="" asc={false} onClick={() => {}} className="hidden lg:table-cell" />
                 <SortH label="Cotação" field="cotacao" current={sortField} asc={sortAsc} onClick={toggleSort} />
-                <SortH label="Dividendo/Cota" field="dividendo" current={sortField} asc={sortAsc} onClick={toggleSort} />
-                <SortH label="DY M" field="dy_m" current={sortField} asc={sortAsc} onClick={toggleSort} className="hidden lg:table-cell" />
                 <SortH label="DY Ano (com JCP)" field="dy_ano" current={sortField} asc={sortAsc} onClick={toggleSort} />
                 <SortH label="Qtd" field="quantidade" current={sortField} asc={sortAsc} onClick={toggleSort} />
                 <SortH label="Meta" field="meta" current={sortField} asc={sortAsc} onClick={toggleSort} className="hidden lg:table-cell" />
@@ -421,8 +419,6 @@ export function FIIAnalysis({ fiiAssets, hideValues, onEdit, onRefresh }: Props)
                     <td className="p-2 text-muted hidden lg:table-cell">{r.asset.subtype || r.asset.type}</td>
                     <td className="p-2 text-muted hidden lg:table-cell">{r.asset.paymentDay ? `Dia ${r.asset.paymentDay}` : "-"}</td>
                     <td className="p-2 tabular font-medium">{mask$(r.asset.currentPrice)}</td>
-                    <td className="p-2 tabular">{mask$(r.realDivPerShare)}</td>
-                    <td className={`p-2 tabular font-medium hidden lg:table-cell ${yieldColor(r.divYieldMensal)}`}>{formatPercent(r.divYieldMensal)}</td>
                     <td className={`p-2 tabular font-medium ${r.dyB3 > 0 ? yieldColor(r.dyB3 / 12) : yieldColor(r.divYieldMensal)}`}>{r.dyB3 > 0 ? formatPercent(r.dyB3) : formatPercent(r.divYieldMensal * 12)}</td>
                     <td className="p-2 tabular">{r.asset.quantity}</td>
                     <td className="p-2 tabular hidden lg:table-cell">{r.goalShares > 0 ? r.goalShares : "-"}</td>

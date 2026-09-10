@@ -181,10 +181,7 @@ export function AssetTable({ assets, hideValues, onEdit, onRefresh }: Props) {
                 <th className="p-3 text-right"><SortHeader field="currentPrice" label="Cotação" /></th>
                 <th className="p-3 text-right"><SortHeader field="quantity" label="Qtd" /></th>
                 <th className="p-3 text-right hidden md:table-cell"><SortHeader field="investedAmount" label="Investido" /></th>
-                <th className="p-3 text-right hidden md:table-cell"><span className="text-xs font-medium">Posição</span></th>
                 <th className="p-3 text-right hidden md:table-cell"><span className="text-xs font-medium">Ganho/Perda</span></th>
-                <th className="p-3 text-right hidden lg:table-cell"><span className="text-xs font-medium">Preço Médio</span></th>
-                <th className="p-3 text-right hidden lg:table-cell"><span className="text-xs font-medium">Preço Justo</span></th>
                 <th className="p-3 text-right"><span className="text-xs font-medium">DY Anual<br/><span className="text-[10px] text-muted font-normal">(com JCP)</span></span></th>
                 <th className="p-3 text-right w-20" />
               </tr>
@@ -220,7 +217,6 @@ export function AssetTable({ assets, hideValues, onEdit, onRefresh }: Props) {
                     <td className="p-3 text-right tabular font-medium">{mask(a.currentPrice, hideValues)}</td>
                     <td className="p-3 text-right tabular">{a.quantity}</td>
                     <td className="p-3 text-right tabular hidden md:table-cell">{mask(a.investedAmount, hideValues)}</td>
-                    <td className="p-3 text-right tabular hidden md:table-cell font-medium">{mask(currentValue, hideValues)}</td>
                     <td className="p-3 text-right tabular hidden md:table-cell">
                       <p className={`font-medium ${currentValue >= a.investedAmount ? "text-income" : "text-expense"}`}>
                         {hideValues ? "••••" : `${currentValue >= 0 ? "+" : ""}${formatCurrency(currentValue - a.investedAmount)}`}
@@ -228,10 +224,6 @@ export function AssetTable({ assets, hideValues, onEdit, onRefresh }: Props) {
                       <p className={`text-xs ${a.investedAmount > 0 ? (currentValue >= a.investedAmount ? "text-income" : "text-expense") : "text-muted"}`}>
                         {a.investedAmount > 0 ? formatPercent(((currentValue - a.investedAmount) / a.investedAmount) * 100) : ""}
                       </p>
-                    </td>
-                    <td className="p-3 text-right tabular hidden lg:table-cell">{mask(a.avgPrice, hideValues)}</td>
-                    <td className="p-3 text-right tabular hidden lg:table-cell">
-                      {precoJusto > 0 ? mask(precoJusto, hideValues) : "-"}
                     </td>
                     <td className="p-3 text-right tabular">
                       {dyAnual > 0 ? (
