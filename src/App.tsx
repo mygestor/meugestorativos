@@ -439,19 +439,19 @@ export default function App() {
             Ativos <span className="text-[10px] opacity-70">({assets.length})</span>
           </TabButton>
           <TabButton active={tab === "dividendos"} onClick={() => setTab("dividendos")} icon={HandCoins}>
-            Divs <span className="text-[10px] opacity-70">({dividends.length})</span>
+            Dividendos <span className="text-[10px] opacity-70">({dividends.length})</span>
           </TabButton>
           <TabButton active={tab === "aportes"} onClick={() => setTab("aportes")} icon={PiggyBank}>
             Aportes <span className="text-[10px] opacity-70">({contributions.length})</span>
           </TabButton>
           <TabButton active={tab === "trades"} onClick={() => setTab("trades")} icon={ArrowLeftRight}>
-            Lançamentos <span className="text-[10px] opacity-70">({trades.length})</span>
+            Operações <span className="text-[10px] opacity-70">({trades.length})</span>
           </TabButton>
           <TabButton active={tab === "analise-fii"} onClick={() => setTab("analise-fii")} icon={Building2}>
             FII <span className="text-[10px] opacity-70">({fiiAssets.length})</span>
           </TabButton>
           <TabButton active={tab === "planejamento"} onClick={() => setTab("planejamento")} icon={Target}>
-            Meta
+            Planejamento
           </TabButton>
           </div>
           <div className="pointer-events-none absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-surface to-transparent sm:hidden" />
@@ -527,7 +527,7 @@ export default function App() {
                   divSubTab === "dashboard" ? "bg-primary text-white" : "bg-card text-muted hover:text-foreground"
                 }`}
               >
-                Dashboard
+                Visão Geral
               </button>
               <button
                 onClick={() => setDivSubTab("historico")}
