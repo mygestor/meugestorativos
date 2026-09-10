@@ -123,12 +123,8 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
       }
     }
 
-    // Build monthly data only for months within the period
-    const monthlyData: Record<string, {
-      aportado: number;
-      patrimonio: number;
-      dividendos: number;
-    }> = {};
+    // Calculate total gain (capital gains + dividends)
+    const totalGain = filteredTotalValue + cumulativeDividends - filteredTotalInvested;
 
     // First, calculate cumulative contributions up to the cutoff
     let cumulativeBeforeCutoff = 0;
@@ -139,27 +135,7 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
       }
     }
 
-    // Now process contributions within the period
-    let cumulativeAportado = cumulativeBeforeCutoff;
-    for (const c of sorted) {
-      const month = c.date.slice(0, 7);
-      if (month < cutoffStr) continue;
-      cumulativeAportado += c.value;
-      const divsForMonth = dividendsByMonth[month] ?? cumulativeDividends;
-      if (!monthlyData[month]) {
-        monthlyData[month] = {
-          aportado: cumulativeAportado,
-          patrimonio: cumulativeAportado + divsForMonth,
-          dividendos: divsForMonth,
-        };
-      } else {
-        monthlyData[month].aportado = cumulativeAportado;
-        monthlyData[month].patrimonio = cumulativeAportado + divsForMonth;
-        monthlyData[month].dividendos = divsForMonth;
-      }
-    }
-
-    // Generate all months in the period (even if no contributions)
+    // Generate all months in the period
     const allMonths: string[] = [];
     const tempDate = new Date(cutoffDate);
     while (tempDate <= now) {
@@ -167,37 +143,51 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
       tempDate.setMonth(tempDate.getMonth() + 1);
     }
 
-    // Fill in missing months with last known values
-    let lastAportado = cumulativeBeforeCutoff;
+    // Build monthly data with interpolated patrimônio
+    const monthlyData: Record<string, {
+      aportado: number;
+      patrimonio: number;
+      dividendos: number;
+    }> = {};
+
+    let cumulativeAportado = cumulativeBeforeCutoff;
     let lastDividends = 0;
+
     for (const month of allMonths) {
-      if (monthlyData[month]) {
-        lastAportado = monthlyData[month].aportado;
-        lastDividends = monthlyData[month].dividendos;
-      } else {
-        monthlyData[month] = {
-          aportado: lastAportado,
-          patrimonio: lastAportado + lastDividends,
-          dividendos: lastDividends,
-        };
+      // Add contributions for this month
+      for (const c of sorted) {
+        if (c.date.slice(0, 7) === month && c.date >= cutoffStr) {
+          cumulativeAportado += c.value;
+        }
       }
-    }
 
-    // Add current month with real patrimônio (market value + dividends received)
-    const currentMonth = now.toISOString().slice(0, 7);
-    const totalPatrimonio = filteredTotalValue + cumulativeDividends;
-    if (!monthlyData[currentMonth]) {
-      monthlyData[currentMonth] = {
+      // Get dividends for this month
+      const divsForMonth = dividendsByMonth[month] ?? lastDividends;
+      if (dividendsByMonth[month]) {
+        lastDividends = dividendsByMonth[month];
+      }
+
+      // Calculate patrimônio: interpolate gain proportionally
+      const gainProportion = filteredTotalInvested > 0 ? cumulativeAportado / filteredTotalInvested : 0;
+      const interpolatedGain = totalGain * gainProportion;
+      const patrimonio = cumulativeAportado + divsForMonth + interpolatedGain;
+
+      monthlyData[month] = {
         aportado: cumulativeAportado,
-        patrimonio: totalPatrimonio,
-        dividendos: cumulativeDividends,
+        patrimonio: patrimonio,
+        dividendos: divsForMonth,
       };
-    } else {
-      monthlyData[currentMonth].patrimonio = totalPatrimonio;
-      monthlyData[currentMonth].dividendos = cumulativeDividends;
     }
 
-    // Calculate values for chart - only months within period
+    // Override current month with real values
+    const currentMonth = now.toISOString().slice(0, 7);
+    monthlyData[currentMonth] = {
+      aportado: cumulativeAportado,
+      patrimonio: filteredTotalValue + cumulativeDividends,
+      dividendos: cumulativeDividends,
+    };
+
+    // Calculate values for chart
     return allMonths
       .filter((m) => monthlyData[m])
       .map((month) => ({
@@ -205,7 +195,7 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
         "Valor aplicado": Math.round(monthlyData[month].aportado),
         "Ganho de Capital": Math.max(0, Math.round(monthlyData[month].patrimonio - monthlyData[month].aportado)),
       }));
-  }, [contributions, filteredDividends, filteredTotalValue, timePeriod]);
+  }, [contributions, filteredDividends, filteredTotalValue, filteredTotalInvested, timePeriod]);
 
   // Assets by type for donut chart
   const typeData = useMemo(() => {
