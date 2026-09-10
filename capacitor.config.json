@@ -4,7 +4,7 @@
   "webDir": "www",
   "server": {
     "androidScheme": "https",
-    "url": "https://mygestor.github.io/meugestorativos/",
+    "url": "https://meugestorativos.pages.dev/",
     "cleartext": true
   },
   "android": {
@@ -13,7 +13,7 @@
   },
   "plugins": {
     "App": {
-      "launchUrl": "https://mygestor.github.io/meugestorativos/"
+      "launchUrl": "https://meugestorativos.pages.dev/"
     }
   }
 }
