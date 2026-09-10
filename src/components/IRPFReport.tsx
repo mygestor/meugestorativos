@@ -123,7 +123,7 @@ export function IRPFReport({ trades, dividends, onClose }: Props) {
       };
       years[year].dividends.push(d);
       years[year].divTotal += d.totalValue;
-      const type = d.movementType || "DIVIDENDO";
+      const type = d.movementType || "RENDIMENTO";
       years[year].divByType[type] = (years[year].divByType[type] || 0) + d.totalValue;
     }
 
@@ -281,7 +281,7 @@ export function IRPFReport({ trades, dividends, onClose }: Props) {
       lines.push(`  ${"─".repeat(65)}`);
       const sortedDivs = [...data.dividends].sort((a, b) => a.payment.localeCompare(b.payment));
       for (const d of sortedDivs) {
-        lines.push(`  ${formatDate(d.payment).padEnd(11)}│ ${d.ticker.padEnd(9)}│ ${formatCurrency(d.totalValue).padStart(10)}│ ${(d.movementType || "DIVIDENDO")}`);
+        lines.push(`  ${formatDate(d.payment).padEnd(11)}│ ${d.ticker.padEnd(9)}│ ${formatCurrency(d.totalValue).padStart(10)}│ ${(d.movementType || "RENDIMENTO")}`);
       }
       lines.push("");
     }
@@ -340,7 +340,7 @@ export function IRPFReport({ trades, dividends, onClose }: Props) {
       for (const d of data.dividends) {
         lines.push([
           "Dividendo", d.payment.slice(0, 4), formatDate(d.payment), d.ticker,
-          d.movementType || "DIVIDENDO", "", "",
+          d.movementType || "RENDIMENTO", "", "",
           d.totalValue, "", "", "",
         ].join(";"));
       }

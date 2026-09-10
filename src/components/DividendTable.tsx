@@ -394,9 +394,9 @@ export function DividendTable({ dividends, hideValues, onRefresh }: Props) {
 
 function MovementBadge({ type }: { type: string }) {
   const colorMap: Record<string, string> = {
-    "DIVIDENDO": "bg-income/10 text-income",
+    "RENDIMENTO": "bg-income/10 text-income",
     "JUROS S/CAPITAL": "bg-blue-500/10 text-blue-400",
-    "RENDIMENTO": "bg-primary/10 text-primary",
+    "REEMBOLSO": "bg-primary/10 text-primary",
   };
   const color = colorMap[type.toUpperCase()] ?? "bg-muted/10 text-muted";
   return <span className={`px-2 py-0.5 rounded-lg text-[11px] font-medium ${color}`}>{type}</span>;

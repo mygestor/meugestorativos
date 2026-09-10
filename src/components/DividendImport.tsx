@@ -137,7 +137,7 @@ export function DividendImport({ onClose }: Props) {
 
   function downloadTemplate() {
     const headers = ["TICKER", "TIPO", "NOME", "PAGAMENTO", "TIPO DE MOVIMENTO", "VALOR TOTAL LIQ."];
-    const example = ["ALZR11", "FII", "ALZR11", "15/01/2026", "DIVIDENDO", "100,00"];
+    const example = ["ALZR11", "FII", "ALZR11", "15/01/2026", "RENDIMENTO", "100,00"];
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet([headers, example]);
     XLSX.utils.book_append_sheet(wb, ws, "Dividendos");
@@ -165,7 +165,7 @@ export function DividendImport({ onClose }: Props) {
         year,
         name: name || tickerName,
         payment,
-        movementType: movementType.toUpperCase().trim() || "DIVIDENDO",
+        movementType: movementType.toUpperCase().trim() || "RENDIMENTO",
         totalValue: parseBRL(totalValue),
       };
     }).filter((r) => r.ticker && r.totalValue > 0);
