@@ -1,7 +1,7 @@
 import type { Asset } from "../types";
 import { formatCurrency, formatPercent } from "../format";
 import { deleteAsset, getDividends, getTrades } from "../store";
-import { Pencil, Trash2, ChevronDown, ChevronUp, RefreshCw, Layers } from "lucide-react";
+import { Pencil, Trash2, ChevronDown, ChevronUp, RefreshCw, Layers, Info } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { PriceUpdateDialog } from "./PriceUpdateDialog";
 import { AssetLogo } from "./AssetLogo";
@@ -203,7 +203,6 @@ export function AssetTable({ assets, hideValues, onEdit, onRefresh }: Props) {
                   <tr
                     className="hover:bg-card-hover transition-colors cursor-pointer"
                     onClick={() => setExpanded(isExpanded ? null : a.id)}
-                    onDoubleClick={() => setDetailAsset(a)}
                   >
                     <td className="p-3">
                       <div className="flex items-center gap-2">
@@ -280,12 +279,20 @@ export function AssetTable({ assets, hideValues, onEdit, onRefresh }: Props) {
                               : "-"}
                           />
                         </div>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setLotAsset(a); }}
-                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-surface text-muted hover:text-foreground text-xs transition-colors"
-                        >
-                          <Layers className="size-3.5" /> Lotes
-                        </button>
+                        <div className="flex items-center gap-2 mt-3">
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setDetailAsset(a); }}
+                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 text-xs font-medium transition-colors"
+                          >
+                            <Info className="size-3.5" /> Ver detalhes
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setLotAsset(a); }}
+                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-surface text-muted hover:text-foreground text-xs transition-colors"
+                          >
+                            <Layers className="size-3.5" /> Lotes
+                          </button>
+                        </div>
                         {a.status && (
                           <p className="text-xs text-muted mt-3">Status: {a.status}</p>
                         )}
