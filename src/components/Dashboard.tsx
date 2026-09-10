@@ -30,14 +30,14 @@ function InfoButton({ id, openInfo, setOpenInfo }: { id: string; openInfo: strin
   return (
     <div className="relative ml-auto">
       <button
-        onClick={() => setOpenInfo(isOpen ? null : id)}
+        onClick={(e) => { e.stopPropagation(); setOpenInfo(isOpen ? null : id); }}
         className="p-1 rounded-lg hover:bg-muted/50 transition-colors"
         title="Como é calculado?"
       >
         <Info className="size-3.5 text-muted" />
       </button>
       {isOpen && (
-        <div className="absolute right-0 top-8 z-50 w-64 p-3 bg-popover border border-border rounded-xl shadow-lg text-xs text-muted leading-relaxed">
+        <div className="absolute right-0 top-full mt-2 z-50 w-72 p-3 bg-card border border-border rounded-xl shadow-lg text-xs text-muted leading-relaxed" onClick={(e) => e.stopPropagation()}>
           {CARD_INFO[id]}
         </div>
       )}
@@ -253,7 +253,7 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
       {/* Top Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Patrimônio Total */}
-        <div className="bg-card border border-border rounded-2xl p-5">
+        <div className="bg-card border border-border rounded-2xl p-5 relative overflow-visible">
           <div className="flex items-center gap-2 mb-3">
             <div className="p-2 bg-blue-500/10 rounded-xl">
               <Wallet className="size-4 text-blue-500" />
@@ -277,7 +277,7 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
         </div>
 
         {/* Lucro Total */}
-        <div className="bg-card border border-border rounded-2xl p-5">
+        <div className="bg-card border border-border rounded-2xl p-5 relative overflow-visible">
           <div className="flex items-center gap-2 mb-3">
             <div className="p-2 bg-emerald-500/10 rounded-xl">
               <TrendingUp className="size-4 text-emerald-500" />
@@ -301,7 +301,7 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
         </div>
 
         {/* Proventos Recebidos (12M) */}
-        <div className="bg-card border border-border rounded-2xl p-5">
+        <div className="bg-card border border-border rounded-2xl p-5 relative overflow-visible">
           <div className="flex items-center gap-2 mb-3">
             <div className="p-2 bg-amber-500/10 rounded-xl">
               <DollarSign className="size-4 text-amber-500" />
@@ -317,7 +317,7 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
         </div>
 
         {/* Rentabilidade */}
-        <div className="bg-card border border-border rounded-2xl p-5">
+        <div className="bg-card border border-border rounded-2xl p-5 relative overflow-visible">
           <div className="flex items-center gap-2 mb-3">
             <div className="p-2 bg-purple-500/10 rounded-xl">
               <BarChart3 className="size-4 text-purple-500" />
