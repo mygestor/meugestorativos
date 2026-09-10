@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { addDividend } from "../store";
+import { useState, useMemo } from "react";
+import { addDividend, getDividends } from "../store";
 import { X } from "lucide-react";
 
 interface Props {
@@ -7,15 +7,21 @@ interface Props {
   tickers: string[];
 }
 
-const MOVEMENT_TYPES = ["DIVIDENDO", "JUROS S/CAPITAL", "RENDIMENTO", "AMORTIZAÇÃO", "OUTRO"];
+const DEFAULT_MOVEMENT_TYPES = ["DIVIDENDO", "JUROS S/CAPITAL", "RENDIMENTO", "AMORTIZAÇÃO", "OUTRO"];
 
 export function DividendDialog({ onClose, tickers }: Props) {
+  const existingMovementTypes = useMemo(() => {
+    const dividends = getDividends();
+    const types = [...new Set(dividends.map((d) => d.movementType).filter(Boolean))];
+    return types.length > 0 ? types : DEFAULT_MOVEMENT_TYPES;
+  }, []);
+
   const [form, setForm] = useState({
     ticker: tickers[0] ?? "",
     type: "FII",
     name: "",
     payment: new Date().toISOString().slice(0, 10),
-    movementType: "DIVIDENDO",
+    movementType: existingMovementTypes[0] ?? "DIVIDENDO",
     totalValue: "",
   });
 
@@ -105,7 +111,7 @@ export function DividendDialog({ onClose, tickers }: Props) {
                 onChange={(e) => update("movementType", e.target.value)}
                 className="w-full px-3 py-2 bg-surface border border-border rounded-xl text-sm focus:outline-none focus:border-primary transition-colors"
               >
-                {MOVEMENT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                {existingMovementTypes.map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
           </div>
