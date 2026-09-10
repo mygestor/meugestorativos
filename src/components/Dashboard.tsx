@@ -49,31 +49,54 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
   const [timePeriod, setTimePeriod] = useState<TimePeriod>("12m");
   const [typeFilter, setTypeFilter] = useState<string>("all");
 
-  // Calculate total dividends received in last 12 months
+  // Filter assets by type
+  const filteredAssets = useMemo(() => {
+    return typeFilter === "all" ? assets : assets.filter((a) => a.type === typeFilter);
+  }, [assets, typeFilter]);
+
+  // Filter dividends by type
+  const filteredDividends = useMemo(() => {
+    if (!dividends) return [];
+    if (typeFilter === "all") return dividends;
+    return dividends.filter((d) => {
+      const asset = assets.find((a) => a.ticker === d.ticker);
+      return asset?.type === typeFilter;
+    });
+  }, [dividends, assets, typeFilter]);
+
+  // Calculate filtered totals
+  const filteredTotalValue = useMemo(() => {
+    return filteredAssets.reduce((s, a) => s + a.currentPrice * a.quantity, 0);
+  }, [filteredAssets]);
+
+  const filteredTotalInvested = useMemo(() => {
+    return filteredAssets.reduce((s, a) => s + a.investedAmount, 0);
+  }, [filteredAssets]);
+
+  // Calculate total dividends received in last 12 months (filtered)
   const dividends12m = useMemo(() => {
-    if (!dividends) return 0;
+    if (!filteredDividends || filteredDividends.length === 0) return 0;
     const now = new Date();
     const cutoff = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
     const cutoffStr = cutoff.toISOString().slice(0, 10);
-    return dividends
+    return filteredDividends
       .filter((d) => d.payment >= cutoffStr)
       .reduce((s, d) => s + d.totalValue, 0);
-  }, [dividends]);
+  }, [filteredDividends]);
 
-  // Calculate capital gains
+  // Calculate capital gains (filtered)
   const capitalGains = useMemo(() => {
-    return assets.reduce((s, a) => s + (a.currentPrice * a.quantity - a.investedAmount), 0);
-  }, [assets]);
+    return filteredAssets.reduce((s, a) => s + (a.currentPrice * a.quantity - a.investedAmount), 0);
+  }, [filteredAssets]);
 
-  // Rentabilidade calculations (including dividends)
+  // Rentabilidade calculations (including dividends, filtered)
   const rentabilidade12m = useMemo(() => {
-    const totalInvested = summary.totalInvested;
-    const totalValue = summary.totalCurrentValue + dividends12m;
-    if (totalInvested <= 0) return 0;
-    return ((totalValue - totalInvested) / totalInvested) * 100;
-  }, [summary, dividends12m]);
+    if (filteredTotalInvested <= 0) return 0;
+    const totalValue = filteredTotalValue + dividends12m;
+    return ((totalValue - filteredTotalInvested) / filteredTotalInvested) * 100;
+  }, [filteredTotalInvested, filteredTotalValue, dividends12m]);
 
-  // Evolution data based on time period
+  // Evolution data based on time period and type filter
   const evolutionData = useMemo(() => {
     const now = new Date();
     let monthsBack = 120; // Default to 10 years
@@ -82,16 +105,27 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
     else if (timePeriod === "60m") monthsBack = 60;
     else if (timePeriod === "120m") monthsBack = 120;
     else if (timePeriod === "all") monthsBack = 120;
-    else if (timePeriod === "custom") monthsBack = 120; // For now, use 10 years for custom
+    else if (timePeriod === "custom") monthsBack = 120;
 
     const cutoffDate = new Date(now.getFullYear(), now.getMonth() - monthsBack, 1);
     const cutoffStr = cutoffDate.toISOString().slice(0, 7);
 
-    // Calculate cumulative dividends by month
+    // Filter assets and dividends by type
+    const filteredAssets = typeFilter === "all" ? assets : assets.filter((a) => a.type === typeFilter);
+    const filteredDividends = typeFilter === "all" ? dividends : dividends?.filter((d) => {
+      const asset = assets.find((a) => a.ticker === d.ticker);
+      return asset?.type === typeFilter;
+    });
+
+    // Calculate filtered totals
+    const filteredCurrentValue = filteredAssets.reduce((s, a) => s + a.currentPrice * a.quantity, 0);
+    const filteredInvested = filteredAssets.reduce((s, a) => s + a.investedAmount, 0);
+
+    // Calculate cumulative dividends by month (filtered)
     const dividendsByMonth: Record<string, number> = {};
     let cumulativeDividends = 0;
-    if (dividends) {
-      const sortedDivs = [...dividends].sort((a, b) => a.payment.localeCompare(b.payment));
+    if (filteredDividends && filteredDividends.length > 0) {
+      const sortedDivs = [...filteredDividends].sort((a, b) => a.payment.localeCompare(b.payment));
       for (const d of sortedDivs) {
         const month = d.payment.slice(0, 7);
         cumulativeDividends += d.totalValue;
@@ -131,7 +165,7 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
 
     // Add current month with real patrimônio (market value + dividends received)
     const currentMonth = now.toISOString().slice(0, 7);
-    const totalPatrimonio = summary.totalCurrentValue + cumulativeDividends;
+    const totalPatrimonio = filteredCurrentValue + cumulativeDividends;
     if (!monthlyData[currentMonth]) {
       monthlyData[currentMonth] = {
         aportado: cumulativeAportado,
@@ -151,7 +185,7 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
         "Valor aplicado": Math.round(data.aportado),
         "Ganho de Capital": Math.max(0, Math.round(data.patrimonio - data.aportado)),
       }));
-  }, [contributions, dividends, summary.totalCurrentValue, timePeriod]);
+  }, [contributions, dividends, assets, typeFilter, timePeriod]);
 
   // Assets by type for donut chart
   const typeData = useMemo(() => {
@@ -183,7 +217,7 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
             </div>
             <p className="text-xs text-muted font-medium">Patrimônio total</p>
           </div>
-          <p className="text-2xl font-bold tabular">{mask(summary.totalCurrentValue + dividends12m, hideValues)}</p>
+          <p className="text-2xl font-bold tabular">{mask(filteredTotalValue + dividends12m, hideValues)}</p>
           <div className="flex items-center gap-2 mt-1">
             <span className="text-xs text-emerald-500 font-medium">
               {rentabilidade12m >= 0 ? "+" : ""}{formatPercent(rentabilidade12m)}
@@ -195,7 +229,7 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
             )}
           </div>
           <p className="text-xs text-muted mt-2">Valor investido</p>
-          <p className="text-sm font-medium tabular">{mask(summary.totalInvested, hideValues)}</p>
+          <p className="text-sm font-medium tabular">{mask(filteredTotalInvested, hideValues)}</p>
         </div>
 
         {/* Lucro Total */}
