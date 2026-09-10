@@ -1,9 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { Asset, PortfolioSummary, ContributionRecord, TradeRecord, DividendRecord } from "../types";
 import { formatCurrency, formatCompact, formatPercent } from "../format";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Legend } from "recharts";
 import { AssetLogo } from "./AssetLogo";
 import { Wallet, TrendingUp, DollarSign, BarChart3, ChevronDown } from "lucide-react";
+import { fetchHistoricalPrices } from "../prices";
 
 interface Props {
   summary: PortfolioSummary;
@@ -48,11 +49,24 @@ type TimePeriod = "all" | "12m" | "24m" | "60m" | "120m" | "custom";
 export function Dashboard({ summary, assets, hideValues, contributions, trades, dividends }: Props) {
   const [timePeriod, setTimePeriod] = useState<TimePeriod>("12m");
   const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [histPrices, setHistPrices] = useState<Map<string, Map<string, number>>>(new Map());
 
   // Filter assets by type
   const filteredAssets = useMemo(() => {
     return typeFilter === "all" ? assets : assets.filter((a) => a.type === typeFilter);
   }, [assets, typeFilter]);
+
+  // Fetch historical prices when assets change
+  useEffect(() => {
+    if (filteredAssets.length === 0) return;
+    const now = new Date();
+    const startDate = new Date(now.getFullYear() - 10, 0, 1).toISOString().slice(0, 10);
+    const endDate = now.toISOString().slice(0, 10);
+    const tickers = filteredAssets.map((a) => a.ticker);
+    fetchHistoricalPrices(tickers, startDate, endDate).then((prices) => {
+      setHistPrices(new Map(prices));
+    });
+  }, [filteredAssets]);
 
   // Filter dividends by type
   const filteredDividends = useMemo(() => {
@@ -110,20 +124,7 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
     const cutoffDate = new Date(now.getFullYear(), now.getMonth() - monthsBack, 1);
     const cutoffStr = cutoffDate.toISOString().slice(0, 7);
 
-    // Calculate cumulative dividends by month (filtered by type and time)
-    const dividendsByMonth: Record<string, number> = {};
-    let cumulativeDividends = 0;
-    if (filteredDividends && filteredDividends.length > 0) {
-      const sortedDivs = [...filteredDividends].sort((a, b) => a.payment.localeCompare(b.payment));
-      for (const d of sortedDivs) {
-        if (d.payment < cutoffStr) continue;
-        const month = d.payment.slice(0, 7);
-        cumulativeDividends += d.totalValue;
-        dividendsByMonth[month] = cumulativeDividends;
-      }
-    }
-
-    // Scale factor for type filter: what fraction of total is this type
+    // Scale factor for type filter
     const totalInv = assets.reduce((s, a) => s + a.investedAmount, 0);
     const fraction = typeFilter !== "all" && totalInv > 0
       ? filteredTotalInvested / totalInv
@@ -145,9 +146,26 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
       tempDate.setMonth(tempDate.getMonth() + 1);
     }
 
+    // Calculate patrimônio for each month using historical prices
+    function calcPatrimonio(month: string): number {
+      let total = 0;
+      for (const a of filteredAssets) {
+        const ticker = a.ticker.toUpperCase();
+        const prices = histPrices.get(ticker);
+        // Get price for this month (last available price in that month)
+        let price = prices?.get(month);
+        // Fall back to current price if no historical data
+        if (price == null || price === 0) {
+          price = a.currentPrice;
+        }
+        total += price * a.quantity;
+      }
+      return total;
+    }
+
     const monthlyData: Record<string, {
       aportado: number;
-      ganho: number;
+      patrimonio: number;
     }> = {};
 
     let cumulativeAportado = cumulativeBeforeCutoff;
@@ -161,17 +179,20 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
 
       const isCurrentMonth = month === now.toISOString().slice(0, 7);
       if (isCurrentMonth) {
-        // Current month: real values
-        const totalPatrimonio = filteredTotalValue + cumulativeDividends;
         monthlyData[month] = {
           aportado: cumulativeAportado,
-          ganho: Math.max(0, totalPatrimonio - cumulativeAportado),
+          patrimonio: filteredTotalValue,
+        };
+      } else if (histPrices.size > 0) {
+        monthlyData[month] = {
+          aportado: cumulativeAportado,
+          patrimonio: calcPatrimonio(month),
         };
       } else {
-        // Historical months: no price data, no ganho
+        // No historical data loaded yet
         monthlyData[month] = {
           aportado: cumulativeAportado,
-          ganho: 0,
+          patrimonio: 0,
         };
       }
     }
@@ -181,9 +202,9 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
       .map((month) => ({
         month,
         "Valor aplicado": Math.round(monthlyData[month].aportado),
-        "Ganho de Capital": Math.round(monthlyData[month].ganho),
+        "Ganho de Capital": Math.max(0, Math.round(monthlyData[month].patrimonio - monthlyData[month].aportado)),
       }));
-  }, [contributions, filteredDividends, filteredTotalValue, filteredTotalInvested, timePeriod, assets, typeFilter]);
+  }, [contributions, filteredDividends, filteredTotalValue, filteredTotalInvested, timePeriod, assets, typeFilter, filteredAssets, histPrices]);
 
   // Assets by type for donut chart
   const typeData = useMemo(() => {

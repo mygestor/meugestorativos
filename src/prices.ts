@@ -128,6 +128,102 @@ export async function fetchFundamentals(ticker: string): Promise<FundamentalData
   }
 }
 
+export interface HistoricalPrice {
+  date: string; // YYYY-MM-DD
+  close: number;
+}
+
+interface BrapiHistoricalResponse {
+  results: {
+    symbol: string;
+    data: {
+      historicalDataPrice: {
+        date: number;
+        close: number;
+      }[];
+    };
+  }[];
+}
+
+// Cache for historical prices per ticker
+const historicalCache = new Map<string, Map<string, number>>();
+
+export async function fetchHistoricalPrices(
+  tickers: string[],
+  startDate: string,
+  endDate: string
+): Promise<Map<string, Map<string, number>>> {
+  const result = new Map<string, Map<string, number>>();
+  const toFetch: string[] = [];
+
+  for (const t of tickers) {
+    const upper = t.toUpperCase();
+    const cached = historicalCache.get(upper);
+    if (cached) {
+      result.set(upper, cached);
+    } else {
+      toFetch.push(upper);
+    }
+  }
+
+  if (toFetch.length === 0) return result;
+
+  // Batch in groups of 10 (brapi allows up to 20, but be conservative with rate limit)
+  for (let i = 0; i < toFetch.length; i += 10) {
+    const batch = toFetch.slice(i, i + 10);
+    const symbols = batch.join(",");
+    // Determine endpoint based on ticker pattern (FIIs end with 11)
+    const fiiSymbols = batch.filter((s) => s.endsWith("11"));
+    const stockSymbols = batch.filter((s) => !s.endsWith("11"));
+
+    const fetches: Promise<void>[] = [];
+
+    if (fiiSymbols.length > 0) {
+      fetches.push(
+        fetch(`${BRAPI_BASE}/fii/historical?symbols=${fiiSymbols.join(",")}&startDate=${startDate}&endDate=${endDate}&interval=1mo&token=${BRAPI_TOKEN}`)
+          .then((r) => r.json())
+          .then((data: BrapiHistoricalResponse) => {
+            for (const item of data.results ?? []) {
+              const prices = new Map<string, number>();
+              for (const p of item.data?.historicalDataPrice ?? []) {
+                const d = new Date(p.date * 1000);
+                const key = d.toISOString().slice(0, 7); // YYYY-MM
+                prices.set(key, p.close);
+              }
+              historicalCache.set(item.symbol, prices);
+              result.set(item.symbol, prices);
+            }
+          })
+          .catch((e) => console.warn("Erro ao buscar histórico FII:", e))
+      );
+    }
+
+    if (stockSymbols.length > 0) {
+      fetches.push(
+        fetch(`${BRAPI_BASE}/stocks/historical?symbols=${stockSymbols.join(",")}&startDate=${startDate}&endDate=${endDate}&interval=1mo&token=${BRAPI_TOKEN}`)
+          .then((r) => r.json())
+          .then((data: BrapiHistoricalResponse) => {
+            for (const item of data.results ?? []) {
+              const prices = new Map<string, number>();
+              for (const p of item.data?.historicalDataPrice ?? []) {
+                const d = new Date(p.date * 1000);
+                const key = d.toISOString().slice(0, 7); // YYYY-MM
+                prices.set(key, p.close);
+              }
+              historicalCache.set(item.symbol, prices);
+              result.set(item.symbol, prices);
+            }
+          })
+          .catch((e) => console.warn("Erro ao buscar histórico ações:", e))
+      );
+    }
+
+    await Promise.all(fetches);
+  }
+
+  return result;
+}
+
 export async function updatePrices(
   assets: { id: string; ticker: string }[],
   onProgress: (ticker: string, status: 'ok' | 'error', price?: number) => void
