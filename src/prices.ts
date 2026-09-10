@@ -19,6 +19,7 @@ interface BrapiDividend {
 
 interface BrapiQuote {
   symbol: string;
+  name?: string;
   regularMarketPrice: number | null;
   regularMarketChange: number | null;
   regularMarketChangePercent: number | null;
@@ -420,6 +421,22 @@ export async function updateDividendsFromInvestidor10(
   onProgress: (ticker: string, status: 'ok' | 'error', dividendo?: number) => void
 ): Promise<number> {
   return updateDividendsFromBrapi(tickers, onProgress);
+}
+
+const nameCache = new Map<string, string>();
+
+export async function fetchAssetName(ticker: string): Promise<string> {
+  const cached = nameCache.get(ticker.toUpperCase());
+  if (cached) return cached;
+  try {
+    const quotes = await fetchQuotes([ticker]);
+    const quote = quotes.get(ticker.toUpperCase());
+    if (quote?.name) {
+      nameCache.set(ticker.toUpperCase(), quote.name);
+      return quote.name;
+    }
+  } catch { /* ignore */ }
+  return "";
 }
 
 export function calcMonthlyDividendPerShare(

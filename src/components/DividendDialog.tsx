@@ -1,5 +1,6 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { addDividend, getDividends, getAssets } from "../store";
+import { fetchAssetName } from "../prices";
 import { X } from "lucide-react";
 import type { Asset } from "../types";
 
@@ -35,7 +36,17 @@ export function DividendDialog({ onClose, tickers }: Props) {
         const asset = assets.find((a) => a.ticker.toUpperCase() === value.toUpperCase());
         if (asset) {
           next.type = asset.type || prev.type;
-          next.name = asset.ticker || prev.name;
+        }
+        const dividends = getDividends();
+        const lastDiv = dividends
+          .filter((d) => d.ticker.toUpperCase() === value.toUpperCase() && d.name)
+          .sort((a, b) => b.payment.localeCompare(a.payment))[0];
+        if (lastDiv) {
+          next.name = lastDiv.name;
+        } else {
+          fetchAssetName(value).then((name) => {
+            if (name) setForm((p) => ({ ...p, name }));
+          });
         }
       }
       return next;
