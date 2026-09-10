@@ -3,7 +3,7 @@ import type { DividendRecord } from "../types";
 import { formatCurrency, formatDate } from "../format";
 import { deleteDividend, updateDividend, getDividendStats } from "../store";
 import { fetchAssetName } from "../prices";
-import { Trash2, Download, ChevronDown, ChevronUp, X, Pencil } from "lucide-react";
+import { Trash2, Download, ChevronDown, ChevronUp, X, Pencil, HandCoins } from "lucide-react";
 
 interface Props {
   dividends: DividendRecord[];
@@ -273,6 +273,7 @@ export function DividendTable({ dividends, hideValues, onRefresh }: Props) {
 
         {sorted.length === 0 ? (
           <div className="p-12 text-center">
+            <HandCoins className="size-10 text-muted mx-auto mb-3 opacity-50" />
             <p className="text-muted">Nenhum dividendo registrado</p>
             <p className="text-xs text-muted mt-1">Use o botão "Novo Dividendo" ou "Importar" acima</p>
           </div>

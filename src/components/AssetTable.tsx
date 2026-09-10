@@ -1,7 +1,7 @@
 import type { Asset } from "../types";
 import { formatCurrency, formatPercent } from "../format";
 import { deleteAsset, getDividends, getTrades } from "../store";
-import { Pencil, Trash2, ChevronDown, ChevronUp, RefreshCw, Layers, Info } from "lucide-react";
+import { Pencil, Trash2, ChevronDown, ChevronUp, RefreshCw, Layers, Info, Briefcase } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { PriceUpdateDialog } from "./PriceUpdateDialog";
 import { AssetLogo } from "./AssetLogo";
@@ -106,6 +106,7 @@ export function AssetTable({ assets, hideValues, onEdit, onRefresh }: Props) {
   if (assets.length === 0) {
     return (
       <div className="bg-card border border-border rounded-2xl p-12 text-center">
+        <Briefcase className="size-10 text-muted mx-auto mb-3 opacity-50" />
         <p className="text-muted mb-2">Nenhum ativo cadastrado</p>
         <p className="text-sm text-muted">Clique em "Novo Ativo" para começar</p>
       </div>
