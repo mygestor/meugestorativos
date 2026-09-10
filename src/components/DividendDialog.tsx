@@ -9,12 +9,10 @@ interface Props {
   tickers: string[];
 }
 
-const DEFAULT_MOVEMENT_TYPES = ["RENDIMENTO", "JUROS S/CAPITAL", "REEMBOLSO", "AMORTIZAÇÃO", "OUTRO"];
+const DEFAULT_MOVEMENT_TYPES = ["DIVIDENDO", "JUROS S/CAPITAL", "RENDIMENTO", "AMORTIZAÇÃO", "OUTRO"];
 
 const RENAME_MOVEMENT_TYPES: Record<string, string> = {
   "REEMBOLSO - DIVIDENDOS": "REEMBOLSO - RENDIMENTO",
-  "DIVIDENDO": "RENDIMENTO",
-  "JUROS S/CAPITAL": "JUROS SOBRE CAPITAL PRÓPRIO",
 };
 
 export function DividendDialog({ onClose, tickers }: Props) {
@@ -31,7 +29,7 @@ export function DividendDialog({ onClose, tickers }: Props) {
     type: "FII",
     name: "",
     payment: new Date().toISOString().slice(0, 10),
-    movementType: existingMovementTypes[0] ?? "RENDIMENTO",
+    movementType: existingMovementTypes[0] ?? "DIVIDENDO",
     totalValue: "",
   });
 
