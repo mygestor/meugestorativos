@@ -10,6 +10,11 @@ interface Props {
   onClose: () => void;
 }
 
+function safeStr(v: number): string {
+  if (!isFinite(v) || isNaN(v)) return "0";
+  return v.toString();
+}
+
 const EMPTY_FORM = {
   ticker: "",
   type: "FII",
@@ -48,23 +53,23 @@ export function AssetDialog({ asset, onClose }: Props) {
         subtype: asset.subtype ?? "",
         sector: asset.sector ?? "",
         paymentDay: asset.paymentDay?.toString() ?? "",
-        currentPrice: asset.currentPrice.toString(),
-        dividendPerShare: asset.dividendPerShare.toString(),
-        targetTotal: asset.targetTotal.toString(),
-        sharesNeeded: asset.sharesNeeded.toString(),
-        avgPrice: asset.avgPrice.toString(),
-        quantity: asset.quantity.toString(),
+        currentPrice: safeStr(asset.currentPrice),
+        dividendPerShare: safeStr(asset.dividendPerShare),
+        targetTotal: safeStr(asset.targetTotal),
+        sharesNeeded: safeStr(asset.sharesNeeded),
+        avgPrice: safeStr(asset.avgPrice),
+        quantity: safeStr(asset.quantity),
         goal: asset.goal,
-        investedAmount: asset.investedAmount.toString(),
-        missing: asset.missing.toString(),
-        currentDividend: asset.currentDividend.toString(),
-        annualReturn: asset.annualReturn.toString(),
+        investedAmount: safeStr(asset.investedAmount),
+        missing: safeStr(asset.missing),
+        currentDividend: safeStr(asset.currentDividend),
+        annualReturn: safeStr(asset.annualReturn),
         divYield12m: asset.divYield12m?.toString() ?? "",
-        representation: asset.representation.toString(),
-        percentInPortfolio: asset.percentInPortfolio.toString(),
+        representation: safeStr(asset.representation),
+        percentInPortfolio: safeStr(asset.percentInPortfolio),
         status: asset.status ?? "",
-        magicMonth: asset.magicMonth.toString(),
-        magicNumber: asset.magicNumber.toString(),
+        magicMonth: safeStr(asset.magicMonth),
+        magicNumber: safeStr(asset.magicNumber),
       });
     } else {
       setForm(EMPTY_FORM);
@@ -83,18 +88,18 @@ export function AssetDialog({ asset, onClose }: Props) {
       const totalTarget = parseFloat(next.targetTotal) || 0;
       const invested = avgP * qty;
 
-      next.investedAmount = invested.toFixed(2);
-      next.currentDividend = (qty * divPerShare).toFixed(2);
-      next.annualReturn = (qty * divPerShare * 12).toFixed(2);
+      next.investedAmount = safeStr(invested);
+      next.currentDividend = safeStr(qty * divPerShare);
+      next.annualReturn = safeStr(qty * divPerShare * 12);
 
       if (totalTarget > 0 && price > 0) {
         next.sharesNeeded = Math.ceil(totalTarget / price).toString();
-        next.missing = Math.max(0, totalTarget - invested).toFixed(2);
+        next.missing = safeStr(Math.max(0, totalTarget - invested));
       }
 
       if (price > 0) {
-        next.magicNumber = price.toString();
-        next.magicMonth = (qty > 0 ? Math.ceil(price / (qty * divPerShare)) : 0).toString();
+        next.magicNumber = safeStr(price);
+        next.magicMonth = safeStr(qty > 0 && divPerShare > 0 ? Math.ceil(price / (qty * divPerShare)) : 0);
       }
 
       return next;
