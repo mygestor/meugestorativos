@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
-import { addDividend, getDividends } from "../store";
+import { addDividend, getDividends, getAssets } from "../store";
 import { X } from "lucide-react";
+import type { Asset } from "../types";
 
 interface Props {
   onClose: () => void;
@@ -16,6 +17,8 @@ export function DividendDialog({ onClose, tickers }: Props) {
     return types.length > 0 ? types : DEFAULT_MOVEMENT_TYPES;
   }, []);
 
+  const assets = useMemo(() => getAssets(), []);
+
   const [form, setForm] = useState({
     ticker: tickers[0] ?? "",
     type: "FII",
@@ -26,7 +29,17 @@ export function DividendDialog({ onClose, tickers }: Props) {
   });
 
   function update(field: string, value: string) {
-    setForm((prev) => ({ ...prev, [field]: value }));
+    setForm((prev) => {
+      const next = { ...prev, [field]: value };
+      if (field === "ticker") {
+        const asset = assets.find((a) => a.ticker.toUpperCase() === value.toUpperCase());
+        if (asset) {
+          next.type = asset.type || prev.type;
+          next.name = asset.ticker || prev.name;
+        }
+      }
+      return next;
+    });
   }
 
   function handleSubmit(e: React.FormEvent) {
