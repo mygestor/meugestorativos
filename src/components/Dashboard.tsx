@@ -3,7 +3,14 @@ import type { Asset, PortfolioSummary, ContributionRecord, TradeRecord, Dividend
 import { formatCurrency, formatCompact, formatPercent } from "../format";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Legend } from "recharts";
 import { AssetLogo } from "./AssetLogo";
-import { Wallet, TrendingUp, DollarSign, BarChart3, ChevronDown } from "lucide-react";
+import { Wallet, TrendingUp, DollarSign, BarChart3, ChevronDown, Info } from "lucide-react";
+
+const CARD_INFO: Record<string, string> = {
+  patrimonio: "Soma do preço atual × quantidade de todos os ativos + dividendos recebidos nos últimos 12 meses.",
+  lucro: "Ganho de Capital = (Preço Atual × Quantidade) − Valor Investido. Dividendos = soma dos proventos recebidos nos últimos 12 meses. Lucro Total = Ganho + Dividendos.",
+  proventos: "Soma dos dividendos e proventos recebidos nos últimos 12 meses. Total = soma de todos os proventos já recebidos.",
+  rentabilidade: "Rentabilidade = ((Valor Atual + Dividendos 12M) − Valor Investido) / Valor Investido × 100.",
+};
 
 interface Props {
   summary: PortfolioSummary;
@@ -16,6 +23,26 @@ interface Props {
 
 function mask(v: number, hidden: boolean) {
   return hidden ? "R$ ••••" : formatCurrency(v);
+}
+
+function InfoButton({ id, openInfo, setOpenInfo }: { id: string; openInfo: string | null; setOpenInfo: (v: string | null) => void }) {
+  const isOpen = openInfo === id;
+  return (
+    <div className="relative ml-auto">
+      <button
+        onClick={() => setOpenInfo(isOpen ? null : id)}
+        className="p-1 rounded-lg hover:bg-muted/50 transition-colors"
+        title="Como é calculado?"
+      >
+        <Info className="size-3.5 text-muted" />
+      </button>
+      {isOpen && (
+        <div className="absolute right-0 top-8 z-50 w-64 p-3 bg-popover border border-border rounded-xl shadow-lg text-xs text-muted leading-relaxed">
+          {CARD_INFO[id]}
+        </div>
+      )}
+    </div>
+  );
 }
 
 const COLORS = ["#10b981", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#14b8a6", "#f97316"];
@@ -48,6 +75,7 @@ type TimePeriod = "all" | "12m" | "24m" | "60m" | "120m" | "custom";
 export function Dashboard({ summary, assets, hideValues, contributions, trades, dividends }: Props) {
   const [timePeriod, setTimePeriod] = useState<TimePeriod>("12m");
   const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [openInfo, setOpenInfo] = useState<string | null>(null);
 
   // Filter assets by type
   const filteredAssets = useMemo(() => {
@@ -221,7 +249,7 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
   }, [assets, typeFilter]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" onClick={() => openInfo && setOpenInfo(null)}>
       {/* Top Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Patrimônio Total */}
@@ -231,6 +259,7 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
               <Wallet className="size-4 text-blue-500" />
             </div>
             <p className="text-xs text-muted font-medium">Patrimônio total</p>
+            <InfoButton id="patrimonio" openInfo={openInfo} setOpenInfo={setOpenInfo} />
           </div>
           <p className="text-2xl font-bold tabular">{mask(filteredTotalValue + dividends12m, hideValues)}</p>
           <div className="flex items-center gap-2 mt-1">
@@ -254,6 +283,7 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
               <TrendingUp className="size-4 text-emerald-500" />
             </div>
             <p className="text-xs text-muted font-medium">Lucro total</p>
+            <InfoButton id="lucro" openInfo={openInfo} setOpenInfo={setOpenInfo} />
           </div>
           <p className="text-2xl font-bold tabular text-emerald-500">
             {hideValues ? "R$ ••••" : formatCurrency(capitalGains + dividends12m)}
@@ -277,6 +307,7 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
               <DollarSign className="size-4 text-amber-500" />
             </div>
             <p className="text-xs text-muted font-medium">Proventos Recebidos (12M)</p>
+            <InfoButton id="proventos" openInfo={openInfo} setOpenInfo={setOpenInfo} />
           </div>
           <p className="text-2xl font-bold tabular">{mask(dividends12m, hideValues)}</p>
           <div className="mt-2">
@@ -292,6 +323,7 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
               <BarChart3 className="size-4 text-purple-500" />
             </div>
             <p className="text-xs text-muted font-medium">Rentabilidade (12M)</p>
+            <InfoButton id="rentabilidade" openInfo={openInfo} setOpenInfo={setOpenInfo} />
           </div>
           <div className="flex items-center gap-2">
             <span className={`text-2xl font-bold tabular ${rentabilidade12m >= 0 ? "text-emerald-500" : "text-red-500"}`}>
