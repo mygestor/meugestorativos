@@ -84,7 +84,7 @@ export function AssetDialog({ asset, onClose }: Props) {
       const qty = parseFloat(next.quantity) || 0;
       const price = parseFloat(next.currentPrice) || 0;
       const divPerShare = parseFloat(next.dividendPerShare) || 0;
-      const avgP = parseFloat(next.avgPrice) || price;
+      const avgP = next.avgPrice !== "" ? (parseFloat(next.avgPrice) || 0) : price;
       const totalTarget = parseFloat(next.targetTotal) || 0;
       const invested = avgP * qty;
 
@@ -110,7 +110,7 @@ export function AssetDialog({ asset, onClose }: Props) {
     e.preventDefault();
     const currentPrice = parseFloat(form.currentPrice) || 0;
     const dividendPerShare = parseFloat(form.dividendPerShare) || 0;
-    const avgPriceValue = parseFloat(form.avgPrice) || currentPrice;
+    const avgPriceValue = form.avgPrice !== "" ? (parseFloat(form.avgPrice) || 0) : currentPrice;
     const quantity = parseFloat(form.quantity) || 0;
     const investedAmountValue = avgPriceValue * quantity;
     const currentDividendValue = quantity * dividendPerShare;

@@ -70,7 +70,6 @@ export function syncAssetsFromTrades(): void {
       updateAsset(a.id, {
         type,
         sector,
-        avgPrice,
         quantity: pos.shares,
         investedAmount: +pos.invested.toFixed(2),
         currentDividend: newDividend > 0 ? newDividend : a.currentDividend,
