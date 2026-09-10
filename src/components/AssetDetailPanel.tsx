@@ -1,7 +1,8 @@
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import type { Asset, DividendRecord, TradeRecord } from "../types";
 import { formatCurrency, formatDate, formatPercent } from "../format";
 import { X } from "lucide-react";
+import { fetchFundamentals, type FundamentalData } from "../prices";
 
 interface Props {
   asset: Asset;
@@ -13,6 +14,15 @@ interface Props {
 export function AssetDetailPanel({ asset, dividends, trades, onClose }: Props) {
   const assetDividends = useMemo(() => dividends.filter((d) => d.ticker === asset.ticker), [dividends, asset.ticker]);
   const assetTrades = useMemo(() => trades.filter((t) => t.ticker === asset.ticker).sort((a, b) => b.date.localeCompare(a.date)), [trades, asset.ticker]);
+  const [fundamentals, setFundamentals] = useState<FundamentalData | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchFundamentals(asset.ticker).then((data) => {
+      if (!cancelled) setFundamentals(data);
+    });
+    return () => { cancelled = true; };
+  }, [asset.ticker]);
 
   const totalDividendsReceived = assetDividends.reduce((s, d) => s + d.totalValue, 0);
   const currentValue = asset.currentPrice * asset.quantity;
@@ -50,6 +60,25 @@ export function AssetDetailPanel({ asset, dividends, trades, onClose }: Props) {
             {asset.targetTotal > 0 && <DetailCard label="Valor Meta" value={formatCurrency(asset.targetTotal)} />}
             {asset.targetTotal > 0 && <DetailCard label="% Meta" value={formatPercent(Math.min(100, (asset.investedAmount / asset.targetTotal) * 100))} />}
           </div>
+
+          {/* Fundamental Indicators */}
+          {fundamentals && (
+            <div>
+              <p className="text-xs text-muted font-medium uppercase tracking-wider mb-2">Indicadores Fundamentalistas</p>
+              <div className="grid grid-cols-2 gap-2">
+                {fundamentals.pe != null && <DetailCard label="P/L" value={`${fundamentals.pe.toFixed(1)}x`} />}
+                {fundamentals.priceToBook != null && <DetailCard label="P/VP" value={`${fundamentals.priceToBook.toFixed(1)}x`} />}
+                {fundamentals.roe != null && <DetailCard label="ROE" value={formatPercent(fundamentals.roe)} />}
+                {fundamentals.evToEbitda != null && <DetailCard label="EV/EBITDA" value={`${fundamentals.evToEbitda.toFixed(1)}x`} />}
+                {fundamentals.netMargin != null && <DetailCard label="Margem Líquida" value={formatPercent(fundamentals.netMargin)} />}
+                {fundamentals.grossMargin != null && <DetailCard label="Margem Bruta" value={formatPercent(fundamentals.grossMargin)} />}
+                {fundamentals.operatingMargin != null && <DetailCard label="Margem Operacional" value={formatPercent(fundamentals.operatingMargin)} />}
+                {fundamentals.debtToEquity != null && <DetailCard label="Dívida/PL" value={`${fundamentals.debtToEquity.toFixed(1)}%`} />}
+                {fundamentals.returnOnAssets != null && <DetailCard label="ROA" value={formatPercent(fundamentals.returnOnAssets)} />}
+                {fundamentals.marketCap != null && <DetailCard label="Market Cap" value={formatCurrency(fundamentals.marketCap)} />}
+              </div>
+            </div>
+          )}
 
           {/* Dividends received */}
           <div>

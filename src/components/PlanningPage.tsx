@@ -7,8 +7,9 @@ import { SmartRecommendations } from "./SmartRecommendations";
 import { PortfolioRebalancing } from "./PortfolioRebalancing";
 import { DividendCalendar } from "./DividendCalendar";
 import { BenchmarkChart } from "./BenchmarkChart";
+import { Calculators } from "./Calculators";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, AreaChart, Area } from "recharts";
-import { TrendingUp, DollarSign, Target, BarChart3, PieChart as PieChartIcon, Lightbulb } from "lucide-react";
+import { TrendingUp, DollarSign, Target, BarChart3, PieChart as PieChartIcon, Lightbulb, Calculator } from "lucide-react";
 
 interface Props {
   assets: Asset[];
@@ -217,6 +218,15 @@ export function PlanningPage({ assets, dividends, contributions, hideValues }: P
             </div>
           </div>
         )}
+      </div>
+
+      {/* Financial Calculators */}
+      <div>
+        <div className="flex items-center gap-2 mb-4">
+          <Calculator className="size-5 text-primary" />
+          <h2 className="font-semibold text-sm">Calculadoras Financeiras</h2>
+        </div>
+        <Calculators />
       </div>
 
       {/* Benchmark + Rebalancing Row */}

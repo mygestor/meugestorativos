@@ -22,13 +22,14 @@ import { DividendAlerts } from "./components/DividendAlerts";
 import { DividendCalendar } from "./components/DividendCalendar";
 import { UpdateToast } from "./components/UpdateToast";
 import { FIIAnalysis } from "./components/FIIAnalysis";
+import { AssetComparator } from "./components/AssetComparator";
 import { logoutFirebase, onAuthChange, handleRedirectResult } from "./firebase";
 import { FirebaseLogin } from "./components/FirebaseLogin";
 import { loadUserData, setLocalData, getAllLocalData, scheduleSave, forceSaveNow } from "./sync";
 import { getKnownSector } from "./sectorFetch";
 import { TrendingUp, Plus, Upload, Download, Trash2, Eye, EyeOff, LayoutDashboard, Briefcase, HandCoins, PiggyBank, ArrowLeftRight, Target, FileText, Building2 } from "lucide-react";
 
-type Tab = "dashboard" | "assets" | "dividendos" | "aportes" | "trades" | "planejamento" | "analise-fii";
+type Tab = "dashboard" | "assets" | "dividendos" | "aportes" | "trades" | "planejamento" | "analise-fii" | "comparador";
 
 type FirebaseUser = { uid: string; displayName: string | null; email: string | null; photoURL: string | null };
 
@@ -450,6 +451,9 @@ export default function App() {
           <TabButton active={tab === "analise-fii"} onClick={() => setTab("analise-fii")} icon={Building2}>
             FII <span className="text-[10px] opacity-70">({fiiAssets.length})</span>
           </TabButton>
+          <TabButton active={tab === "comparador"} onClick={() => setTab("comparador")} icon={TrendingUp}>
+            Comparar
+          </TabButton>
           <TabButton active={tab === "planejamento"} onClick={() => setTab("planejamento")} icon={Target}>
             Planejamento
           </TabButton>
@@ -579,6 +583,9 @@ export default function App() {
         {tab === "analise-fii" && (
           <FIIAnalysis fiiAssets={fiiAssets} hideValues={hideValues}
             onEdit={(a) => { setEditAsset(a); setDialogOpen(true); }} onRefresh={refresh} />
+        )}
+        {tab === "comparador" && (
+          <AssetComparator assets={assets} hideValues={hideValues} />
         )}
         {tab === "planejamento" && (
           <PlanningPage assets={assets} dividends={dividends} contributions={contributions} trades={trades} hideValues={hideValues} />

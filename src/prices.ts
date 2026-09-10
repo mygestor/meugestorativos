@@ -27,6 +27,17 @@ interface BrapiQuote {
   dividendYield: number | null;
   dividendPerShare: number | null;
   dividendsData?: BrapiDividend[];
+  pe?: number | null;
+  priceToBook?: number | null;
+  roe?: number | null;
+  evToEbitda?: number | null;
+  netMargin?: number | null;
+  grossMargin?: number | null;
+  operatingMargin?: number | null;
+  debtToEquity?: number | null;
+  returnOnAssets?: number | null;
+  enterpriseValue?: number | null;
+  marketCap?: number | null;
 }
 
 interface BrapiResponse {
@@ -37,7 +48,7 @@ interface BrapiResponse {
 async function fetchQuotes(tickers: string[]): Promise<Map<string, BrapiQuote>> {
   if (tickers.length === 0) return new Map();
   const tickersStr = tickers.join(",");
-  const url = `${BRAPI_BASE}/quote/${tickersStr}?fundamental=false&token=${BRAPI_TOKEN}`;
+  const url = `${BRAPI_BASE}/quote/${tickersStr}?fundamental=true&token=${BRAPI_TOKEN}`;
   
   try {
     const response = await fetch(url);
@@ -69,6 +80,51 @@ async function fetchQuotes(tickers: string[]): Promise<Map<string, BrapiQuote>> 
       }
     }
     return map;
+  }
+}
+
+export interface FundamentalData {
+  pe: number | null;
+  priceToBook: number | null;
+  roe: number | null;
+  evToEbitda: number | null;
+  netMargin: number | null;
+  grossMargin: number | null;
+  operatingMargin: number | null;
+  debtToEquity: number | null;
+  returnOnAssets: number | null;
+  marketCap: number | null;
+}
+
+const fundamentalCache = new Map<string, FundamentalData>();
+
+export async function fetchFundamentals(ticker: string): Promise<FundamentalData | null> {
+  const cached = fundamentalCache.get(ticker.toUpperCase());
+  if (cached) return cached;
+
+  try {
+    const quotes = await fetchQuotes([ticker]);
+    const quote = quotes.get(ticker.toUpperCase());
+    if (!quote) return null;
+
+    const data: FundamentalData = {
+      pe: quote.pe ?? null,
+      priceToBook: quote.priceToBook ?? null,
+      roe: quote.roe ?? null,
+      evToEbitda: quote.evToEbitda ?? null,
+      netMargin: quote.netMargin ?? null,
+      grossMargin: quote.grossMargin ?? null,
+      operatingMargin: quote.operatingMargin ?? null,
+      debtToEquity: quote.debtToEquity ?? null,
+      returnOnAssets: quote.returnOnAssets ?? null,
+      marketCap: quote.marketCap ?? null,
+    };
+
+    fundamentalCache.set(ticker.toUpperCase(), data);
+    return data;
+  } catch (error) {
+    console.warn(`Erro ao buscar fundamentais de ${ticker}:`, error);
+    return null;
   }
 }
 

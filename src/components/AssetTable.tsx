@@ -7,7 +7,7 @@ import { PriceUpdateDialog } from "./PriceUpdateDialog";
 import { AssetLogo } from "./AssetLogo";
 import { AssetDetailPanel } from "./AssetDetailPanel";
 import { LotsView } from "./LotsView";
-import { fetchDY12m } from "../prices";
+import { fetchDY12m, fetchFundamentals, type FundamentalData } from "../prices";
 
 interface Props {
   assets: Asset[];
@@ -29,6 +29,7 @@ export function AssetTable({ assets, hideValues, onEdit, onRefresh }: Props) {
   const [lotAsset, setLotAsset] = useState<Asset | null>(null);
   const [dyMap, setDyMap] = useState<Map<string, number>>(new Map());
   const [priceMap, setPriceMap] = useState<Map<string, number>>(new Map());
+  const [fundamentalsMap, setFundamentalsMap] = useState<Map<string, FundamentalData>>(new Map());
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
   const allDividends = getDividends();
 
@@ -61,6 +62,17 @@ export function AssetTable({ assets, hideValues, onEdit, onRefresh }: Props) {
       setDyMap(dy);
       setPriceMap(pr);
     });
+
+    // Fetch fundamentals for all assets
+    const fetchAllFundamentals = async () => {
+      const fundamentalsMap = new Map<string, FundamentalData>();
+      for (const ticker of tickers) {
+        const data = await fetchFundamentals(ticker);
+        if (data) fundamentalsMap.set(ticker.toUpperCase(), data);
+      }
+      setFundamentalsMap(fundamentalsMap);
+    };
+    fetchAllFundamentals();
   }, [assets]);
 
   const filtered = useMemo(() => {
@@ -182,6 +194,7 @@ export function AssetTable({ assets, hideValues, onEdit, onRefresh }: Props) {
                 <th className="p-3 text-right"><SortHeader field="quantity" label="Qtd" /></th>
                 <th className="p-3 text-right hidden md:table-cell"><SortHeader field="investedAmount" label="Investido" /></th>
                 <th className="p-3 text-right hidden md:table-cell"><span className="text-xs font-medium">Ganho/Perda</span></th>
+                <th className="p-3 text-right hidden lg:table-cell"><span className="text-xs font-medium">P/L</span></th>
                 <th className="p-3 text-right"><span className="text-xs font-medium">DY Anual<br/><span className="text-[10px] text-muted font-normal">(com JCP)</span></span></th>
                 <th className="p-3 text-right w-20" />
               </tr>
@@ -224,6 +237,13 @@ export function AssetTable({ assets, hideValues, onEdit, onRefresh }: Props) {
                       <p className={`text-xs ${a.investedAmount > 0 ? (currentValue >= a.investedAmount ? "text-income" : "text-expense") : "text-muted"}`}>
                         {a.investedAmount > 0 ? formatPercent(((currentValue - a.investedAmount) / a.investedAmount) * 100) : ""}
                       </p>
+                    </td>
+                    <td className="p-3 text-right tabular hidden lg:table-cell">
+                      {fundamentalsMap.get(a.ticker.toUpperCase())?.pe != null ? (
+                        <span className={`font-medium ${fundamentalsMap.get(a.ticker.toUpperCase())!.pe! < 0 ? "text-red-500" : fundamentalsMap.get(a.ticker.toUpperCase())!.pe! > 15 ? "text-yellow-500" : "text-green-500"}`}>
+                          {fundamentalsMap.get(a.ticker.toUpperCase())!.pe!.toFixed(1)}x
+                        </span>
+                      ) : "-"}
                     </td>
                     <td className="p-3 text-right tabular">
                       {dyAnual > 0 ? (
