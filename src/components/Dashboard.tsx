@@ -58,7 +58,7 @@ const tooltipContentStyle: React.CSSProperties = {
 function getTypeColor(type: string): string {
   const map: Record<string, string> = {
     FII: "#10b981",
-    "Ação": "#3b82f6",
+    "AÇÃO": "#3b82f6",
     ETF: "#f59e0b",
     BDR: "#8b5cf6",
     Tesouro: "#14b8a6",
@@ -381,7 +381,7 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
                   className="appearance-none px-3 py-1.5 pr-8 bg-surface border border-border rounded-xl text-xs font-medium focus:outline-none focus:border-primary transition-colors cursor-pointer"
                 >
                   <option value="all">Todos os tipos</option>
-                  <option value="Ação">Ações</option>
+                  <option value="AÇÃO">Ações</option>
                   <option value="FII">FIIs</option>
                   <option value="ETF">ETFs</option>
                   <option value="BDR">BDRs</option>
@@ -470,7 +470,7 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
                 className="appearance-none px-3 py-1.5 pr-8 bg-surface border border-border rounded-xl text-xs font-medium focus:outline-none focus:border-primary transition-colors cursor-pointer"
               >
                 <option value="all">Todos os tipos</option>
-                <option value="Ação">Ações</option>
+                <option value="AÇÃO">Ações</option>
                 <option value="FII">FIIs</option>
                 <option value="ETF">ETFs</option>
                 <option value="BDR">BDRs</option>

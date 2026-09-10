@@ -34,7 +34,7 @@ export function AssetTable({ assets, hideValues, onEdit, onRefresh }: Props) {
   const allDividends = getDividends();
 
   const typeCards = [
-    { type: "Ação", label: "Ações", color: "#3b82f6" },
+    { type: "AÇÃO", label: "Ações", color: "#3b82f6" },
     { type: "FII", label: "Fundos Imobiliários", color: "#10b981" },
     { type: "ETF", label: "ETFs", color: "#f59e0b" },
   ];
