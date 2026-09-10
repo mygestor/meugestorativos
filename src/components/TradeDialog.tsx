@@ -15,6 +15,7 @@ export function TradeDialog({ onClose, tickers, editTrade }: Props) {
     ticker: editTrade?.ticker ?? tickers[0] ?? "",
     quantity: editTrade ? String(editTrade.quantity) : "",
     price: editTrade ? String(editTrade.price) : "",
+    fees: editTrade ? String(editTrade.fees || 0) : "",
   });
 
   const isEditing = !!editTrade;
@@ -29,6 +30,7 @@ export function TradeDialog({ onClose, tickers, editTrade }: Props) {
     const ticker = form.ticker.toUpperCase().trim();
     const qty = parseFloat(form.quantity) || 0;
     const price = parseFloat(form.price.replace(",", ".")) || 0;
+    const fees = parseFloat(form.fees.replace(",", ".")) || 0;
     if (!ticker || qty === 0 || price <= 0) return;
 
     const absQty = Math.abs(qty);
@@ -72,16 +74,19 @@ export function TradeDialog({ onClose, tickers, editTrade }: Props) {
 
     if (editTrade) deleteTrade(editTrade.id);
 
+    const totalWithFees = totalOp + fees;
+    const priceWithFees = absQty > 0 ? +(totalWithFees / absQty).toFixed(2) : price;
+
     addTrade({
       date: form.date,
       ticker,
       quantity: isBuy ? absQty : -absQty,
       price,
-      fees: 0,
+      fees,
       irrf,
       totalWithoutFees: totalOp,
-      totalWithFees: totalOp,
-      priceWithFees: price,
+      totalWithFees,
+      priceWithFees,
       totalShares: newShares,
       avgPrice,
       operation: operationType,
@@ -159,8 +164,20 @@ export function TradeDialog({ onClose, tickers, editTrade }: Props) {
             </div>
           </div>
 
+          <div className="space-y-1.5">
+            <label className="text-xs text-muted font-medium">Taxas (R$)</label>
+            <input
+              type="text"
+              inputMode="decimal"
+              value={form.fees}
+              onChange={(e) => update("fees", e.target.value)}
+              placeholder="0,00"
+              className="w-full px-3 py-2 bg-surface border border-border rounded-xl text-sm focus:outline-none focus:border-primary transition-colors"
+            />
+          </div>
+
           <p className="text-xs text-muted">
-            Taxas, IRRF, totais, preço médio e posição acumulada são calculados automaticamente.
+            IRRF, totais, preço médio e posição acumulada são calculados automaticamente.
           </p>
 
           <div className="flex items-center gap-3 pt-2">
