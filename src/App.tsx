@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from "react";
 import type { Asset, DividendRecord, ContributionRecord, TradeRecord } from "./types";
-import { getAssets, getDividends, getContributions, getTrades, calculateSummary, addAsset, updateAsset, clearAll, clearDividends, clearContributions, importFullBackup, importSeedData, cleanupOrphanAssets, initFromRemoteData, exportAllData } from "./store";
+import { getAssets, getDividends, getContributions, getTrades, calculateSummary, addAsset, updateAsset, clearAll, clearDividends, clearContributions, importFullBackup, importSeedData, cleanupOrphanAssets, initFromRemoteData, exportAllData, migrateDividendMovementTypes } from "./store";
 import { syncAssetsFromTrades } from "./assetHelper";
 import { Dashboard } from "./components/Dashboard";
 import { AssetTable } from "./components/AssetTable";
@@ -128,6 +128,7 @@ export default function App() {
     });
 
     initFromRemoteData().then(() => {
+      migrateDividendMovementTypes();
       updateMissingSectors();
       refresh();
     });

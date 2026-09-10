@@ -117,6 +117,20 @@ export function exportAssets(): Asset[] {
 
 // ---- Dividend Records ----
 
+export function migrateDividendMovementTypes(): number {
+  const list = getDividends();
+  let count = 0;
+  const updated = list.map((d) => {
+    if (d.movementType === "REEMBOLSO - DIVIDENDOS") {
+      count++;
+      return { ...d, movementType: "REEMBOLSO - RENDIMENTO" };
+    }
+    return d;
+  });
+  if (count > 0) save(DIVIDEND_KEY, updated);
+  return count;
+}
+
 export function getDividends(): DividendRecord[] {
   return load<DividendRecord>(DIVIDEND_KEY);
 }
