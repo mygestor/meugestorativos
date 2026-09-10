@@ -30,27 +30,21 @@ export function DividendDialog({ onClose, tickers }: Props) {
   });
 
   function update(field: string, value: string) {
-    setForm((prev) => {
-      const next = { ...prev, [field]: value };
-      if (field === "ticker") {
+    if (field === "ticker") {
+      setForm((prev) => {
+        const next = { ...prev, [field]: value.toUpperCase(), name: "" };
         const asset = assets.find((a) => a.ticker.toUpperCase() === value.toUpperCase());
         if (asset) {
           next.type = asset.type || prev.type;
         }
-        const dividends = getDividends();
-        const lastDiv = dividends
-          .filter((d) => d.ticker.toUpperCase() === value.toUpperCase() && d.name)
-          .sort((a, b) => b.payment.localeCompare(a.payment))[0];
-        if (lastDiv) {
-          next.name = lastDiv.name;
-        } else {
-          fetchAssetName(value).then((name) => {
-            if (name) setForm((p) => ({ ...p, name }));
-          });
-        }
-      }
-      return next;
-    });
+        return next;
+      });
+      fetchAssetName(value).then((name) => {
+        if (name) setForm((prev) => ({ ...prev, name }));
+      });
+    } else {
+      setForm((prev) => ({ ...prev, [field]: value }));
+    }
   }
 
   function handleSubmit(e: React.FormEvent) {
