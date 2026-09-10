@@ -39,13 +39,15 @@ export function DividendTable({ dividends, hideValues, onRefresh }: Props) {
   }, [dividends, filterMonth, filterYear, filterTicker, filterStatus, today]);
 
   const months = useMemo(() => {
-    const set = new Set(dividends.map((d) => d.monthYear));
+    let filtered = dividends;
+    if (filterYear) filtered = filtered.filter((d) => String(d.year) === filterYear);
+    const set = new Set(filtered.map((d) => d.monthYear));
     return Array.from(set).sort((a, b) => {
       const [mA, yA] = a.split("/").map(Number);
       const [mB, yB] = b.split("/").map(Number);
       return yA - yB || mA - mB;
     });
-  }, [dividends]);
+  }, [dividends, filterYear]);
 
   const years = useMemo(() => {
     const set = new Set(dividends.map((d) => d.year));
@@ -233,7 +235,7 @@ export function DividendTable({ dividends, hideValues, onRefresh }: Props) {
             </select>
             <select
               value={filterYear}
-              onChange={(e) => setFilterYear(e.target.value)}
+              onChange={(e) => { setFilterYear(e.target.value); setFilterMonth(""); }}
               className="flex-1 px-3 py-2 bg-surface border border-border rounded-lg text-xs focus:outline-none focus:border-primary"
             >
               <option value="">Ano</option>
