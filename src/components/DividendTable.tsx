@@ -392,12 +392,20 @@ export function DividendTable({ dividends, hideValues, onRefresh }: Props) {
   );
 }
 
+const RENAME_MOVEMENT: Record<string, string> = {
+  "REEMBOLSO - DIVIDENDOS": "REEMBOLSO - RENDIMENTO",
+  "DIVIDENDO": "RENDIMENTO",
+  "JUROS S/CAPITAL": "JUROS SOBRE CAPITAL PRÓPRIO",
+};
+
 function MovementBadge({ type }: { type: string }) {
+  const displayType = RENAME_MOVEMENT[type] || type;
   const colorMap: Record<string, string> = {
     "RENDIMENTO": "bg-income/10 text-income",
-    "JUROS S/CAPITAL": "bg-blue-500/10 text-blue-400",
+    "JUROS SOBRE CAPITAL PRÓPRIO": "bg-blue-500/10 text-blue-400",
     "REEMBOLSO": "bg-primary/10 text-primary",
+    "REEMBOLSO - RENDIMENTO": "bg-primary/10 text-primary",
   };
-  const color = colorMap[type.toUpperCase()] ?? "bg-muted/10 text-muted";
-  return <span className={`px-2 py-0.5 rounded-lg text-[11px] font-medium ${color}`}>{type}</span>;
+  const color = colorMap[displayType.toUpperCase()] ?? "bg-muted/10 text-muted";
+  return <span className={`px-2 py-0.5 rounded-lg text-[11px] font-medium ${color}`}>{displayType}</span>;
 }
