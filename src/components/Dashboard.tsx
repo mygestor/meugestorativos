@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
 import type { Asset, PortfolioSummary, ContributionRecord, TradeRecord, DividendRecord } from "../types";
 import { formatCurrency, formatCompact, formatPercent } from "../format";
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, AreaChart, Area, XAxis, YAxis } from "recharts";
+import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Legend } from "recharts";
 import { AssetLogo } from "./AssetLogo";
+import { Wallet, TrendingUp, DollarSign, BarChart3, ChevronDown } from "lucide-react";
 
 interface Props {
   summary: PortfolioSummary;
@@ -19,333 +20,374 @@ function mask(v: number, hidden: boolean) {
 
 const COLORS = ["#10b981", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#14b8a6", "#f97316"];
 
-const borderAccents: Record<string, string> = {
-  blue: "border-l-blue-500",
-  green: "border-l-emerald-500",
-  purple: "border-l-purple-500",
-};
-
 const tooltipContentStyle: React.CSSProperties = {
-  background: "#1e293b",
-  border: "1px solid #334155",
+  background: "#fff",
+  border: "1px solid #e2e8f0",
   borderRadius: 12,
   fontSize: 13,
+  boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
 };
 
 function getTypeColor(type: string): string {
   const map: Record<string, string> = {
     FII: "#10b981",
-    Ação: "#3b82f6",
+    "Ação": "#3b82f6",
     ETF: "#f59e0b",
     BDR: "#8b5cf6",
     Tesouro: "#14b8a6",
     CDB: "#f97316",
     LCI: "#ec4899",
     LCA: "#ef4444",
+    RendaFixa: "#3b82f6",
   };
   return map[type] ?? "#6b7280";
 }
 
+type TimePeriod = "1m" | "3m" | "6m" | "12m" | "24m" | "all";
+
 export function Dashboard({ summary, assets, hideValues, contributions, trades, dividends }: Props) {
-  const [selectedSegment, setSelectedSegment] = useState<string | null>(null);
-  const [selectedFIISegment, setSelectedFIISegment] = useState<string | null>(null);
+  const [timePeriod, setTimePeriod] = useState<TimePeriod>("12m");
+  const [typeFilter, setTypeFilter] = useState<string>("all");
 
-  const typeData = Object.entries(summary.types)
-    .map(([name, value]) => ({ name, value: Math.round(value) }))
-    .sort((a, b) => b.value - a.value);
+  // Calculate total dividends received in last 12 months
+  const dividends12m = useMemo(() => {
+    if (!dividends) return 0;
+    const now = new Date();
+    const cutoff = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
+    const cutoffStr = cutoff.toISOString().slice(0, 10);
+    return dividends
+      .filter((d) => d.payment >= cutoffStr)
+      .reduce((s, d) => s + d.totalValue, 0);
+  }, [dividends]);
 
-  const { fiiSectorData, otherSectorData, fiiAssetsBySegment, otherAssetsBySegment } = useMemo(() => {
-    const fiiSectors: Record<string, number> = {};
-    const otherSectors: Record<string, number> = {};
-    const fiiMap: Record<string, Asset[]> = {};
-    const otherMap: Record<string, Asset[]> = {};
-
-    for (const a of assets) {
-      const seg = a.sector || "A DEFINIR";
-      const isFII = a.type === "FII";
-      const target = isFII ? fiiSectors : otherSectors;
-      const map = isFII ? fiiMap : otherMap;
-      target[seg] = (target[seg] ?? 0) + a.investedAmount;
-      if (!map[seg]) map[seg] = [];
-      map[seg].push(a);
-    }
-
-    function buildData(sectors: Record<string, number>) {
-      const total = Object.values(sectors).reduce((s, v) => s + v, 0);
-      const sorted = Object.entries(sectors)
-        .map(([name, value]) => ({ name, value: Math.round(value) }))
-        .sort((a, b) => b.value - a.value);
-      const threshold = total * 0.03;
-      const main: typeof sorted = [];
-      let otherValue = 0;
-      for (const item of sorted) {
-        if (item.value >= threshold) main.push(item);
-        else otherValue += item.value;
-      }
-      if (otherValue > 0) main.push({ name: "Outros", value: otherValue });
-      return main;
-    }
-
-    return {
-      fiiSectorData: buildData(fiiSectors),
-      otherSectorData: buildData(otherSectors),
-      fiiAssetsBySegment: fiiMap,
-      otherAssetsBySegment: otherMap,
-    };
+  // Calculate capital gains
+  const capitalGains = useMemo(() => {
+    return assets.reduce((s, a) => s + (a.currentPrice * a.quantity - a.investedAmount), 0);
   }, [assets]);
 
-  const totalFIISector = fiiSectorData.reduce((s, d) => s + d.value, 0);
-  const totalOtherSector = otherSectorData.reduce((s, d) => s + d.value, 0);
+  // Rentabilidade calculations
+  const rentabilidade12m = useMemo(() => {
+    const totalInvested = summary.totalInvested;
+    const totalValue = summary.totalCurrentValue;
+    if (totalInvested <= 0) return 0;
+    return ((totalValue - totalInvested) / totalInvested) * 100;
+  }, [summary]);
 
-  const dividendBreakdown = useMemo(() => {
-    const assetDivMap: Record<string, number> = {};
-    if (dividends && dividends.length > 0) {
-      const byTicker: Record<string, DividendRecord[]> = {};
-      for (const d of dividends) {
-        const key = d.ticker.toUpperCase();
-        if (!byTicker[key]) byTicker[key] = [];
-        byTicker[key].push(d);
-      }
-      for (const [ticker, records] of Object.entries(byTicker)) {
-        const sorted = [...records].sort((a, b) => b.payment.localeCompare(a.payment));
-        const last12 = sorted.slice(0, 12);
-        const byMonth: Record<string, number> = {};
-        for (const d of last12) {
-          byMonth[d.monthYear] = (byMonth[d.monthYear] ?? 0) + d.totalValue;
-        }
-        const vals = Object.values(byMonth);
-        if (vals.length > 0) {
-          assetDivMap[ticker] = vals.reduce((s, v) => s + v, 0) / vals.length;
-        }
-      }
-    }
-    return assets
-      .filter(a => {
-        const fromRecords = assetDivMap[a.ticker.toUpperCase()] ?? 0;
-        return fromRecords > 0 || a.dividendPerShare > 0 || a.currentDividend > 0;
-      })
-      .map(a => {
-        const fromRecords = assetDivMap[a.ticker.toUpperCase()] ?? 0;
-        if (fromRecords > 0) return { ...a, monthlyDiv: fromRecords, annualDiv: fromRecords * 12 };
-        const raw = a.dividendPerShare > 0 ? a.dividendPerShare * a.quantity : a.currentDividend;
-        return { ...a, monthlyDiv: raw, annualDiv: raw * 12 };
-      })
-      .sort((a, b) => b.annualDiv - a.annualDiv);
-  }, [assets, dividends]);
+  // Evolution data based on time period
+  const evolutionData = useMemo(() => {
+    const now = new Date();
+    let monthsBack = 12;
+    if (timePeriod === "1m") monthsBack = 1;
+    else if (timePeriod === "3m") monthsBack = 3;
+    else if (timePeriod === "6m") monthsBack = 6;
+    else if (timePeriod === "24m") monthsBack = 24;
+    else if (timePeriod === "all") monthsBack = 60;
 
-  const topAssets = [...assets]
-    .sort((a, b) => b.currentDividend - a.currentDividend)
-    .slice(0, 6);
+    const cutoffDate = new Date(now.getFullYear(), now.getMonth() - monthsBack, 1);
+    const cutoffStr = cutoffDate.toISOString().slice(0, 7);
 
-  const maxDividend = topAssets.length > 0 ? topAssets[0].currentDividend : 0;
+    // Group contributions by month
+    const monthlyData: Record<string, { aportado: number; patrimonio: number }> = {};
+    let cumulativeAportado = 0;
 
-  const realInvested = summary.totalInvested;
-  const diff = summary.totalCurrentValue - realInvested;
-  const rentPct = realInvested > 0 ? (diff / realInvested) * 100 : 0;
-
-  const { netWorthData, cumulativeAportes } = useMemo(() => {
-    const dates = new Map<string, { aportado: number; patrimonio: number }>();
     const sorted = [...contributions].sort((a, b) => a.date.localeCompare(b.date));
-    let cumulativeAportes = 0;
-
     for (const c of sorted) {
-      cumulativeAportes += c.value;
-      dates.set(c.date, { aportado: cumulativeAportes, patrimonio: cumulativeAportes });
-    }
-
-    if (dates.size > 0) {
-      const today = new Date().toISOString().slice(0, 10);
-      if (!dates.has(today)) {
-        dates.set(today, {
-          aportado: cumulativeAportes,
-          patrimonio: summary.totalCurrentValue || cumulativeAportes,
-        });
+      const month = c.date.slice(0, 7);
+      if (month < cutoffStr) {
+        cumulativeAportado += c.value;
+        continue;
+      }
+      cumulativeAportado += c.value;
+      if (!monthlyData[month]) {
+        monthlyData[month] = { aportado: cumulativeAportado, patrimonio: cumulativeAportado };
       } else {
-        const lastEntry = Array.from(dates.entries()).pop()!;
-        dates.set(lastEntry[0], {
-          ...lastEntry[1],
-          patrimonio: summary.totalCurrentValue || cumulativeAportes,
-        });
+        monthlyData[month].aportado = cumulativeAportado;
+        monthlyData[month].patrimonio = cumulativeAportado;
       }
     }
 
-    const data = Array.from(dates.entries()).map(([date, d]) => ({
-      date: date.slice(0, 7),
-      Aportado: Math.round(d.aportado),
-      Patrimônio: Math.round(d.patrimonio),
-    }));
+    // Add current month
+    const currentMonth = now.toISOString().slice(0, 7);
+    if (!monthlyData[currentMonth]) {
+      monthlyData[currentMonth] = {
+        aportado: cumulativeAportado,
+        patrimonio: summary.totalCurrentValue || cumulativeAportado,
+      };
+    } else {
+      monthlyData[currentMonth].patrimonio = summary.totalCurrentValue || cumulativeAportado;
+    }
 
-    return { netWorthData: data, cumulativeAportes };
-  }, [contributions, summary.totalCurrentValue]);
+    // Calculate capital gains for each month
+    return Object.entries(monthlyData)
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([month, data]) => ({
+        month,
+        "Valor aplicado": Math.round(data.aportado),
+        "Ganho de Capital": Math.max(0, Math.round(data.patrimonio - data.aportado)),
+      }));
+  }, [contributions, summary.totalCurrentValue, timePeriod]);
+
+  // Assets by type for donut chart
+  const typeData = useMemo(() => {
+    const filtered = typeFilter === "all" ? assets : assets.filter((a) => a.type === typeFilter);
+    const map: Record<string, number> = {};
+    for (const a of filtered) {
+      const type = a.type || "Outros";
+      map[type] = (map[type] ?? 0) + (a.currentPrice * a.quantity);
+    }
+    const total = Object.values(map).reduce((s, v) => s + v, 0);
+    return Object.entries(map)
+      .map(([name, value]) => ({
+        name,
+        value: Math.round(value),
+        percent: total > 0 ? ((value / total) * 100).toFixed(2) : "0",
+      }))
+      .sort((a, b) => b.value - a.value);
+  }, [assets, typeFilter]);
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-        <SummaryCard label="Total Investido" value={mask(realInvested, hideValues)} accent="blue" />
-        <SummaryCard label="Dividendo Mensal" value={mask(summary.monthlyDividend, hideValues)} accent="green" />
-        <SummaryCard label="Dividendo Anual" value={mask(summary.annualDividend, hideValues)} accent="green" />
-        <SummaryCard label="Carteira" value={String(summary.assetCount)} accent="purple" />
-        <SummaryCard label="Patrimônio Atual" value={mask(summary.totalCurrentValue, hideValues)} accent="blue" />
+      {/* Top Summary Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Patrimônio Total */}
+        <div className="bg-card border border-border rounded-2xl p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="p-2 bg-blue-500/10 rounded-xl">
+              <Wallet className="size-4 text-blue-500" />
+            </div>
+            <p className="text-xs text-muted font-medium">Patrimônio total</p>
+          </div>
+          <p className="text-2xl font-bold tabular">{mask(summary.totalCurrentValue, hideValues)}</p>
+          <div className="flex items-center gap-2 mt-1">
+            <span className="text-xs text-emerald-500 font-medium">
+              {rentabilidade12m >= 0 ? "+" : ""}{formatPercent(rentabilidade12m)}
+            </span>
+            {rentabilidade12m >= 0 ? (
+              <TrendingUp className="size-3 text-emerald-500" />
+            ) : (
+              <TrendingUp className="size-3 text-red-500 rotate-180" />
+            )}
+          </div>
+          <p className="text-xs text-muted mt-2">Valor investido</p>
+          <p className="text-sm font-medium tabular">{mask(summary.totalInvested, hideValues)}</p>
+        </div>
+
+        {/* Lucro Total */}
+        <div className="bg-card border border-border rounded-2xl p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="p-2 bg-emerald-500/10 rounded-xl">
+              <TrendingUp className="size-4 text-emerald-500" />
+            </div>
+            <p className="text-xs text-muted font-medium">Lucro total</p>
+          </div>
+          <p className="text-2xl font-bold tabular text-emerald-500">
+            {hideValues ? "R$ ••••" : formatCurrency(capitalGains + dividends12m)}
+          </p>
+          <div className="flex items-center gap-4 mt-3">
+            <div>
+              <p className="text-[10px] text-muted">Ganho de Capital</p>
+              <p className="text-xs font-medium tabular">{mask(capitalGains, hideValues)}</p>
+            </div>
+            <div>
+              <p className="text-[10px] text-muted">Dividendos Recebidos</p>
+              <p className="text-xs font-medium tabular">{mask(dividends12m, hideValues)}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Proventos Recebidos (12M) */}
+        <div className="bg-card border border-border rounded-2xl p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="p-2 bg-amber-500/10 rounded-xl">
+              <DollarSign className="size-4 text-amber-500" />
+            </div>
+            <p className="text-xs text-muted font-medium">Proventos Recebidos (12M)</p>
+          </div>
+          <p className="text-2xl font-bold tabular">{mask(dividends12m, hideValues)}</p>
+          <div className="mt-2">
+            <p className="text-[10px] text-muted">Total</p>
+            <p className="text-xs font-medium tabular">{mask(summary.annualDividend, hideValues)}</p>
+          </div>
+        </div>
+
+        {/* Rentabilidade */}
+        <div className="bg-card border border-border rounded-2xl p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="p-2 bg-purple-500/10 rounded-xl">
+              <BarChart3 className="size-4 text-purple-500" />
+            </div>
+            <p className="text-xs text-muted font-medium">Rentabilidade (12M)</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className={`text-2xl font-bold tabular ${rentabilidade12m >= 0 ? "text-emerald-500" : "text-red-500"}`}>
+              {formatPercent(rentabilidade12m)}
+            </span>
+            {rentabilidade12m >= 0 ? (
+              <TrendingUp className="size-5 text-emerald-500" />
+            ) : (
+              <TrendingUp className="size-5 text-red-500 rotate-180" />
+            )}
+          </div>
+          <div className="mt-2">
+            <p className="text-[10px] text-muted">Rentabilidade Total</p>
+            <p className={`text-sm font-bold tabular ${rentabilidade12m >= 0 ? "text-emerald-500" : "text-red-500"}`}>
+              {formatPercent(rentabilidade12m)}
+            </p>
+          </div>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-card border border-border rounded-2xl p-5">
-          <h3 className="font-semibold text-sm mb-4">Alocação por Tipo</h3>
-          {typeData.length === 0 ? (
-            <p className="text-sm text-muted py-8 text-center">Nenhum ativo cadastrado</p>
+      {/* Charts Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Evolution Chart - 2 columns */}
+        <div className="lg:col-span-2 bg-card border border-border rounded-2xl p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-sm">Evolução do Patrimônio</h3>
+            <div className="flex items-center gap-2">
+              {/* Time Period Filter */}
+              <div className="relative">
+                <select
+                  value={timePeriod}
+                  onChange={(e) => setTimePeriod(e.target.value as TimePeriod)}
+                  className="appearance-none px-3 py-1.5 pr-8 bg-surface border border-border rounded-xl text-xs font-medium focus:outline-none focus:border-primary transition-colors cursor-pointer"
+                >
+                  <option value="1m">1 Mês</option>
+                  <option value="3m">3 Meses</option>
+                  <option value="6m">6 Meses</option>
+                  <option value="12m">12 Meses</option>
+                  <option value="24m">2 Anos</option>
+                  <option value="all">Desde o início</option>
+                </select>
+                <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 size-3 text-muted pointer-events-none" />
+              </div>
+              {/* Type Filter */}
+              <div className="relative">
+                <select
+                  value={typeFilter}
+                  onChange={(e) => setTypeFilter(e.target.value)}
+                  className="appearance-none px-3 py-1.5 pr-8 bg-surface border border-border rounded-xl text-xs font-medium focus:outline-none focus:border-primary transition-colors cursor-pointer"
+                >
+                  <option value="all">Todos os tipos</option>
+                  <option value="Ação">Ações</option>
+                  <option value="FII">FIIs</option>
+                  <option value="ETF">ETFs</option>
+                  <option value="BDR">BDRs</option>
+                </select>
+                <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 size-3 text-muted pointer-events-none" />
+              </div>
+            </div>
+          </div>
+
+          {/* Legend */}
+          <div className="flex items-center gap-4 mb-4">
+            <div className="flex items-center gap-1.5">
+              <span className="size-3 rounded-full bg-emerald-500" />
+              <span className="text-xs text-muted">Valor aplicado</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <span className="size-3 rounded-full bg-emerald-300" />
+              <span className="text-xs text-muted">Ganho de Capital</span>
+            </div>
+          </div>
+
+          {evolutionData.length === 0 ? (
+            <p className="text-sm text-muted py-8 text-center">Nenhum dado de evolução disponível</p>
           ) : (
-            <div className="h-56">
+            <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={typeData}
-                    dataKey="value"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={80}
-                    innerRadius={50}
-                    label={({ name, percent }: { name: string; percent: number }) =>
-                      `${name} ${(percent * 100).toFixed(0)}%`
-                    }
-                  >
-                    {typeData.map((_, i) => (
-                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                    ))}
-                  </Pie>
+                <BarChart data={evolutionData} barGap={2}>
+                  <XAxis
+                    dataKey="month"
+                    tick={{ fontSize: 11, fill: "#64748b" }}
+                    axisLine={false}
+                    tickLine={false}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 11, fill: "#64748b" }}
+                    axisLine={false}
+                    tickLine={false}
+                    tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}K`}
+                  />
                   <Tooltip
                     contentStyle={tooltipContentStyle}
                     formatter={(v: number) => formatCurrency(v)}
                   />
-                </PieChart>
+                  <Bar dataKey="Valor aplicado" stackId="a" fill="#10b981" radius={[0, 0, 0, 0]} />
+                  <Bar dataKey="Ganho de Capital" stackId="a" fill="#6ee7b7" radius={[4, 4, 0, 0]} />
+                </BarChart>
               </ResponsiveContainer>
             </div>
           )}
-          <div className="mt-3 space-y-1.5">
-            {typeData.map((t, i) => (
-              <div key={t.name} className="flex items-center gap-2 text-xs">
-                <span className="size-2.5 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                <span className="text-muted flex-1">{t.name}</span>
-                <span className="font-medium">{formatCompact(t.value)}</span>
-              </div>
-            ))}
-          </div>
         </div>
 
+        {/* Assets Donut - 1 column */}
         <div className="bg-card border border-border rounded-2xl p-5">
-          <h3 className="font-semibold text-sm mb-4">Dividendos por Ativo</h3>
-          {topAssets.length === 0 ? (
-            <p className="text-sm text-muted py-8 text-center">Nenhum dividendo sendo recebido</p>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-semibold text-sm">Ativos na Carteira</h3>
+            <div className="relative">
+              <select
+                value={typeFilter}
+                onChange={(e) => setTypeFilter(e.target.value)}
+                className="appearance-none px-3 py-1.5 pr-8 bg-surface border border-border rounded-xl text-xs font-medium focus:outline-none focus:border-primary transition-colors cursor-pointer"
+              >
+                <option value="all">Todos os tipos</option>
+                <option value="Ação">Ações</option>
+                <option value="FII">FIIs</option>
+                <option value="ETF">ETFs</option>
+                <option value="BDR">BDRs</option>
+              </select>
+              <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 size-3 text-muted pointer-events-none" />
+            </div>
+          </div>
+
+          {typeData.length === 0 ? (
+            <p className="text-sm text-muted py-8 text-center">Nenhum ativo cadastrado</p>
           ) : (
-            <div className="space-y-3">
-              {topAssets.map((a) => {
-                const barPct = maxDividend > 0 ? (a.currentDividend / maxDividend) * 100 : 0;
-                const avatarColor = getTypeColor(a.type);
-                return (
-                  <div key={a.id}>
-                    <div className="flex items-center gap-3 mb-1">
-                      <AssetLogo ticker={a.ticker} size={32} />
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{a.ticker}</p>
-                        <p className="text-xs text-muted">{a.type} • {a.quantity} cotas</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm font-semibold tabular">{mask(a.currentDividend, hideValues)}</p>
-                        <p className="text-xs text-muted tabular">mês</p>
-                      </div>
+            <>
+              <div className="h-48">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={typeData}
+                      dataKey="value"
+                      nameKey="name"
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={60}
+                      outerRadius={80}
+                      paddingAngle={2}
+                    >
+                      {typeData.map((_, i) => (
+                        <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={tooltipContentStyle}
+                      formatter={(v: number) => formatCurrency(v)}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+
+              {/* Legend */}
+              <div className="space-y-2 mt-4">
+                {typeData.map((t, i) => (
+                  <div key={t.name} className="flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2">
+                      <span className="size-3 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                      <span className="text-muted">{t.name}</span>
                     </div>
-                    <div className="h-1.5 bg-surface rounded-full overflow-hidden">
-                      <div
-                        className="h-full rounded-full transition-all"
-                        style={{ width: `${barPct}%`, backgroundColor: avatarColor }}
-                      />
+                    <div className="flex items-center gap-3">
+                      <span className="font-medium tabular">{formatCompact(t.value)}</span>
+                      <span className="text-muted w-12 text-right">{t.percent}%</span>
                     </div>
                   </div>
-                );
-              })}
-            </div>
+                ))}
+              </div>
+            </>
           )}
         </div>
       </div>
-
-      {netWorthData.length > 1 && (
-        <div className="bg-card border border-border rounded-2xl p-5">
-          <h3 className="font-semibold text-sm mb-4">Evolução do Patrimônio</h3>
-          <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={netWorthData}>
-                <defs>
-                  <linearGradient id="gradAportado" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="gradPatrimonio" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: "#64748b" }} axisLine={false} tickLine={false} />
-                <Tooltip
-                  contentStyle={{ background: "#1e293b", border: "1px solid #334155", borderRadius: 12, fontSize: 13 }}
-                  formatter={(v: number) => formatCurrency(v)}
-                />
-                <Area type="monotone" dataKey="Aportado" stroke="#3b82f6" strokeWidth={2} fill="url(#gradAportado)" />
-                <Area type="monotone" dataKey="Patrimônio" stroke="#10b981" strokeWidth={2} fill="url(#gradPatrimonio)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="flex items-center gap-4 mt-3 text-xs">
-            <div className="flex items-center gap-1.5">
-              <span className="size-2.5 rounded-full bg-blue-500" />
-              <span className="text-muted">Total Aportado</span>
-              <span className="font-medium tabular">{mask(cumulativeAportes, hideValues)}</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="size-2.5 rounded-full bg-emerald-500" />
-              <span className="text-muted">Patrimônio Atual</span>
-              <span className="font-medium tabular">{mask(summary.totalCurrentValue, hideValues)}</span>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function SummaryCard({
-  label,
-  value,
-  accent,
-}: {
-  label: string;
-  value: string;
-  accent: "blue" | "green" | "purple";
-}) {
-  return (
-    <div className={`bg-card border border-border rounded-2xl p-4 border-l-2 ${borderAccents[accent]}`}>
-      <p className="text-xs text-muted mb-1">{label}</p>
-      <p className="text-lg font-bold tabular">{value}</p>
-    </div>
-  );
-}
-
-function MiniCard({
-  label,
-  value,
-  valueClassName = "text-primary",
-  subValue,
-}: {
-  label: string;
-  value: string;
-  valueClassName?: string;
-  subValue?: string;
-}) {
-  return (
-    <div className="bg-card border border-border rounded-2xl p-4">
-      <p className="text-xs text-muted mb-1">{label}</p>
-      <p className={`text-base font-bold tabular ${valueClassName}`}>{value}</p>
-      {subValue && <p className="text-xs text-muted mt-0.5">{subValue}</p>}
     </div>
   );
 }
