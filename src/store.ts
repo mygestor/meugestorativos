@@ -135,6 +135,15 @@ export function deleteDividend(id: string): boolean {
   return true;
 }
 
+export function updateDividend(id: string, data: Partial<DividendRecord>): DividendRecord | null {
+  const list = getDividends();
+  const idx = list.findIndex((d) => d.id === id);
+  if (idx === -1) return null;
+  list[idx] = { ...list[idx], ...data };
+  save(DIVIDEND_KEY, list);
+  return list[idx];
+}
+
 export function importDividends(rows: Omit<DividendRecord, "id" | "createdAt">[]) {
   const existing = getDividends();
   const now = new Date().toISOString();

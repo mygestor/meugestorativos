@@ -1,8 +1,8 @@
 import { useState, useMemo } from "react";
 import type { DividendRecord } from "../types";
 import { formatCurrency, formatDate } from "../format";
-import { deleteDividend, getDividendStats } from "../store";
-import { Trash2, Download, ChevronDown, ChevronUp, X } from "lucide-react";
+import { deleteDividend, updateDividend, getDividendStats } from "../store";
+import { Trash2, Download, ChevronDown, ChevronUp, X, Pencil } from "lucide-react";
 
 interface Props {
   dividends: DividendRecord[];
@@ -21,6 +21,8 @@ export function DividendTable({ dividends, hideValues, onRefresh }: Props) {
   const [filterYear, setFilterYear] = useState("");
   const [filterTicker, setFilterTicker] = useState("");
   const [filterStatus, setFilterStatus] = useState<"all" | "received" | "pending">("all");
+  const [editingDividend, setEditingDividend] = useState<DividendRecord | null>(null);
+  const [editForm, setEditForm] = useState({ ticker: "", type: "", name: "", payment: "", movementType: "", totalValue: "" });
 
   const today = useMemo(() => new Date().toISOString().slice(0, 10), []);
 
@@ -115,6 +117,42 @@ export function DividendTable({ dividends, hideValues, onRefresh }: Props) {
       deleteDividend(id);
       onRefresh();
     }
+  }
+
+  function handleEdit(dividend: DividendRecord) {
+    setEditingDividend(dividend);
+    setEditForm({
+      ticker: dividend.ticker,
+      type: dividend.type,
+      name: dividend.name,
+      payment: dividend.payment,
+      movementType: dividend.movementType,
+      totalValue: String(dividend.totalValue),
+    });
+  }
+
+  function handleSaveEdit() {
+    if (!editingDividend) return;
+    const value = parseFloat(editForm.totalValue.replace(",", "."));
+    if (!value || value <= 0) return;
+
+    const pd = editForm.payment;
+    const month = parseInt(pd.slice(5, 7));
+    const year = parseInt(pd.slice(0, 4));
+
+    updateDividend(editingDividend.id, {
+      ticker: editForm.ticker.toUpperCase().trim(),
+      type: editForm.type,
+      name: editForm.name.trim(),
+      payment: editForm.payment,
+      movementType: editForm.movementType,
+      monthYear: `${String(month).padStart(2, "0")}/${year}`,
+      month,
+      year,
+      totalValue: value,
+    });
+    setEditingDividend(null);
+    onRefresh();
   }
 
   return (
@@ -248,12 +286,20 @@ export function DividendTable({ dividends, hideValues, onRefresh }: Props) {
                     </td>
                     <td className="p-3 text-right tabular font-medium text-income">{mask(d.totalValue, hideValues)}</td>
                     <td className="p-3 text-right">
-                      <button
-                        onClick={() => handleDelete(d.id)}
-                        className="p-1 rounded-lg hover:bg-surface text-muted hover:text-expense transition-colors"
-                      >
-                        <Trash2 className="size-3.5" />
-                      </button>
+                      <div className="flex items-center justify-end gap-1">
+                        <button
+                          onClick={() => handleEdit(d)}
+                          className="p-1 rounded-lg hover:bg-surface text-muted hover:text-primary transition-colors"
+                        >
+                          <Pencil className="size-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(d.id)}
+                          className="p-1 rounded-lg hover:bg-surface text-muted hover:text-expense transition-colors"
+                        >
+                          <Trash2 className="size-3.5" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -262,6 +308,68 @@ export function DividendTable({ dividends, hideValues, onRefresh }: Props) {
           </div>
         )}
       </div>
+
+      {editingDividend && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="dialog-enter bg-card border border-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-md sm:mx-4 mx-0">
+            <div className="flex items-center justify-between p-5 border-b border-border">
+              <h2 className="font-semibold">Editar Dividendo</h2>
+              <button onClick={() => setEditingDividend(null)} className="p-1.5 rounded-lg hover:bg-card-hover text-muted transition-colors">
+                <X className="size-4" />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs text-muted font-medium">Ticker</label>
+                  <input type="text" value={editForm.ticker} onChange={(e) => setEditForm({ ...editForm, ticker: e.target.value })}
+                    className="w-full px-3 py-2 bg-surface border border-border rounded-xl text-sm focus:outline-none focus:border-primary" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs text-muted font-medium">Tipo</label>
+                  <select value={editForm.type} onChange={(e) => setEditForm({ ...editForm, type: e.target.value })}
+                    className="w-full px-3 py-2 bg-surface border border-border rounded-xl text-sm focus:outline-none focus:border-primary">
+                    <option value="FII">FII</option>
+                    <option value="AÇÃO">AÇÃO</option>
+                    <option value="ETF">ETF</option>
+                    <option value="OUTRO">OUTRO</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs text-muted font-medium">Data Pagamento</label>
+                  <input type="date" value={editForm.payment} onChange={(e) => setEditForm({ ...editForm, payment: e.target.value })}
+                    className="w-full px-3 py-2 bg-surface border border-border rounded-xl text-sm focus:outline-none focus:border-primary" />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs text-muted font-medium">Tipo Movimento</label>
+                  <input type="text" value={editForm.movementType} onChange={(e) => setEditForm({ ...editForm, movementType: e.target.value })}
+                    className="w-full px-3 py-2 bg-surface border border-border rounded-xl text-sm focus:outline-none focus:border-primary" />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs text-muted font-medium">Nome do Ativo</label>
+                <input type="text" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+                  className="w-full px-3 py-2 bg-surface border border-border rounded-xl text-sm focus:outline-none focus:border-primary" />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs text-muted font-medium">Valor Total Líquido (R$)</label>
+                <input type="text" inputMode="decimal" value={editForm.totalValue} onChange={(e) => setEditForm({ ...editForm, totalValue: e.target.value })}
+                  className="w-full px-3 py-2 bg-surface border border-border rounded-xl text-sm focus:outline-none focus:border-primary" />
+              </div>
+              <div className="flex items-center gap-3 pt-2">
+                <button onClick={() => setEditingDividend(null)} className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium bg-surface text-muted hover:text-foreground transition-colors">
+                  Cancelar
+                </button>
+                <button onClick={handleSaveEdit} className="flex-1 px-4 py-2.5 rounded-xl text-sm font-medium bg-primary text-white hover:bg-primary-dark transition-colors">
+                  Salvar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
