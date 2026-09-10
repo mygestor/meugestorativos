@@ -1,10 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import type { Asset, PortfolioSummary, ContributionRecord, TradeRecord, DividendRecord } from "../types";
 import { formatCurrency, formatCompact, formatPercent } from "../format";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Legend } from "recharts";
 import { AssetLogo } from "./AssetLogo";
 import { Wallet, TrendingUp, DollarSign, BarChart3, ChevronDown } from "lucide-react";
-import { fetchHistoricalPrices } from "../prices";
 
 interface Props {
   summary: PortfolioSummary;
@@ -49,24 +48,11 @@ type TimePeriod = "all" | "12m" | "24m" | "60m" | "120m" | "custom";
 export function Dashboard({ summary, assets, hideValues, contributions, trades, dividends }: Props) {
   const [timePeriod, setTimePeriod] = useState<TimePeriod>("12m");
   const [typeFilter, setTypeFilter] = useState<string>("all");
-  const [histPrices, setHistPrices] = useState<Map<string, Map<string, number>>>(new Map());
 
   // Filter assets by type
   const filteredAssets = useMemo(() => {
     return typeFilter === "all" ? assets : assets.filter((a) => a.type === typeFilter);
   }, [assets, typeFilter]);
-
-  // Fetch historical prices when assets change
-  useEffect(() => {
-    if (filteredAssets.length === 0) return;
-    const now = new Date();
-    const startDate = new Date(now.getFullYear() - 10, 0, 1).toISOString().slice(0, 10);
-    const endDate = now.toISOString().slice(0, 10);
-    const tickers = filteredAssets.map((a) => a.ticker);
-    fetchHistoricalPrices(tickers, startDate, endDate).then((prices) => {
-      setHistPrices(new Map(prices));
-    });
-  }, [filteredAssets]);
 
   // Filter dividends by type
   const filteredDividends = useMemo(() => {
@@ -124,21 +110,13 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
     const cutoffDate = new Date(now.getFullYear(), now.getMonth() - monthsBack, 1);
     const cutoffStr = cutoffDate.toISOString().slice(0, 7);
 
-    // Scale factor for type filter
-    const totalInv = assets.reduce((s, a) => s + a.investedAmount, 0);
-    const fraction = typeFilter !== "all" && totalInv > 0
-      ? filteredTotalInvested / totalInv
-      : 1;
+    // Build set of filtered tickers
+    const filteredTickers = new Set(filteredAssets.map((a) => a.ticker.toUpperCase()));
 
-    // Use contributions directly, scaled by fraction when filtering by type
-    let cumulativeBeforeCutoff = 0;
-    const sorted = [...contributions].sort((a, b) => a.date.localeCompare(b.date));
-    for (const c of sorted) {
-      if (c.date < cutoffStr) {
-        cumulativeBeforeCutoff += c.value * fraction;
-      }
-    }
+    // Calculate cumulative invested from trades for filtered assets
+    const sortedTrades = [...trades].sort((a, b) => a.date.localeCompare(b.date));
 
+    // Generate all months in the period
     const allMonths: string[] = [];
     const tempDate = new Date(cutoffDate);
     while (tempDate <= now) {
@@ -146,54 +124,72 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
       tempDate.setMonth(tempDate.getMonth() + 1);
     }
 
-    // Calculate patrimônio for each month using historical prices
-    function calcPatrimonio(month: string): number {
-      let total = 0;
-      for (const a of filteredAssets) {
-        const ticker = a.ticker.toUpperCase();
-        const prices = histPrices.get(ticker);
-        // Get price for this month (last available price in that month)
-        let price = prices?.get(month);
-        // Fall back to current price if no historical data
-        if (price == null || price === 0) {
-          price = a.currentPrice;
-        }
-        total += price * a.quantity;
+    // Build cumulative invested per month from trades
+    let cumulativeInvested = 0;
+    const investedByMonth: Record<string, number> = {};
+    for (const t of sortedTrades) {
+      const tm = t.date.slice(0, 7);
+      if (t.operation === "COMPRA" && filteredTickers.has(t.ticker.toUpperCase())) {
+        cumulativeInvested += t.totalWithFees;
+      } else if (t.operation === "VENDA" && filteredTickers.has(t.ticker.toUpperCase())) {
+        cumulativeInvested -= t.totalWithFees;
       }
-      return total;
+      investedByMonth[tm] = cumulativeInvested;
     }
+
+    // For months before the first trade, invested = 0
+    // Fill in: for each month, use the last known value
+    let lastInvested = 0;
+    const monthInvested: Record<string, number> = {};
+    for (const m of allMonths) {
+      if (investedByMonth[m] !== undefined) {
+        lastInvested = investedByMonth[m];
+      }
+      monthInvested[m] = lastInvested;
+    }
+
+    // Current gain
+    const currentGain = filteredTotalValue - filteredTotalInvested;
+
+    // If no trades, fall back to contributions with fraction scaling
+    const hasTrades = sortedTrades.some((t) => filteredTickers.has(t.ticker.toUpperCase()));
+    const useFallback = !hasTrades && filteredTotalInvested > 0;
 
     const monthlyData: Record<string, {
       aportado: number;
-      patrimonio: number;
+      ganho: number;
     }> = {};
 
-    let cumulativeAportado = cumulativeBeforeCutoff;
+    if (useFallback) {
+      // Fallback: scale contributions by type fraction
+      const totalInv = assets.reduce((s, a) => s + a.investedAmount, 0);
+      const fraction = totalInv > 0 ? filteredTotalInvested / totalInv : 1;
+      const sorted = [...contributions].sort((a, b) => a.date.localeCompare(b.date));
 
-    for (const month of allMonths) {
+      let cumAportado = 0;
       for (const c of sorted) {
-        if (c.date.slice(0, 7) === month && c.date >= cutoffStr) {
-          cumulativeAportado += c.value * fraction;
-        }
+        if (c.date < cutoffStr) cumAportado += c.value * fraction;
       }
 
-      const isCurrentMonth = month === now.toISOString().slice(0, 7);
-      if (isCurrentMonth) {
-        monthlyData[month] = {
-          aportado: cumulativeAportado,
-          patrimonio: filteredTotalValue,
-        };
-      } else if (histPrices.size > 0) {
-        monthlyData[month] = {
-          aportado: cumulativeAportado,
-          patrimonio: calcPatrimonio(month),
-        };
-      } else {
-        // No historical data loaded yet
-        monthlyData[month] = {
-          aportado: cumulativeAportado,
-          patrimonio: 0,
-        };
+      for (const month of allMonths) {
+        for (const c of sorted) {
+          if (c.date.slice(0, 7) === month && c.date >= cutoffStr) {
+            cumAportado += c.value * fraction;
+          }
+        }
+        const ganho = filteredTotalInvested > 0
+          ? currentGain * (cumAportado / filteredTotalInvested)
+          : 0;
+        monthlyData[month] = { aportado: cumAportado, ganho: Math.max(0, ganho) };
+      }
+    } else {
+      // Primary: use trades data
+      for (const month of allMonths) {
+        const aportado = Math.max(0, monthInvested[month] ?? 0);
+        const ganho = filteredTotalInvested > 0 && aportado > 0
+          ? currentGain * (aportado / filteredTotalInvested)
+          : 0;
+        monthlyData[month] = { aportado, ganho: Math.max(0, ganho) };
       }
     }
 
@@ -202,9 +198,9 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
       .map((month) => ({
         month,
         "Valor aplicado": Math.round(monthlyData[month].aportado),
-        "Ganho de Capital": Math.max(0, Math.round(monthlyData[month].patrimonio - monthlyData[month].aportado)),
+        "Ganho de Capital": Math.round(monthlyData[month].ganho),
       }));
-  }, [contributions, filteredDividends, filteredTotalValue, filteredTotalInvested, timePeriod, assets, typeFilter, filteredAssets, histPrices]);
+  }, [trades, contributions, filteredAssets, filteredTotalValue, filteredTotalInvested, timePeriod, assets, typeFilter]);
 
   // Assets by type for donut chart
   const typeData = useMemo(() => {
