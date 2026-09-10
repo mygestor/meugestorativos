@@ -545,19 +545,17 @@ export default function App() {
               >
                 Calendário
               </button>
+              <div className="w-px h-5 bg-border mx-1" />
+              <button onClick={() => setDivCsvOpen(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-card text-muted hover:text-foreground rounded-xl text-xs font-medium border border-border transition-colors">
+                <Upload className="size-3.5" /> Importar
+              </button>
+              <button onClick={() => setDivDialogOpen(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white rounded-xl text-xs font-medium hover:bg-primary-dark transition-colors">
+                <HandCoins className="size-3.5" /> Novo Dividendo
+              </button>
               {divSubTab === "historico" && (
-                <>
-                  <div className="w-px h-5 bg-border mx-1" />
-                  <button onClick={() => setDivCsvOpen(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-card text-muted hover:text-foreground rounded-xl text-xs font-medium border border-border transition-colors">
-                    <Upload className="size-3.5" /> Importar
-                  </button>
-                  <button onClick={() => setDivDialogOpen(true)} className="flex items-center gap-1.5 px-3 py-1.5 bg-primary text-white rounded-xl text-xs font-medium hover:bg-primary-dark transition-colors">
-                    <HandCoins className="size-3.5" /> Novo Dividendo
-                  </button>
-                  <button onClick={handleClearDividends} className="p-1.5 rounded-lg hover:bg-card-hover text-muted hover:text-expense transition-colors" title="Limpar dividendos">
-                    <Trash2 className="size-4 text-expense" />
-                  </button>
-                </>
+                <button onClick={handleClearDividends} className="p-1.5 rounded-lg hover:bg-card-hover text-muted hover:text-expense transition-colors" title="Limpar dividendos">
+                  <Trash2 className="size-4 text-expense" />
+                </button>
               )}
             </div>
             {divSubTab === "dashboard" ? (

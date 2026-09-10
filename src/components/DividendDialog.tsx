@@ -33,7 +33,25 @@ export function DividendDialog({ onClose, tickers }: Props) {
     totalValue: "",
   });
 
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  function validate(field: string, value: string) {
+    setErrors((prev) => {
+      const next = { ...prev };
+      if (field === "ticker" && !value.trim()) next.ticker = "Obrigatório";
+      else if (field === "ticker") delete next.ticker;
+      if (field === "totalValue") {
+        const v = parseFloat(value.replace(",", "."));
+        if (!value.trim()) next.totalValue = "Obrigatório";
+        else if (isNaN(v) || v <= 0) next.totalValue = "Valor inválido";
+        else delete next.totalValue;
+      }
+      return next;
+    });
+  }
+
   function update(field: string, value: string) {
+    validate(field, value);
     if (field === "ticker") {
       setForm((prev) => {
         const next = { ...prev, [field]: value.toUpperCase(), name: "" };
@@ -54,7 +72,11 @@ export function DividendDialog({ onClose, tickers }: Props) {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const value = parseFloat(form.totalValue.replace(",", "."));
-    if (!value || value <= 0) return;
+    const newErrors: Record<string, string> = {};
+    if (!form.ticker.trim()) newErrors.ticker = "Obrigatório";
+    if (!form.totalValue.trim()) newErrors.totalValue = "Obrigatório";
+    else if (isNaN(value) || value <= 0) newErrors.totalValue = "Valor inválido";
+    if (Object.keys(newErrors).length > 0) { setErrors(newErrors); return; }
 
     const pd = form.payment;
     const month = parseInt(pd.slice(5, 7));
@@ -94,8 +116,9 @@ export function DividendDialog({ onClose, tickers }: Props) {
                 onChange={(e) => update("ticker", e.target.value)}
                 list="ticker-list"
                 required
-                className="w-full px-3 py-2 bg-surface border border-border rounded-xl text-sm focus:outline-none focus:border-primary transition-colors"
+                className={`w-full px-3 py-2 bg-surface border rounded-xl text-sm focus:outline-none transition-colors ${errors.ticker ? "border-expense focus:border-expense" : "border-border focus:border-primary"}`}
               />
+              {errors.ticker && <p className="text-[10px] text-expense">{errors.ticker}</p>}
               <datalist id="ticker-list">
                 {tickers.map((t) => <option key={t} value={t} />)}
               </datalist>
@@ -158,8 +181,9 @@ export function DividendDialog({ onClose, tickers }: Props) {
               onChange={(e) => update("totalValue", e.target.value)}
               placeholder="0,00"
               required
-              className="w-full px-3 py-2 bg-surface border border-border rounded-xl text-sm focus:outline-none focus:border-primary transition-colors"
+              className={`w-full px-3 py-2 bg-surface border rounded-xl text-sm focus:outline-none transition-colors ${errors.totalValue ? "border-expense focus:border-expense" : "border-border focus:border-primary"}`}
             />
+            {errors.totalValue && <p className="text-[10px] text-expense">{errors.totalValue}</p>}
           </div>
 
           <div className="flex items-center gap-3 pt-2">

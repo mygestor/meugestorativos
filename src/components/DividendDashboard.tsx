@@ -207,31 +207,6 @@ export function DividendDashboard({ dividends, hideValues, onRefresh }: Props) {
         </div>
       ) : (
         <div className="space-y-5">
-            {/* Active filters summary */}
-            {hasActiveFilters && (
-              <div className="flex flex-wrap items-center gap-2 mb-4">
-                <span className="text-xs text-muted">Filtros ativos:</span>
-                {filterType && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-primary/10 text-primary rounded-full text-xs font-medium">
-                    {filterType}
-                    <button onClick={handleClearType} className="hover:text-primary/70"><X className="size-3" /></button>
-                  </span>
-                )}
-                {filterYears.length > 0 && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-primary/10 text-primary rounded-full text-xs font-medium">
-                    {filterYears.length} ano{filterYears.length > 1 ? "s" : ""}
-                    <button onClick={() => setFilterYears([])} className="hover:text-primary/70"><X className="size-3" /></button>
-                  </span>
-                )}
-                {selectedTicker && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-primary/10 text-primary rounded-full text-xs font-medium">
-                    {selectedTicker}
-                    <button onClick={() => setSelectedTicker("")} className="hover:text-primary/70"><X className="size-3" /></button>
-                  </span>
-                )}
-              </div>
-            )}
-
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {/* % by class */}
               <div className="bg-card border border-border rounded-2xl p-5">
