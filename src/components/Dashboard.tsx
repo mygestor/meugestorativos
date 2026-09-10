@@ -65,13 +65,13 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
     return assets.reduce((s, a) => s + (a.currentPrice * a.quantity - a.investedAmount), 0);
   }, [assets]);
 
-  // Rentabilidade calculations
+  // Rentabilidade calculations (including dividends)
   const rentabilidade12m = useMemo(() => {
     const totalInvested = summary.totalInvested;
-    const totalValue = summary.totalCurrentValue;
+    const totalValue = summary.totalCurrentValue + dividends12m;
     if (totalInvested <= 0) return 0;
     return ((totalValue - totalInvested) / totalInvested) * 100;
-  }, [summary]);
+  }, [summary, dividends12m]);
 
   // Evolution data based on time period
   const evolutionData = useMemo(() => {
@@ -86,8 +86,24 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
     const cutoffDate = new Date(now.getFullYear(), now.getMonth() - monthsBack, 1);
     const cutoffStr = cutoffDate.toISOString().slice(0, 7);
 
+    // Calculate cumulative dividends by month
+    const dividendsByMonth: Record<string, number> = {};
+    let cumulativeDividends = 0;
+    if (dividends) {
+      const sortedDivs = [...dividends].sort((a, b) => a.payment.localeCompare(b.payment));
+      for (const d of sortedDivs) {
+        const month = d.payment.slice(0, 7);
+        cumulativeDividends += d.totalValue;
+        dividendsByMonth[month] = cumulativeDividends;
+      }
+    }
+
     // Group contributions by month
-    const monthlyData: Record<string, { aportado: number; patrimonio: number }> = {};
+    const monthlyData: Record<string, {
+      aportado: number;
+      patrimonio: number;
+      dividendos: number;
+    }> = {};
     let cumulativeAportado = 0;
 
     const sorted = [...contributions].sort((a, b) => a.date.localeCompare(b.date));
@@ -98,26 +114,35 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
         continue;
       }
       cumulativeAportado += c.value;
+      const divsForMonth = dividendsByMonth[month] ?? cumulativeDividends;
       if (!monthlyData[month]) {
-        monthlyData[month] = { aportado: cumulativeAportado, patrimonio: cumulativeAportado };
+        monthlyData[month] = {
+          aportado: cumulativeAportado,
+          patrimonio: cumulativeAportado + divsForMonth,
+          dividendos: divsForMonth,
+        };
       } else {
         monthlyData[month].aportado = cumulativeAportado;
-        monthlyData[month].patrimonio = cumulativeAportado;
+        monthlyData[month].patrimonio = cumulativeAportado + divsForMonth;
+        monthlyData[month].dividendos = divsForMonth;
       }
     }
 
-    // Add current month
+    // Add current month with real patrimônio (market value + dividends received)
     const currentMonth = now.toISOString().slice(0, 7);
+    const totalPatrimonio = summary.totalCurrentValue + cumulativeDividends;
     if (!monthlyData[currentMonth]) {
       monthlyData[currentMonth] = {
         aportado: cumulativeAportado,
-        patrimonio: summary.totalCurrentValue || cumulativeAportado,
+        patrimonio: totalPatrimonio,
+        dividendos: cumulativeDividends,
       };
     } else {
-      monthlyData[currentMonth].patrimonio = summary.totalCurrentValue || cumulativeAportado;
+      monthlyData[currentMonth].patrimonio = totalPatrimonio;
+      monthlyData[currentMonth].dividendos = cumulativeDividends;
     }
 
-    // Calculate capital gains for each month
+    // Calculate values for chart
     return Object.entries(monthlyData)
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([month, data]) => ({
@@ -125,7 +150,7 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
         "Valor aplicado": Math.round(data.aportado),
         "Ganho de Capital": Math.max(0, Math.round(data.patrimonio - data.aportado)),
       }));
-  }, [contributions, summary.totalCurrentValue, timePeriod]);
+  }, [contributions, dividends, summary.totalCurrentValue, timePeriod]);
 
   // Assets by type for donut chart
   const typeData = useMemo(() => {
@@ -157,7 +182,7 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
             </div>
             <p className="text-xs text-muted font-medium">Patrimônio total</p>
           </div>
-          <p className="text-2xl font-bold tabular">{mask(summary.totalCurrentValue, hideValues)}</p>
+          <p className="text-2xl font-bold tabular">{mask(summary.totalCurrentValue + dividends12m, hideValues)}</p>
           <div className="flex items-center gap-2 mt-1">
             <span className="text-xs text-emerald-500 font-medium">
               {rentabilidade12m >= 0 ? "+" : ""}{formatPercent(rentabilidade12m)}
