@@ -110,12 +110,6 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
     const cutoffDate = new Date(now.getFullYear(), now.getMonth() - monthsBack, 1);
     const cutoffStr = cutoffDate.toISOString().slice(0, 7);
 
-    // Scale contributions by type filter ratio
-    const totalInvested = assets.reduce((s, a) => s + a.investedAmount, 0);
-    const contributionScale = typeFilter === "all" || totalInvested === 0
-      ? 1
-      : filteredTotalInvested / totalInvested;
-
     // Calculate cumulative dividends by month (filtered by type and time)
     const dividendsByMonth: Record<string, number> = {};
     let cumulativeDividends = 0;
@@ -129,19 +123,21 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
       }
     }
 
-    // Calculate total gain (capital gains + dividends)
-    const totalGain = filteredTotalValue + cumulativeDividends - filteredTotalInvested;
+    // Scale factor for type filter: what fraction of total is this type
+    const totalInv = assets.reduce((s, a) => s + a.investedAmount, 0);
+    const fraction = typeFilter !== "all" && totalInv > 0
+      ? filteredTotalInvested / totalInv
+      : 1;
 
-    // First, calculate cumulative contributions up to the cutoff (scaled by type)
+    // Use contributions directly, scaled by fraction when filtering by type
     let cumulativeBeforeCutoff = 0;
     const sorted = [...contributions].sort((a, b) => a.date.localeCompare(b.date));
     for (const c of sorted) {
       if (c.date < cutoffStr) {
-        cumulativeBeforeCutoff += c.value * contributionScale;
+        cumulativeBeforeCutoff += c.value * fraction;
       }
     }
 
-    // Generate all months in the period
     const allMonths: string[] = [];
     const tempDate = new Date(cutoffDate);
     while (tempDate <= now) {
@@ -149,51 +145,38 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
       tempDate.setMonth(tempDate.getMonth() + 1);
     }
 
-    // Build monthly data with interpolated patrimônio
     const monthlyData: Record<string, {
       aportado: number;
       patrimonio: number;
-      dividendos: number;
     }> = {};
 
     let cumulativeAportado = cumulativeBeforeCutoff;
     let lastDividends = 0;
 
     for (const month of allMonths) {
-      // Add contributions for this month (scaled by type)
       for (const c of sorted) {
         if (c.date.slice(0, 7) === month && c.date >= cutoffStr) {
-          cumulativeAportado += c.value * contributionScale;
+          cumulativeAportado += c.value * fraction;
         }
       }
 
-      // Get dividends for this month
       const divsForMonth = dividendsByMonth[month] ?? lastDividends;
       if (dividendsByMonth[month]) {
         lastDividends = dividendsByMonth[month];
       }
 
-      // Calculate patrimônio: interpolate gain proportionally
-      const gainProportion = filteredTotalInvested > 0 ? cumulativeAportado / filteredTotalInvested : 0;
-      const interpolatedGain = totalGain * gainProportion;
-      const patrimonio = cumulativeAportado + divsForMonth + interpolatedGain;
-
       monthlyData[month] = {
         aportado: cumulativeAportado,
-        patrimonio: patrimonio,
-        dividendos: divsForMonth,
+        patrimonio: cumulativeAportado + divsForMonth,
       };
     }
 
-    // Override current month with real values
     const currentMonth = now.toISOString().slice(0, 7);
     monthlyData[currentMonth] = {
       aportado: cumulativeAportado,
       patrimonio: filteredTotalValue + cumulativeDividends,
-      dividendos: cumulativeDividends,
     };
 
-    // Calculate values for chart
     return allMonths
       .filter((m) => monthlyData[m])
       .map((month) => ({
