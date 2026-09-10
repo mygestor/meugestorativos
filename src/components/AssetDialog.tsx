@@ -15,6 +15,10 @@ function safeStr(v: number): string {
   return v.toString();
 }
 
+function parseNum(s: string): number {
+  return parseFloat(s.replace(",", ".")) || 0;
+}
+
 const EMPTY_FORM = {
   ticker: "",
   type: "FII",
@@ -81,11 +85,11 @@ export function AssetDialog({ asset, onClose }: Props) {
       const next = { ...prev, [field]: value };
 
       // Auto-calculate derived fields
-      const qty = parseFloat(next.quantity) || 0;
-      const price = parseFloat(next.currentPrice) || 0;
-      const divPerShare = parseFloat(next.dividendPerShare) || 0;
-      const avgP = next.avgPrice !== "" ? (parseFloat(next.avgPrice) || 0) : price;
-      const totalTarget = parseFloat(next.targetTotal) || 0;
+      const qty = parseNum(next.quantity);
+      const price = parseNum(next.currentPrice);
+      const divPerShare = parseNum(next.dividendPerShare);
+      const avgP = next.avgPrice !== "" ? parseNum(next.avgPrice) : price;
+      const totalTarget = parseNum(next.targetTotal);
       const invested = avgP * qty;
 
       next.investedAmount = safeStr(invested);
@@ -108,10 +112,10 @@ export function AssetDialog({ asset, onClose }: Props) {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    const currentPrice = parseFloat(form.currentPrice) || 0;
-    const dividendPerShare = parseFloat(form.dividendPerShare) || 0;
-    const avgPriceValue = form.avgPrice !== "" ? (parseFloat(form.avgPrice) || 0) : currentPrice;
-    const quantity = parseFloat(form.quantity) || 0;
+    const currentPrice = parseNum(form.currentPrice);
+    const dividendPerShare = parseNum(form.dividendPerShare);
+    const avgPriceValue = form.avgPrice !== "" ? parseNum(form.avgPrice) : currentPrice;
+    const quantity = parseNum(form.quantity);
     const investedAmountValue = avgPriceValue * quantity;
     const currentDividendValue = quantity * dividendPerShare;
     const annualReturnValue = currentDividendValue * 12;
@@ -125,20 +129,20 @@ export function AssetDialog({ asset, onClose }: Props) {
       currentPrice,
       dividendPerShare,
       dividendYield: currentPrice > 0 ? (dividendPerShare / currentPrice) * 100 : 0,
-      targetTotal: parseFloat(form.targetTotal) || 0,
-      sharesNeeded: parseFloat(form.sharesNeeded) || 0,
+      targetTotal: parseNum(form.targetTotal),
+      sharesNeeded: parseNum(form.sharesNeeded),
       avgPrice: avgPriceValue,
       quantity,
       goal: form.goal || "PAUSAR",
       investedAmount: investedAmountValue,
-      missing: parseFloat(form.missing) || Math.max(0, (parseFloat(form.targetTotal) || 0) - investedAmountValue),
+      missing: parseNum(form.missing) || Math.max(0, (parseNum(form.targetTotal)) - investedAmountValue),
       currentDividend: currentDividendValue,
       annualReturn: annualReturnValue,
-      magicMonth: parseFloat(form.magicMonth) || 0,
-      magicNumber: parseFloat(form.magicNumber) || 0,
-      divYield12m: form.divYield12m ? parseFloat(form.divYield12m) : null,
-      representation: parseFloat(form.representation) || 0,
-      percentInPortfolio: parseFloat(form.percentInPortfolio) || 0,
+      magicMonth: parseNum(form.magicMonth),
+      magicNumber: parseNum(form.magicNumber),
+      divYield12m: form.divYield12m ? parseNum(form.divYield12m) : null,
+      representation: parseNum(form.representation),
+      percentInPortfolio: parseNum(form.percentInPortfolio),
       status: form.status.trim(),
     };
 
