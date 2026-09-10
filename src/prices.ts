@@ -19,7 +19,8 @@ interface BrapiDividend {
 
 interface BrapiQuote {
   symbol: string;
-  name?: string;
+  shortName?: string;
+  longName?: string;
   regularMarketPrice: number | null;
   regularMarketChange: number | null;
   regularMarketChangePercent: number | null;
@@ -431,9 +432,13 @@ export async function fetchAssetName(ticker: string): Promise<string> {
   try {
     const quotes = await fetchQuotes([ticker]);
     const quote = quotes.get(ticker.toUpperCase());
-    if (quote?.name) {
-      nameCache.set(ticker.toUpperCase(), quote.name);
-      return quote.name;
+    if (quote?.longName) {
+      nameCache.set(ticker.toUpperCase(), quote.longName);
+      return quote.longName;
+    }
+    if (quote?.shortName) {
+      nameCache.set(ticker.toUpperCase(), quote.shortName);
+      return quote.shortName;
     }
   } catch { /* ignore */ }
   return "";
