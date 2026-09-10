@@ -147,11 +147,10 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
 
     const monthlyData: Record<string, {
       aportado: number;
-      patrimonio: number;
+      ganho: number;
     }> = {};
 
     let cumulativeAportado = cumulativeBeforeCutoff;
-    let lastDividends = 0;
 
     for (const month of allMonths) {
       for (const c of sorted) {
@@ -160,29 +159,29 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
         }
       }
 
-      const divsForMonth = dividendsByMonth[month] ?? lastDividends;
-      if (dividendsByMonth[month]) {
-        lastDividends = dividendsByMonth[month];
+      const isCurrentMonth = month === now.toISOString().slice(0, 7);
+      if (isCurrentMonth) {
+        // Current month: real values
+        const totalPatrimonio = filteredTotalValue + cumulativeDividends;
+        monthlyData[month] = {
+          aportado: cumulativeAportado,
+          ganho: Math.max(0, totalPatrimonio - cumulativeAportado),
+        };
+      } else {
+        // Historical months: no price data, no ganho
+        monthlyData[month] = {
+          aportado: cumulativeAportado,
+          ganho: 0,
+        };
       }
-
-      monthlyData[month] = {
-        aportado: cumulativeAportado,
-        patrimonio: cumulativeAportado + divsForMonth,
-      };
     }
-
-    const currentMonth = now.toISOString().slice(0, 7);
-    monthlyData[currentMonth] = {
-      aportado: cumulativeAportado,
-      patrimonio: filteredTotalValue + cumulativeDividends,
-    };
 
     return allMonths
       .filter((m) => monthlyData[m])
       .map((month) => ({
         month,
         "Valor aplicado": Math.round(monthlyData[month].aportado),
-        "Ganho de Capital": Math.max(0, Math.round(monthlyData[month].patrimonio - monthlyData[month].aportado)),
+        "Ganho de Capital": Math.round(monthlyData[month].ganho),
       }));
   }, [contributions, filteredDividends, filteredTotalValue, filteredTotalInvested, timePeriod, assets, typeFilter]);
 
