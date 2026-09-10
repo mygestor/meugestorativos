@@ -11,10 +11,16 @@ interface Props {
 
 const DEFAULT_MOVEMENT_TYPES = ["RENDIMENTO", "JUROS S/CAPITAL", "REEMBOLSO", "AMORTIZAÇÃO", "OUTRO"];
 
+const RENAME_MOVEMENT_TYPES: Record<string, string> = {
+  "REEMBOLSO - DIVIDENDOS": "REEMBOLSO - RENDIMENTO",
+  "DIVIDENDO": "RENDIMENTO",
+  "JUROS S/CAPITAL": "JUROS SOBRE CAPITAL PRÓPRIO",
+};
+
 export function DividendDialog({ onClose, tickers }: Props) {
   const existingMovementTypes = useMemo(() => {
     const dividends = getDividends();
-    const types = [...new Set(dividends.map((d) => d.movementType).filter(Boolean))];
+    const types = [...new Set(dividends.map((d) => RENAME_MOVEMENT_TYPES[d.movementType] || d.movementType).filter(Boolean))];
     return types.length > 0 ? types : DEFAULT_MOVEMENT_TYPES;
   }, []);
 
