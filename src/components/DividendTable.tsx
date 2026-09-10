@@ -1,7 +1,8 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import type { DividendRecord } from "../types";
 import { formatCurrency, formatDate } from "../format";
 import { deleteDividend, updateDividend, getDividendStats } from "../store";
+import { fetchAssetName } from "../prices";
 import { Trash2, Download, ChevronDown, ChevronUp, X, Pencil } from "lucide-react";
 
 interface Props {
@@ -58,6 +59,21 @@ export function DividendTable({ dividends, hideValues, onRefresh }: Props) {
     const set = new Set(dividends.map((d) => d.ticker));
     return Array.from(set).sort();
   }, [dividends]);
+
+  const [tickerNames, setTickerNames] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    const toFetch = tickers.filter((t) => !tickerNames[t]);
+    if (toFetch.length === 0) return;
+    let cancelled = false;
+    Promise.all(toFetch.map((t) => fetchAssetName(t))).then((results) => {
+      if (cancelled) return;
+      const map: Record<string, string> = {};
+      toFetch.forEach((t, i) => { if (results[i]) map[t] = results[i]; });
+      setTickerNames((prev) => ({ ...prev, ...map }));
+    });
+    return () => { cancelled = true; };
+  }, [tickers]);
 
   const sorted = useMemo(() => {
     let filtered = dividends;
@@ -281,7 +297,7 @@ export function DividendTable({ dividends, hideValues, onRefresh }: Props) {
                     <td className="p-3 font-medium">{d.ticker}</td>
                     <td className="p-3 text-xs text-muted">{d.type}</td>
                     <td className="p-3 text-xs">{d.monthYear}</td>
-                    <td className="p-3 text-xs text-muted max-w-32 truncate">{d.name}</td>
+                    <td className="p-3 text-xs text-muted max-w-32 truncate">{tickerNames[d.ticker] || d.name}</td>
                     <td className="p-3 text-xs tabular">{formatDate(d.payment)}</td>
                     <td className="p-3 text-xs">
                       <MovementBadge type={d.movementType} />
