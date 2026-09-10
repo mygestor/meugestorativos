@@ -99,7 +99,7 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
   // Evolution data based on time period and type filter
   const evolutionData = useMemo(() => {
     const now = new Date();
-    let monthsBack = 120; // Default to 10 years
+    let monthsBack = 120;
     if (timePeriod === "12m") monthsBack = 12;
     else if (timePeriod === "24m") monthsBack = 24;
     else if (timePeriod === "60m") monthsBack = 60;
@@ -110,44 +110,40 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
     const cutoffDate = new Date(now.getFullYear(), now.getMonth() - monthsBack, 1);
     const cutoffStr = cutoffDate.toISOString().slice(0, 7);
 
-    // Filter assets and dividends by type
-    const filteredAssets = typeFilter === "all" ? assets : assets.filter((a) => a.type === typeFilter);
-    const filteredDividends = typeFilter === "all" ? dividends : dividends?.filter((d) => {
-      const asset = assets.find((a) => a.ticker === d.ticker);
-      return asset?.type === typeFilter;
-    });
-
-    // Calculate filtered totals
-    const filteredCurrentValue = filteredAssets.reduce((s, a) => s + a.currentPrice * a.quantity, 0);
-    const filteredInvested = filteredAssets.reduce((s, a) => s + a.investedAmount, 0);
-
-    // Calculate cumulative dividends by month (filtered)
+    // Calculate cumulative dividends by month (filtered by type and time)
     const dividendsByMonth: Record<string, number> = {};
     let cumulativeDividends = 0;
     if (filteredDividends && filteredDividends.length > 0) {
       const sortedDivs = [...filteredDividends].sort((a, b) => a.payment.localeCompare(b.payment));
       for (const d of sortedDivs) {
+        if (d.payment < cutoffStr) continue;
         const month = d.payment.slice(0, 7);
         cumulativeDividends += d.totalValue;
         dividendsByMonth[month] = cumulativeDividends;
       }
     }
 
-    // Group contributions by month
+    // Build monthly data only for months within the period
     const monthlyData: Record<string, {
       aportado: number;
       patrimonio: number;
       dividendos: number;
     }> = {};
-    let cumulativeAportado = 0;
 
+    // First, calculate cumulative contributions up to the cutoff
+    let cumulativeBeforeCutoff = 0;
     const sorted = [...contributions].sort((a, b) => a.date.localeCompare(b.date));
     for (const c of sorted) {
-      const month = c.date.slice(0, 7);
-      if (month < cutoffStr) {
-        cumulativeAportado += c.value;
-        continue;
+      if (c.date < cutoffStr) {
+        cumulativeBeforeCutoff += c.value;
       }
+    }
+
+    // Now process contributions within the period
+    let cumulativeAportado = cumulativeBeforeCutoff;
+    for (const c of sorted) {
+      const month = c.date.slice(0, 7);
+      if (month < cutoffStr) continue;
       cumulativeAportado += c.value;
       const divsForMonth = dividendsByMonth[month] ?? cumulativeDividends;
       if (!monthlyData[month]) {
@@ -163,9 +159,33 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
       }
     }
 
+    // Generate all months in the period (even if no contributions)
+    const allMonths: string[] = [];
+    const tempDate = new Date(cutoffDate);
+    while (tempDate <= now) {
+      allMonths.push(tempDate.toISOString().slice(0, 7));
+      tempDate.setMonth(tempDate.getMonth() + 1);
+    }
+
+    // Fill in missing months with last known values
+    let lastAportado = cumulativeBeforeCutoff;
+    let lastDividends = 0;
+    for (const month of allMonths) {
+      if (monthlyData[month]) {
+        lastAportado = monthlyData[month].aportado;
+        lastDividends = monthlyData[month].dividendos;
+      } else {
+        monthlyData[month] = {
+          aportado: lastAportado,
+          patrimonio: lastAportado + lastDividends,
+          dividendos: lastDividends,
+        };
+      }
+    }
+
     // Add current month with real patrimônio (market value + dividends received)
     const currentMonth = now.toISOString().slice(0, 7);
-    const totalPatrimonio = filteredCurrentValue + cumulativeDividends;
+    const totalPatrimonio = filteredTotalValue + cumulativeDividends;
     if (!monthlyData[currentMonth]) {
       monthlyData[currentMonth] = {
         aportado: cumulativeAportado,
@@ -177,15 +197,15 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
       monthlyData[currentMonth].dividendos = cumulativeDividends;
     }
 
-    // Calculate values for chart
-    return Object.entries(monthlyData)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([month, data]) => ({
+    // Calculate values for chart - only months within period
+    return allMonths
+      .filter((m) => monthlyData[m])
+      .map((month) => ({
         month,
-        "Valor aplicado": Math.round(data.aportado),
-        "Ganho de Capital": Math.max(0, Math.round(data.patrimonio - data.aportado)),
+        "Valor aplicado": Math.round(monthlyData[month].aportado),
+        "Ganho de Capital": Math.max(0, Math.round(monthlyData[month].patrimonio - monthlyData[month].aportado)),
       }));
-  }, [contributions, dividends, assets, typeFilter, timePeriod]);
+  }, [contributions, filteredDividends, filteredTotalValue, timePeriod]);
 
   // Assets by type for donut chart
   const typeData = useMemo(() => {
