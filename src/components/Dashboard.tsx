@@ -43,7 +43,7 @@ function getTypeColor(type: string): string {
   return map[type] ?? "#6b7280";
 }
 
-type TimePeriod = "1m" | "3m" | "6m" | "12m" | "24m" | "all";
+type TimePeriod = "all" | "12m" | "24m" | "60m" | "120m" | "custom";
 
 export function Dashboard({ summary, assets, hideValues, contributions, trades, dividends }: Props) {
   const [timePeriod, setTimePeriod] = useState<TimePeriod>("12m");
@@ -76,12 +76,13 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
   // Evolution data based on time period
   const evolutionData = useMemo(() => {
     const now = new Date();
-    let monthsBack = 12;
-    if (timePeriod === "1m") monthsBack = 1;
-    else if (timePeriod === "3m") monthsBack = 3;
-    else if (timePeriod === "6m") monthsBack = 6;
+    let monthsBack = 120; // Default to 10 years
+    if (timePeriod === "12m") monthsBack = 12;
     else if (timePeriod === "24m") monthsBack = 24;
-    else if (timePeriod === "all") monthsBack = 60;
+    else if (timePeriod === "60m") monthsBack = 60;
+    else if (timePeriod === "120m") monthsBack = 120;
+    else if (timePeriod === "all") monthsBack = 120;
+    else if (timePeriod === "custom") monthsBack = 120; // For now, use 10 years for custom
 
     const cutoffDate = new Date(now.getFullYear(), now.getMonth() - monthsBack, 1);
     const cutoffStr = cutoffDate.toISOString().slice(0, 7);
@@ -276,12 +277,12 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
                   onChange={(e) => setTimePeriod(e.target.value as TimePeriod)}
                   className="appearance-none px-3 py-1.5 pr-8 bg-surface border border-border rounded-xl text-xs font-medium focus:outline-none focus:border-primary transition-colors cursor-pointer"
                 >
-                  <option value="1m">1 Mês</option>
-                  <option value="3m">3 Meses</option>
-                  <option value="6m">6 Meses</option>
+                  <option value="all">Desde o início</option>
                   <option value="12m">12 Meses</option>
                   <option value="24m">2 Anos</option>
-                  <option value="all">Desde o início</option>
+                  <option value="60m">5 Anos</option>
+                  <option value="120m">10 Anos</option>
+                  <option value="custom">Data personalizada</option>
                 </select>
                 <ChevronDown className="absolute right-2 top-1/2 -translate-y-1/2 size-3 text-muted pointer-events-none" />
               </div>
