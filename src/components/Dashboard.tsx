@@ -335,8 +335,34 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
                     tickFormatter={(v) => `R$ ${(v / 1000).toFixed(0)}K`}
                   />
                   <Tooltip
-                    contentStyle={tooltipContentStyle}
-                    formatter={(v: number) => formatCurrency(v)}
+                    content={({ active, payload, label }) => {
+                      if (!active || !payload || payload.length === 0) return null;
+                      const valorAplicado = Number(payload.find((p) => p.dataKey === "Valor aplicado")?.value) || 0;
+                      const ganhoCapital = Number(payload.find((p) => p.dataKey === "Ganho de Capital")?.value) || 0;
+                      const patrimonio = valorAplicado + ganhoCapital;
+                      return (
+                        <div className="bg-white border border-gray-200 rounded-xl p-3 shadow-lg">
+                          <p className="font-semibold text-sm mb-2">{label}</p>
+                          <div className="space-y-1.5">
+                            <div className="flex items-center gap-2">
+                              <span className="size-3 rounded-sm bg-blue-500" />
+                              <span className="text-xs text-gray-600">Patrimônio</span>
+                              <span className="text-xs font-semibold ml-auto">{formatCurrency(patrimonio)}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="size-3 rounded-sm bg-emerald-500" />
+                              <span className="text-xs text-gray-600">Valor aplicado</span>
+                              <span className="text-xs font-semibold ml-auto">{formatCurrency(valorAplicado)}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="size-3 rounded-sm bg-emerald-300" />
+                              <span className="text-xs text-gray-600">Ganho de Capital</span>
+                              <span className="text-xs font-semibold ml-auto">{formatCurrency(ganhoCapital)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }}
                   />
                   <Bar dataKey="Valor aplicado" stackId="a" fill="#10b981" radius={[0, 0, 0, 0]} />
                   <Bar dataKey="Ganho de Capital" stackId="a" fill="#6ee7b7" radius={[4, 4, 0, 0]} />
