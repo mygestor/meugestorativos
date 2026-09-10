@@ -63,11 +63,12 @@ export function syncAssetsFromTrades(): void {
     if (pos && pos.shares > 0) {
       // Update existing asset from trade data
       const avgPrice = +((pos.invested / pos.shares).toFixed(2));
-      const info = detectAssetType(a.ticker);
-      const sector = (a.sector && a.sector !== "A DEFINIR") ? a.sector : (getKnownSector(a.ticker) || info.sector);
+      const autoInfo = detectAssetType(a.ticker);
+      const type = (a.type && a.type !== autoInfo.type) ? a.type : autoInfo.type;
+      const sector = (a.sector && a.sector !== "A DEFINIR") ? a.sector : (getKnownSector(a.ticker) || autoInfo.sector);
       const newDividend = pos.shares * (a.dividendPerShare || 0);
       updateAsset(a.id, {
-        type: info.type,
+        type,
         sector,
         avgPrice,
         quantity: pos.shares,
