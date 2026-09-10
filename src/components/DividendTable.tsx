@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import type { DividendRecord } from "../types";
 import { formatCurrency, formatDate } from "../format";
 import { deleteDividend, getDividendStats } from "../store";
-import { Trash2, Download, ChevronDown, ChevronUp } from "lucide-react";
+import { Trash2, Download, ChevronDown, ChevronUp, X } from "lucide-react";
 
 interface Props {
   dividends: DividendRecord[];
@@ -78,6 +78,15 @@ export function DividendTable({ dividends, hideValues, onRefresh }: Props) {
   function toggleSort(field: keyof DividendRecord) {
     if (sortField === field) setSortAsc(!sortAsc);
     else { setSortField(field); setSortAsc(false); }
+  }
+
+  const hasActiveFilter = filterMonth || filterYear || filterTicker || filterStatus !== "all";
+
+  function clearFilters() {
+    setFilterMonth("");
+    setFilterYear("");
+    setFilterTicker("");
+    setFilterStatus("all");
   }
 
   function SortHeader({ field, label }: { field: keyof DividendRecord; label: string }) {
@@ -194,6 +203,15 @@ export function DividendTable({ dividends, hideValues, onRefresh }: Props) {
                 <option key={y} value={String(y)}>{y}</option>
               ))}
             </select>
+            {hasActiveFilter && (
+              <button
+                onClick={clearFilters}
+                className="px-3 py-2 bg-surface border border-border rounded-lg text-xs text-muted hover:text-foreground hover:border-expense transition-colors flex items-center gap-1"
+              >
+                <X className="size-3" />
+                Limpar
+              </button>
+            )}
           </div>
         </div>
 
