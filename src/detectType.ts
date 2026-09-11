@@ -14,7 +14,7 @@ export const KNOWN_ETFS = new Set([
 
 // Units on B3: tickers ending with 11 that represent equity units (not FIIs)
 export const KNOWN_UNITS = new Set([
-  "TAEE11", "SANB11", "BRSR11", "KBLN11",
+  "TAEE11", "SANB11", "BRSR11", "KLBN11",
 ]);
 
 export function detectAssetType(ticker: string): { type: string; sector: string } {
