@@ -289,7 +289,7 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
               <TrendingUp className="size-3 text-expense rotate-180" />
             )}
           </div>
-          <p className="text-xs text-muted mt-2">Valor investido</p>
+          <p className="text-xs text-muted mt-2">Valor aportado</p>
           <p className="text-sm font-medium tabular">{mask(totalContributed, hideValues)}</p>
           <p className="text-xs text-muted mt-2">Patrimônio atual</p>
           <p className={`text-sm font-medium tabular ${filteredMarketValue >= totalContributed ? "text-income" : "text-expense"}`}>
