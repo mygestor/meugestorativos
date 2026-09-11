@@ -78,6 +78,7 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
   const [timePeriod, setTimePeriod] = useState<TimePeriod>("12m");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [openInfo, setOpenInfo] = useState<string | null>(null);
+  const [balanceText, setBalanceText] = useState(() => accountBalance === 0 ? "" : mask(accountBalance, false).replace("R$ ", ""));
 
   // Filter assets by type
   const filteredAssets = useMemo(() => {
@@ -302,12 +303,14 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
             <input
               type="text"
               className="text-xs font-medium tabular bg-transparent border-none outline-none text-right w-24 text-muted"
-              value={accountBalance === 0 ? "" : mask(accountBalance, hideValues).replace("R$ ", "")}
+              value={balanceText}
               placeholder="0,00"
-              onChange={(e) => {
-                const raw = e.target.value.replace(/\./g, "").replace(",", ".");
+              onChange={(e) => setBalanceText(e.target.value)}
+              onBlur={() => {
+                const raw = balanceText.replace(/\./g, "").replace(",", ".");
                 const v = parseFloat(raw);
                 setAccountBalance(isNaN(v) ? 0 : v);
+                setBalanceText(isNaN(v) ? "" : mask(v, false).replace("R$ ", ""));
               }}
             />
           </div>
