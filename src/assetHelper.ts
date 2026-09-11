@@ -78,8 +78,8 @@ export function syncAssetsFromTrades(): void {
         currentDividend: newDividend > 0 ? newDividend : a.currentDividend,
         annualReturn: pos.shares * (a.dividendPerShare || 0) * 12,
       });
-    } else if (pos && pos.shares <= 0 && a.investedAmount <= 0) {
-      // Sold all shares and no investment -> safe to remove
+    } else if (pos && pos.shares <= 0) {
+      // Sold all shares -> safe to remove
       deleteAsset(a.id);
     }
     // Keep assets that have no trades at all (manually added)
