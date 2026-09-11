@@ -1,6 +1,6 @@
 import { getAssets, updateAsset, addAsset, deleteAsset, getTrades, addLot, consumeLots, getLots } from "./store";
 import type { Asset } from "./types";
-import { detectAssetType } from "./detectType";
+import { detectAssetType, KNOWN_UNITS, KNOWN_ETFS } from "./detectType";
 import { getKnownSector } from "./sectorFetch";
 
 export function syncAssetsFromTrades(): void {
@@ -63,7 +63,8 @@ export function syncAssetsFromTrades(): void {
     if (pos && pos.shares > 0) {
       // Update existing asset from trade data
       const autoInfo = detectAssetType(a.ticker);
-      const type = (a.type && a.type !== autoInfo.type) ? a.type : autoInfo.type;
+      const knownTicker = KNOWN_UNITS.has(a.ticker.toUpperCase()) || KNOWN_ETFS.has(a.ticker.toUpperCase());
+      const type = knownTicker ? autoInfo.type : ((a.type && a.type !== autoInfo.type) ? a.type : autoInfo.type);
       const sector = (a.sector && a.sector !== "A DEFINIR") ? a.sector : (getKnownSector(a.ticker) || autoInfo.sector);
       const newDividend = pos.shares * (a.dividendPerShare || 0);
       const avgPrice = a.avgPrice > 0 ? a.avgPrice : +((pos.invested / pos.shares).toFixed(2));

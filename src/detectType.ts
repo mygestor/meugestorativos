@@ -1,4 +1,4 @@
-const KNOWN_ETFS = new Set([
+export const KNOWN_ETFS = new Set([
   "IVVB11", "BOVA11", "BRAX11", "SMAL11", "DIVO11", "SPXI11",
   "FIND11", "ECOO11", "GOLD11", "HASH11", "NASD11", "QBTC11",
   "QETH11", "USDB11", "WRLD11", "XINA11", "NSDV11", "PIBB11",
@@ -13,7 +13,7 @@ const KNOWN_ETFS = new Set([
 ]);
 
 // Units on B3: tickers ending with 11 that represent equity units (not FIIs)
-const KNOWN_UNITS = new Set([
+export const KNOWN_UNITS = new Set([
   "TAEE11", "SANB11", "BRSR11", "KBLN11",
 ]);
 
