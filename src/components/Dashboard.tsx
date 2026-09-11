@@ -123,6 +123,11 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
     return filteredDividends.reduce((s, d) => s + d.totalValue, 0);
   }, [filteredDividends]);
 
+  // Total contributed (sum of positive contributions)
+  const totalContributed = useMemo(() => {
+    return contributions.filter(c => c.value > 0).reduce((s, c) => s + c.value, 0);
+  }, [contributions]);
+
   // Calculate capital gains (filtered)
   const capitalGains = useMemo(() => {
     return filteredAssets.reduce((s, a) => s + (a.currentPrice * a.quantity - a.investedAmount), 0);
@@ -272,21 +277,22 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
             <p className="text-xs text-muted font-medium">Patrimônio total</p>
             <InfoButton id="patrimonio" openInfo={openInfo} setOpenInfo={setOpenInfo} />
           </div>
-          <p className="text-2xl font-bold tabular">{mask(filteredTotalValue + totalDividends, hideValues)}</p>
+          <p className="text-2xl font-bold tabular">{mask(filteredMarketValue + totalDividends, hideValues)}</p>
           <div className="flex items-center gap-2 mt-1">
-            <span className="text-xs text-emerald-500 font-medium">
-              {rentabilidade12m >= 0 ? "+" : ""}{formatPercent(rentabilidade12m)}
+            <span className={`text-xs font-medium ${((filteredMarketValue + totalDividends) - totalContributed) >= 0 ? "text-income" : "text-expense"}`}>
+              {((filteredMarketValue + totalDividends) - totalContributed) >= 0 ? "+" : ""}
+              {totalContributed > 0 ? formatPercent(((filteredMarketValue + totalDividends) - totalContributed) / totalContributed * 100) : "0,00%"}
             </span>
-            {rentabilidade12m >= 0 ? (
-              <TrendingUp className="size-3 text-emerald-500" />
+            {((filteredMarketValue + totalDividends) - totalContributed) >= 0 ? (
+              <TrendingUp className="size-3 text-income" />
             ) : (
-              <TrendingUp className="size-3 text-red-500 rotate-180" />
+              <TrendingUp className="size-3 text-expense rotate-180" />
             )}
           </div>
           <p className="text-xs text-muted mt-2">Valor investido</p>
-          <p className="text-sm font-medium tabular">{mask(filteredTotalInvested, hideValues)}</p>
+          <p className="text-sm font-medium tabular">{mask(totalContributed, hideValues)}</p>
           <p className="text-xs text-muted mt-2">Patrimônio atual</p>
-          <p className={`text-sm font-medium tabular ${filteredMarketValue >= filteredTotalInvested ? "text-income" : "text-expense"}`}>
+          <p className={`text-sm font-medium tabular ${filteredMarketValue >= totalContributed ? "text-income" : "text-expense"}`}>
             {mask(filteredMarketValue, hideValues)}
           </p>
         </div>
