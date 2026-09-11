@@ -60,8 +60,8 @@ export default function App() {
     return saved === "light" ? "light" : "dark";
   });
   const [appName, setAppName] = useState(() => localStorage.getItem("gestor-app-name") || "Gestor de Ativos");
-  const [accountBalance, setAccountBalance] = useState(() => {
-    const saved = localStorage.getItem("gestor-account-balance");
+  const [initialAccountBalance, setInitialAccountBalance] = useState(() => {
+    const saved = localStorage.getItem("gestor-initial-account-balance");
     return saved ? parseFloat(saved) : 0;
   });
   const [editingName, setEditingName] = useState(false);
@@ -74,8 +74,8 @@ export default function App() {
   }, [theme]);
 
   useEffect(() => {
-    localStorage.setItem("gestor-account-balance", String(accountBalance));
-  }, [accountBalance]);
+    localStorage.setItem("gestor-initial-account-balance", String(initialAccountBalance));
+  }, [initialAccountBalance]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -524,7 +524,7 @@ export default function App() {
           </div>
         )}
 
-        {tab === "dashboard" && <Dashboard summary={summary} assets={assets} hideValues={hideValues} contributions={contributions} trades={trades} dividends={dividends} accountBalance={accountBalance} setAccountBalance={setAccountBalance} />}
+        {tab === "dashboard" && <Dashboard summary={summary} assets={assets} hideValues={hideValues} contributions={contributions} trades={trades} dividends={dividends} initialAccountBalance={initialAccountBalance} setInitialAccountBalance={setInitialAccountBalance} />}
 
         {tab === "assets" && (
           <AssetTable assets={assets} hideValues={hideValues} onEdit={handleEdit} onRefresh={refresh} />

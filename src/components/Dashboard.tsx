@@ -19,8 +19,8 @@ interface Props {
   contributions: ContributionRecord[];
   trades: TradeRecord[];
   dividends?: DividendRecord[];
-  accountBalance: number;
-  setAccountBalance: (v: number) => void;
+  initialAccountBalance: number;
+  setInitialAccountBalance: (v: number) => void;
 }
 
 function mask(v: number, hidden: boolean) {
@@ -74,11 +74,11 @@ function getTypeColor(type: string): string {
 
 type TimePeriod = "all" | "12m" | "24m" | "60m" | "120m" | "custom";
 
-export function Dashboard({ summary, assets, hideValues, contributions, trades, dividends, accountBalance, setAccountBalance }: Props) {
+export function Dashboard({ summary, assets, hideValues, contributions, trades, dividends, initialAccountBalance, setInitialAccountBalance }: Props) {
   const [timePeriod, setTimePeriod] = useState<TimePeriod>("12m");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [openInfo, setOpenInfo] = useState<string | null>(null);
-  const [balanceText, setBalanceText] = useState(() => accountBalance === 0 ? "" : mask(accountBalance, false).replace("R$ ", ""));
+  const [balanceText, setBalanceText] = useState(() => initialAccountBalance === 0 ? "" : mask(initialAccountBalance, false).replace("R$ ", ""));
 
   // Filter assets by type
   const filteredAssets = useMemo(() => {
@@ -134,6 +134,17 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
   const totalContributed = useMemo(() => {
     return contributions.reduce((s, c) => s + c.value, 0);
   }, [contributions]);
+
+  // Auto-calculate account balance: initial - compras + vendas
+  const accountBalance = useMemo(() => {
+    const totalCompras = trades
+      .filter((t) => t.operation === "COMPRA")
+      .reduce((s, t) => s + t.totalWithFees, 0);
+    const totalVendas = trades
+      .filter((t) => t.operation === "VENDA")
+      .reduce((s, t) => s + t.totalWithFees, 0);
+    return initialAccountBalance - totalCompras + totalVendas;
+  }, [initialAccountBalance, trades]);
 
   // Calculate capital gains (filtered)
   const capitalGains = useMemo(() => {
@@ -314,7 +325,7 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
               onBlur={() => {
                 const raw = balanceText.replace(/\./g, "").replace(",", ".");
                 const v = parseFloat(raw);
-                setAccountBalance(isNaN(v) ? 0 : v);
+                setInitialAccountBalance(isNaN(v) ? 0 : v);
                 setBalanceText(isNaN(v) ? "" : mask(v, false).replace("R$ ", ""));
               }}
             />
