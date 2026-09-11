@@ -60,6 +60,10 @@ export default function App() {
     return saved === "light" ? "light" : "dark";
   });
   const [appName, setAppName] = useState(() => localStorage.getItem("gestor-app-name") || "Gestor de Ativos");
+  const [accountBalance, setAccountBalance] = useState(() => {
+    const saved = localStorage.getItem("gestor-account-balance");
+    return saved ? parseFloat(saved) : 0;
+  });
   const [editingName, setEditingName] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const mobileMenuRef = useRef<HTMLDivElement>(null);
@@ -68,6 +72,10 @@ export default function App() {
     document.documentElement.setAttribute("data-theme", theme);
     localStorage.setItem("gestor-theme", theme);
   }, [theme]);
+
+  useEffect(() => {
+    localStorage.setItem("gestor-account-balance", String(accountBalance));
+  }, [accountBalance]);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -516,7 +524,7 @@ export default function App() {
           </div>
         )}
 
-        {tab === "dashboard" && <Dashboard summary={summary} assets={assets} hideValues={hideValues} contributions={contributions} trades={trades} dividends={dividends} />}
+        {tab === "dashboard" && <Dashboard summary={summary} assets={assets} hideValues={hideValues} contributions={contributions} trades={trades} dividends={dividends} accountBalance={accountBalance} setAccountBalance={setAccountBalance} />}
 
         {tab === "assets" && (
           <AssetTable assets={assets} hideValues={hideValues} onEdit={handleEdit} onRefresh={refresh} />

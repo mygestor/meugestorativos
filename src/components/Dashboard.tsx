@@ -19,6 +19,8 @@ interface Props {
   contributions: ContributionRecord[];
   trades: TradeRecord[];
   dividends?: DividendRecord[];
+  accountBalance: number;
+  setAccountBalance: (v: number) => void;
 }
 
 function mask(v: number, hidden: boolean) {
@@ -72,7 +74,7 @@ function getTypeColor(type: string): string {
 
 type TimePeriod = "all" | "12m" | "24m" | "60m" | "120m" | "custom";
 
-export function Dashboard({ summary, assets, hideValues, contributions, trades, dividends }: Props) {
+export function Dashboard({ summary, assets, hideValues, contributions, trades, dividends, accountBalance, setAccountBalance }: Props) {
   const [timePeriod, setTimePeriod] = useState<TimePeriod>("12m");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [openInfo, setOpenInfo] = useState<string | null>(null);
@@ -281,24 +283,34 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
             <p className="text-xs text-muted font-medium">Patrimônio total</p>
             <InfoButton id="patrimonio" openInfo={openInfo} setOpenInfo={setOpenInfo} />
           </div>
-          <p className="text-2xl font-bold tabular">{mask(totalContributed + totalDividends, hideValues)}</p>
+          <p className="text-2xl font-bold tabular">{mask(filteredMarketValue + accountBalance, hideValues)}</p>
           <div className="flex items-center gap-2 mt-1">
-            <span className={`text-xs font-medium ${((totalContributed + totalDividends) - totalContributed) >= 0 ? "text-income" : "text-expense"}`}>
-              {((totalContributed + totalDividends) - totalContributed) >= 0 ? "+" : ""}
-              {totalContributed > 0 ? formatPercent(totalDividends / totalContributed * 100) : "0,00%"}
+            <span className={`text-xs font-medium ${capitalGains >= 0 ? "text-income" : "text-expense"}`}>
+              {capitalGains >= 0 ? "+" : ""}
+              {filteredTotalValue > 0 ? formatPercent(capitalGains / filteredTotalValue * 100) : "0,00%"}
             </span>
-            {totalDividends >= 0 ? (
+            {capitalGains >= 0 ? (
               <TrendingUp className="size-3 text-income" />
             ) : (
               <TrendingUp className="size-3 text-expense rotate-180" />
             )}
           </div>
           <p className="text-xs text-muted mt-2">Valor aportado</p>
-          <p className="text-sm font-medium tabular">{mask(totalContributed, hideValues)}</p>
-          <p className="text-xs text-muted mt-2">Patrimônio atual</p>
-          <p className={`text-sm font-medium tabular ${filteredMarketValue >= totalContributed ? "text-income" : "text-expense"}`}>
-            {mask(filteredMarketValue, hideValues)}
-          </p>
+          <p className="text-sm font-medium tabular">{mask(filteredTotalValue, hideValues)}</p>
+          <div className="flex items-center justify-between mt-2">
+            <p className="text-xs text-muted">Conta investimento</p>
+            <input
+              type="text"
+              className="text-xs font-medium tabular bg-transparent border-none outline-none text-right w-24 text-muted"
+              value={accountBalance === 0 ? "" : mask(accountBalance, hideValues).replace("R$ ", "")}
+              placeholder="0,00"
+              onChange={(e) => {
+                const raw = e.target.value.replace(/\./g, "").replace(",", ".");
+                const v = parseFloat(raw);
+                setAccountBalance(isNaN(v) ? 0 : v);
+              }}
+            />
+          </div>
         </div>
 
         {/* Lucro Total */}
