@@ -286,8 +286,8 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
           <p className="text-xs text-muted mt-2">Valor investido</p>
           <p className="text-sm font-medium tabular">{mask(filteredTotalInvested, hideValues)}</p>
           <p className="text-xs text-muted mt-2">Patrimônio atual</p>
-          <p className={`text-sm font-medium tabular ${(filteredMarketValue + totalDividends) >= filteredTotalInvested ? "text-income" : "text-expense"}`}>
-            {mask(filteredMarketValue + totalDividends, hideValues)}
+          <p className={`text-sm font-medium tabular ${filteredMarketValue >= filteredTotalInvested ? "text-income" : "text-expense"}`}>
+            {mask(filteredMarketValue, hideValues)}
           </p>
         </div>
 
