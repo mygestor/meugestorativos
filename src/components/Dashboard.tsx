@@ -123,9 +123,9 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
     return filteredDividends.reduce((s, d) => s + d.totalValue, 0);
   }, [filteredDividends]);
 
-  // Total contributed (sum of positive contributions)
+  // Total contributed (net: aportes - resgates)
   const totalContributed = useMemo(() => {
-    return contributions.filter(c => c.value > 0).reduce((s, c) => s + c.value, 0);
+    return contributions.reduce((s, c) => s + c.value, 0);
   }, [contributions]);
 
   // Calculate capital gains (filtered)
