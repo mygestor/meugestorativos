@@ -41,12 +41,12 @@ export function AssetTable({ assets, hideValues, onEdit, onRefresh }: Props) {
     { type: "ETF", label: "ETFs", color: "#f59e0b" },
   ];
 
-  const totalInvested = assets.reduce((s, a) => s + a.investedAmount, 0);
+  const totalInvested = assets.reduce((s, a) => s + a.currentPrice * a.quantity, 0);
 
   const typeData = useMemo(() => {
     const map: Record<string, number> = {};
     for (const a of assets) {
-      map[a.type] = (map[a.type] ?? 0) + a.investedAmount;
+      map[a.type] = (map[a.type] ?? 0) + a.currentPrice * a.quantity;
     }
     return map;
   }, [assets]);

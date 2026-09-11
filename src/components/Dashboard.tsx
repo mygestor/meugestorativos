@@ -115,7 +115,9 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
   // Total dividends received (all time, filtered by type)
   const totalDividends = useMemo(() => {
     if (!filteredDividends || filteredDividends.length === 0) return 0;
-    return filteredDividends.reduce((s, d) => s + d.totalValue, 0);
+    const total = filteredDividends.reduce((s, d) => s + d.totalValue, 0);
+    console.log("[Dashboard] dividendos:", filteredDividends.length, "registros, total:", total);
+    return total;
   }, [filteredDividends]);
 
   // Calculate capital gains (filtered)
