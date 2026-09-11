@@ -94,7 +94,9 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
 
   // Calculate filtered totals
   const filteredTotalValue = useMemo(() => {
-    return filteredAssets.reduce((s, a) => s + a.currentPrice * a.quantity, 0);
+    const total = filteredAssets.reduce((s, a) => s + a.currentPrice * a.quantity, 0);
+    console.log("[Dashboard] filteredTotalValue:", total, "assets:", filteredAssets.length, "byType:", Object.entries(filteredAssets.reduce((m: Record<string, number>, a) => { m[a.type] = (m[a.type] ?? 0) + a.currentPrice * a.quantity; return m; }, {})).map(([k,v]) => `${k}: ${v.toFixed(2)}`).join(", "));
+    return total;
   }, [filteredAssets]);
 
   const filteredTotalInvested = useMemo(() => {
