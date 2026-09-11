@@ -94,9 +94,7 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
 
   // Calculate filtered totals
   const filteredTotalValue = useMemo(() => {
-    const total = filteredAssets.reduce((s, a) => s + a.currentPrice * a.quantity, 0);
-    console.log("[Dashboard] filteredTotalValue:", total, "assets:", filteredAssets.length, "byType:", Object.entries(filteredAssets.reduce((m: Record<string, number>, a) => { m[a.type] = (m[a.type] ?? 0) + a.currentPrice * a.quantity; return m; }, {})).map(([k,v]) => `${k}: ${v.toFixed(2)}`).join(", "));
-    return total;
+    return filteredAssets.reduce((s, a) => s + a.investedAmount, 0);
   }, [filteredAssets]);
 
   const filteredTotalInvested = useMemo(() => {
@@ -117,9 +115,7 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
   // Total dividends received (all time, filtered by type)
   const totalDividends = useMemo(() => {
     if (!filteredDividends || filteredDividends.length === 0) return 0;
-    const total = filteredDividends.reduce((s, d) => s + d.totalValue, 0);
-    console.log("[Dashboard] dividendos:", filteredDividends.length, "registros, total:", total);
-    return total;
+    return filteredDividends.reduce((s, d) => s + d.totalValue, 0);
   }, [filteredDividends]);
 
   // Calculate capital gains (filtered)
