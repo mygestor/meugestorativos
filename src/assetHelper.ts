@@ -85,6 +85,16 @@ export function syncAssetsFromTrades(): void {
     // Keep assets that have no trades at all (manually added)
   }
 
+  // Fix type for all known tickers (even without trades)
+  const allAssets = getAssets();
+  for (const a of allAssets) {
+    const autoInfo = detectAssetType(a.ticker);
+    const knownTicker = KNOWN_UNITS.has(a.ticker.toUpperCase()) || KNOWN_ETFS.has(a.ticker.toUpperCase());
+    if (knownTicker && a.type !== autoInfo.type) {
+      updateAsset(a.id, { type: autoInfo.type });
+    }
+  }
+
   // Create assets only for tickers with shares > 0 that don't exist yet
   const existingTickers = new Set(getAssets().map((a) => a.ticker.toUpperCase()));
   for (const [ticker, pos] of Object.entries(byTicker)) {
