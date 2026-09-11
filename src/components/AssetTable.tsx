@@ -1,6 +1,6 @@
 import type { Asset } from "../types";
 import { formatCurrency, formatPercent } from "../format";
-import { deleteAsset, getDividends, getTrades } from "../store";
+import { deleteAsset, getDividends, getTrades, recalcAvgPriceFromTrades, updateAsset } from "../store";
 import { Pencil, Trash2, ChevronDown, ChevronUp, RefreshCw, Layers, Info, Briefcase } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
 import { PriceUpdateDialog } from "./PriceUpdateDialog";
@@ -304,6 +304,19 @@ export function AssetTable({ assets, hideValues, onEdit, onRefresh }: Props) {
                             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-surface text-muted hover:text-foreground text-xs transition-colors"
                           >
                             <Layers className="size-3.5" /> Lotes
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const result = recalcAvgPriceFromTrades(a.ticker);
+                              if (result && result.quantity > 0) {
+                                updateAsset(a.id, { avgPrice: result.avgPrice, quantity: result.quantity, investedAmount: result.investedAmount });
+                                onRefresh();
+                              }
+                            }}
+                            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-surface text-muted hover:text-foreground text-xs transition-colors"
+                          >
+                            <RefreshCw className="size-3.5" /> Recalc. PM
                           </button>
                         </div>
                         {a.status && (

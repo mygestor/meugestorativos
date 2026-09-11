@@ -306,6 +306,31 @@ export function recalculateAndSaveTrades(trades: TradeRecord[]) {
   save(TRADE_KEY, recalculateTrades(trades));
 }
 
+export function recalcAvgPriceFromTrades(ticker: string): { avgPrice: number; quantity: number; investedAmount: number } | null {
+  const trades = getTrades();
+  const tickerTrades = trades.filter((t) => t.ticker.toUpperCase() === ticker.toUpperCase()).sort((a, b) => a.date.localeCompare(b.date));
+  if (tickerTrades.length === 0) return null;
+
+  let shares = 0;
+  let invested = 0;
+  for (const t of tickerTrades) {
+    const qty = t.quantity;
+    const isBuy = qty > 0;
+    const absQty = Math.abs(qty);
+    const totalOp = absQty * t.price + t.fees;
+    if (isBuy) {
+      shares += absQty;
+      invested += totalOp;
+    } else {
+      const proportion = shares > 0 ? absQty / shares : 0;
+      invested -= invested * proportion;
+      shares = Math.max(0, shares - absQty);
+    }
+  }
+  const avgPrice = shares > 0 ? +((invested / shares).toFixed(2)) : 0;
+  return { avgPrice, quantity: shares, investedAmount: +(avgPrice * shares).toFixed(2) };
+}
+
 export function clearDividends() {
   localStorage.removeItem(DIVIDEND_KEY);
 }
