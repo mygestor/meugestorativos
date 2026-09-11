@@ -110,17 +110,21 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
   const dividends12m = useMemo(() => {
     if (!filteredDividends || filteredDividends.length === 0) return 0;
     const now = new Date();
+    const today = now.toISOString().slice(0, 10);
     const cutoff = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate());
     const cutoffStr = cutoff.toISOString().slice(0, 10);
     return filteredDividends
-      .filter((d) => d.payment >= cutoffStr)
+      .filter((d) => d.payment >= cutoffStr && d.payment <= today)
       .reduce((s, d) => s + d.totalValue, 0);
   }, [filteredDividends]);
 
-  // Total dividends received (all time, filtered by type)
+  // Total dividends received (only paid, filtered by type)
   const totalDividends = useMemo(() => {
     if (!filteredDividends || filteredDividends.length === 0) return 0;
-    return filteredDividends.reduce((s, d) => s + d.totalValue, 0);
+    const today = new Date().toISOString().slice(0, 10);
+    return filteredDividends
+      .filter((d) => d.payment <= today)
+      .reduce((s, d) => s + d.totalValue, 0);
   }, [filteredDividends]);
 
   // Total contributed (net: aportes - resgates)
