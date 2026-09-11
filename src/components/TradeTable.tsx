@@ -147,23 +147,6 @@ export function TradeTable({ trades, hideValues, onRefresh, onEdit }: Props) {
 
   return (
     <div className="space-y-4">
-      {summary.length > 0 && (
-        <div className="bg-card border border-border rounded-2xl p-4">
-          <p className="text-xs text-muted font-medium uppercase tracking-wider mb-3">Posição Atual por Ativo</p>
-          <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-2">
-            {summary.map((s) => (
-              <div key={s.ticker} className="bg-surface rounded-xl px-3 py-2">
-                <div className="flex items-center gap-1.5 mb-0.5">
-                  <AssetLogo ticker={s.ticker} size={14} />
-                  <p className="font-semibold text-sm">{s.ticker}</p>
-                </div>
-                <p className="text-xs text-muted tabular">{s.shares} cotas</p>
-                <p className="text-xs tabular text-income">{mask(s.avgPrice, hideValues)}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
       <div className="bg-card border border-border rounded-2xl overflow-hidden">
         <div className="flex items-center justify-between p-4 border-b border-border">
