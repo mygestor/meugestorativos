@@ -261,6 +261,20 @@ export function AssetTable({ assets, hideValues, onEdit, onRefresh }: Props) {
                           <Pencil className="size-3.5" />
                         </button>
                         <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const result = recalcAvgPriceFromTrades(a.ticker);
+                            if (result && result.quantity > 0) {
+                              updateAsset(a.id, { avgPrice: result.avgPrice, quantity: result.quantity, investedAmount: result.investedAmount });
+                              onRefresh();
+                            }
+                          }}
+                          title="Recalcular preço médio a partir dos trades"
+                          className="p-1.5 rounded-lg hover:bg-surface text-muted hover:text-foreground transition-colors"
+                        >
+                          <RefreshCw className="size-3.5" />
+                        </button>
+                        <button
                           onClick={(e) => { e.stopPropagation(); handleDelete(a.id, a.ticker); }}
                           className="p-1.5 rounded-lg hover:bg-surface text-muted hover:text-expense transition-colors"
                         >
