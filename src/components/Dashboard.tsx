@@ -140,12 +140,17 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
     return filteredAssets.reduce((s, a) => s + (a.currentPrice * a.quantity - a.investedAmount), 0);
   }, [filteredAssets]);
 
-  // Rentabilidade calculations (including dividends, filtered)
+  // Rentabilidade 12M = (market value + dividends 12m - invested) / invested
   const rentabilidade12m = useMemo(() => {
-    if (filteredTotalInvested <= 0) return 0;
-    const totalValue = filteredTotalValue + dividends12m;
-    return ((totalValue - filteredTotalInvested) / filteredTotalInvested) * 100;
-  }, [filteredTotalInvested, filteredTotalValue, dividends12m]);
+    if (filteredTotalValue <= 0) return 0;
+    return ((filteredMarketValue + dividends12m - filteredTotalValue) / filteredTotalValue) * 100;
+  }, [filteredTotalValue, filteredMarketValue, dividends12m]);
+
+  // Rentabilidade Total = (market value + all dividends - invested) / invested
+  const rentabilidadeTotal = useMemo(() => {
+    if (filteredTotalValue <= 0) return 0;
+    return ((filteredMarketValue + totalDividends - filteredTotalValue) / filteredTotalValue) * 100;
+  }, [filteredTotalValue, filteredMarketValue, totalDividends]);
 
   // Evolution data based on time period and type filter
   const evolutionData = useMemo(() => {
@@ -377,8 +382,8 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
           </div>
           <div className="mt-2">
             <p className="text-[10px] text-muted">Rentabilidade Total</p>
-            <p className={`text-sm font-bold tabular ${rentabilidade12m >= 0 ? "text-emerald-500" : "text-red-500"}`}>
-              {formatPercent(rentabilidade12m)}
+            <p className={`text-sm font-bold tabular ${rentabilidadeTotal >= 0 ? "text-emerald-500" : "text-red-500"}`}>
+              {formatPercent(rentabilidadeTotal)}
             </p>
           </div>
         </div>
