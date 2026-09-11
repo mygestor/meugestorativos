@@ -6,7 +6,7 @@ import { AssetLogo } from "./AssetLogo";
 import { Wallet, TrendingUp, DollarSign, BarChart3, ChevronDown, Info } from "lucide-react";
 
 const CARD_INFO: Record<string, string> = {
-    patrimonio: "Soma do preço atual × quantidade de todos os ativos + todos os dividendos recebidos desde o início.",
+    patrimonio: "Valor atual de mercado de todos os ativos + todos os dividendos recebidos desde o início.",
   lucro: "Ganho de Capital = (Preço Atual × Quantidade) − Valor Investido. Dividendos = soma dos proventos recebidos nos últimos 12 meses. Lucro Total = Ganho + Dividendos.",
   proventos: "Soma dos dividendos e proventos recebidos nos últimos 12 meses. Total = soma de todos os proventos já recebidos.",
   rentabilidade: "Rentabilidade = ((Valor Atual + Dividendos 12M) − Valor Investido) / Valor Investido × 100.",
@@ -182,8 +182,8 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
       monthInvested[m] = lastInvested;
     }
 
-    // Current gain
-    const currentGain = filteredTotalValue - filteredTotalInvested;
+    // Current gain (including dividends received)
+    const currentGain = (filteredTotalValue + totalDividends) - filteredTotalInvested;
 
     // If no trades, fall back to contributions with fraction scaling
     const hasTrades = sortedTrades.some((t) => filteredTickers.has(t.ticker.toUpperCase()));
