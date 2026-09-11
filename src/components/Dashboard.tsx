@@ -277,13 +277,13 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
             <p className="text-xs text-muted font-medium">Patrimônio total</p>
             <InfoButton id="patrimonio" openInfo={openInfo} setOpenInfo={setOpenInfo} />
           </div>
-          <p className="text-2xl font-bold tabular">{mask(filteredMarketValue + totalDividends, hideValues)}</p>
+          <p className="text-2xl font-bold tabular">{mask(totalContributed + totalDividends, hideValues)}</p>
           <div className="flex items-center gap-2 mt-1">
-            <span className={`text-xs font-medium ${((filteredMarketValue + totalDividends) - totalContributed) >= 0 ? "text-income" : "text-expense"}`}>
-              {((filteredMarketValue + totalDividends) - totalContributed) >= 0 ? "+" : ""}
-              {totalContributed > 0 ? formatPercent(((filteredMarketValue + totalDividends) - totalContributed) / totalContributed * 100) : "0,00%"}
+            <span className={`text-xs font-medium ${((totalContributed + totalDividends) - totalContributed) >= 0 ? "text-income" : "text-expense"}`}>
+              {((totalContributed + totalDividends) - totalContributed) >= 0 ? "+" : ""}
+              {totalContributed > 0 ? formatPercent(totalDividends / totalContributed * 100) : "0,00%"}
             </span>
-            {((filteredMarketValue + totalDividends) - totalContributed) >= 0 ? (
+            {totalDividends >= 0 ? (
               <TrendingUp className="size-3 text-income" />
             ) : (
               <TrendingUp className="size-3 text-expense rotate-180" />
