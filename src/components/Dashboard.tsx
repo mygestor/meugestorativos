@@ -19,8 +19,6 @@ interface Props {
   contributions: ContributionRecord[];
   trades: TradeRecord[];
   dividends?: DividendRecord[];
-  initialAccountBalance: number;
-  setInitialAccountBalance: (v: number) => void;
 }
 
 function mask(v: number, hidden: boolean) {
@@ -74,11 +72,10 @@ function getTypeColor(type: string): string {
 
 type TimePeriod = "all" | "12m" | "24m" | "60m" | "120m" | "custom";
 
-export function Dashboard({ summary, assets, hideValues, contributions, trades, dividends, initialAccountBalance, setInitialAccountBalance }: Props) {
+export function Dashboard({ summary, assets, hideValues, contributions, trades, dividends }: Props) {
   const [timePeriod, setTimePeriod] = useState<TimePeriod>("12m");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [openInfo, setOpenInfo] = useState<string | null>(null);
-  const [balanceText, setBalanceText] = useState(() => initialAccountBalance === 0 ? "" : mask(initialAccountBalance, false).replace("R$ ", ""));
 
   // Filter assets by type
   const filteredAssets = useMemo(() => {
@@ -135,16 +132,17 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
     return contributions.reduce((s, c) => s + c.value, 0);
   }, [contributions]);
 
-  // Auto-calculate account balance: initial - compras + vendas
+  // Auto-calculate account balance: aportes − compras + vendas
   const accountBalance = useMemo(() => {
+    const totalAportes = contributions.filter((c) => c.value > 0).reduce((s, c) => s + c.value, 0);
     const totalCompras = trades
       .filter((t) => t.operation === "COMPRA")
       .reduce((s, t) => s + t.totalWithFees, 0);
     const totalVendas = trades
       .filter((t) => t.operation === "VENDA")
       .reduce((s, t) => s + t.totalWithFees, 0);
-    return initialAccountBalance - totalCompras + totalVendas;
-  }, [initialAccountBalance, trades]);
+    return totalAportes - totalCompras + totalVendas;
+  }, [contributions, trades]);
 
   // Calculate capital gains (filtered)
   const capitalGains = useMemo(() => {
@@ -316,19 +314,7 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
           <p className="text-sm font-medium tabular">{mask(filteredTotalValue, hideValues)}</p>
           <div className="flex items-center justify-between mt-2">
             <p className="text-xs text-muted">Conta investimento</p>
-            <input
-              type="text"
-              className="text-xs font-medium tabular bg-transparent border-none outline-none text-right w-24 text-muted"
-              value={balanceText}
-              placeholder="0,00"
-              onChange={(e) => setBalanceText(e.target.value)}
-              onBlur={() => {
-                const raw = balanceText.replace(/\./g, "").replace(",", ".");
-                const v = parseFloat(raw);
-                setInitialAccountBalance(isNaN(v) ? 0 : v);
-                setBalanceText(isNaN(v) ? "" : mask(v, false).replace("R$ ", ""));
-              }}
-            />
+            <p className="text-xs font-medium tabular">{mask(accountBalance, hideValues)}</p>
           </div>
         </div>
 
