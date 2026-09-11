@@ -7,6 +7,7 @@ import { PriceUpdateDialog } from "./PriceUpdateDialog";
 import { AssetLogo } from "./AssetLogo";
 import { AssetDetailPanel } from "./AssetDetailPanel";
 import { LotsView } from "./LotsView";
+import { PasswordConfirm } from "./PasswordConfirm";
 import { fetchDY12m, fetchFundamentals, type FundamentalData } from "../prices";
 
 interface Props {
@@ -31,6 +32,7 @@ export function AssetTable({ assets, hideValues, onEdit, onRefresh }: Props) {
   const [priceMap, setPriceMap] = useState<Map<string, number>>(new Map());
   const [fundamentalsMap, setFundamentalsMap] = useState<Map<string, FundamentalData>>(new Map());
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
+  const [pwConfirm, setPwConfirm] = useState<{ action: string; onConfirm: () => void } | null>(null);
   const allDividends = getDividends();
 
   const typeCards = [
@@ -102,11 +104,11 @@ export function AssetTable({ assets, hideValues, onEdit, onRefresh }: Props) {
     );
   }
 
-  async function handleDelete(id: string, ticker: string) {
-    if (confirm(`Excluir ${ticker}?`)) {
-      deleteAsset(id);
-      onRefresh();
-    }
+  function handleDelete(id: string, ticker: string) {
+    setPwConfirm({
+      action: `Excluir ativo ${ticker}?`,
+      onConfirm: () => { deleteAsset(id); onRefresh(); },
+    });
   }
 
   function yieldColor(pct: number) {
@@ -263,11 +265,16 @@ export function AssetTable({ assets, hideValues, onEdit, onRefresh }: Props) {
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            const result = recalcAvgPriceFromTrades(a.ticker);
-                            if (result && result.quantity > 0) {
-                              updateAsset(a.id, { avgPrice: result.avgPrice, quantity: result.quantity, investedAmount: result.investedAmount });
-                              onRefresh();
-                            }
+                            setPwConfirm({
+                              action: `Recalcular preço médio de ${a.ticker} a partir dos trades?`,
+                              onConfirm: () => {
+                                const result = recalcAvgPriceFromTrades(a.ticker);
+                                if (result && result.quantity > 0) {
+                                  updateAsset(a.id, { avgPrice: result.avgPrice, quantity: result.quantity, investedAmount: result.investedAmount });
+                                  onRefresh();
+                                }
+                              },
+                            });
                           }}
                           title="Recalcular preço médio a partir dos trades"
                           className="p-1.5 rounded-lg hover:bg-surface text-muted hover:text-foreground transition-colors"
@@ -356,6 +363,13 @@ export function AssetTable({ assets, hideValues, onEdit, onRefresh }: Props) {
       )}
       {lotAsset && (
         <LotsView asset={lotAsset} onClose={() => setLotAsset(null)} />
+      )}
+      {pwConfirm && (
+        <PasswordConfirm
+          action={pwConfirm.action}
+          onConfirm={() => { pwConfirm.onConfirm(); setPwConfirm(null); }}
+          onCancel={() => setPwConfirm(null)}
+        />
       )}
     </>
   );

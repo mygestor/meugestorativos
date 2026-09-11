@@ -4,6 +4,7 @@ import { formatCurrency, formatDate } from "../format";
 import { deleteTrade, recalculateAndSaveTrades, getTrades, clearTrades } from "../store";
 import { Trash2, ChevronDown, ChevronUp, RefreshCw, Pencil, AlertTriangle } from "lucide-react";
 import { AssetLogo } from "./AssetLogo";
+import { PasswordConfirm } from "./PasswordConfirm";
 
 interface Props {
   trades: TradeRecord[];
@@ -20,6 +21,7 @@ export function TradeTable({ trades, hideValues, onRefresh, onEdit }: Props) {
   const [sortField, setSortField] = useState<keyof TradeRecord>("date");
   const [sortAsc, setSortAsc] = useState(false);
   const [filterTicker, setFilterTicker] = useState("");
+  const [pwConfirm, setPwConfirm] = useState<{ action: string; onConfirm: () => void } | null>(null);
 
   const calculated = useMemo(() => {
     const sorted = [...trades].sort((a, b) => {
@@ -115,10 +117,10 @@ export function TradeTable({ trades, hideValues, onRefresh, onEdit }: Props) {
   }
 
   function handleDelete(id: string) {
-    if (confirm("Excluir esta operação?")) {
-      deleteTrade(id);
-      onRefresh();
-    }
+    setPwConfirm({
+      action: "Excluir esta operação?",
+      onConfirm: () => { deleteTrade(id); onRefresh(); },
+    });
   }
 
   function handleRecalc() {
@@ -127,12 +129,10 @@ export function TradeTable({ trades, hideValues, onRefresh, onEdit }: Props) {
   }
 
   function handleClearAll() {
-    if (confirm("Tem certeza? Todas as operações de compra e venda serão excluídas permanentemente.")) {
-      if (confirm("CONFIRMAÇÃO FINAL: Esta ação não pode ser desfeita. Excluir tudo?")) {
-        clearTrades();
-        onRefresh();
-      }
-    }
+    setPwConfirm({
+      action: "EXCLUIR TODAS as operações? Esta ação não pode ser desfeita.",
+      onConfirm: () => { clearTrades(); onRefresh(); },
+    });
   }
 
   const summary = useMemo(() => {
@@ -256,6 +256,13 @@ export function TradeTable({ trades, hideValues, onRefresh, onEdit }: Props) {
           </div>
         )}
       </div>
+      {pwConfirm && (
+        <PasswordConfirm
+          action={pwConfirm.action}
+          onConfirm={() => { pwConfirm.onConfirm(); setPwConfirm(null); }}
+          onCancel={() => setPwConfirm(null)}
+        />
+      )}
     </div>
   );
 }
