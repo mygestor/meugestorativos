@@ -1,4 +1,5 @@
 import { loadRemoteData, saveRemoteData } from "./firebase";
+import { normalizeAssetType } from "./detectType";
 
 export interface UserData {
   assets: any[];
@@ -45,8 +46,11 @@ export function getAllLocalData(): UserData {
 }
 
 export function setLocalData(data: UserData) {
-  localStorage.setItem("gestor-ativos-data", JSON.stringify(data.assets || []));
-  localStorage.setItem("gestor-ativos-dividendos", JSON.stringify(data.dividends || []));
+  // Normaliza tipos vindos da nuvem para evitar duplicidade ("Ação" x "AÇÃO")
+  const normAssets = (data.assets || []).map((a) => ({ ...a, type: normalizeAssetType(a.type) }));
+  const normDividends = (data.dividends || []).map((d) => ({ ...d, type: normalizeAssetType(d.type) }));
+  localStorage.setItem("gestor-ativos-data", JSON.stringify(normAssets));
+  localStorage.setItem("gestor-ativos-dividendos", JSON.stringify(normDividends));
   localStorage.setItem("gestor-ativos-aportes", JSON.stringify(data.contributions || []));
   localStorage.setItem("gestor-ativos-trades", JSON.stringify(data.trades || []));
   localStorage.setItem("gestor-ativos-lotes", JSON.stringify(data.lots || []));

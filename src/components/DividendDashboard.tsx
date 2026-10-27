@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import type { DividendRecord } from "../types";
 import { formatCurrency } from "../format";
+import { normalizeAssetType } from "../detectType";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell
@@ -27,7 +28,7 @@ export function DividendDashboard({ dividends, hideValues, onRefresh }: Props) {
   const [selectedTicker, setSelectedTicker] = useState("");
 
   const availableTypes = useMemo(() => {
-    return Array.from(new Set(dividends.map((d) => d.type))).sort();
+    return Array.from(new Set(dividends.map((d) => normalizeAssetType(d.type)))).sort();
   }, [dividends]);
 
   const availableYears = useMemo(() => {
@@ -36,14 +37,14 @@ export function DividendDashboard({ dividends, hideValues, onRefresh }: Props) {
 
   const availableTickers = useMemo(() => {
     let filtered = dividends;
-    if (filterType) filtered = filtered.filter((d) => d.type === filterType);
+    if (filterType) filtered = filtered.filter((d) => normalizeAssetType(d.type) === filterType);
     if (filterYears.length > 0) filtered = filtered.filter((d) => filterYears.includes(d.year));
     return Array.from(new Set(filtered.map((d) => d.ticker))).sort();
   }, [dividends, filterType, filterYears]);
 
   const filtered = useMemo(() => {
     let f = dividends;
-    if (filterType) f = f.filter((d) => d.type === filterType);
+    if (filterType) f = f.filter((d) => normalizeAssetType(d.type) === filterType);
     if (filterYears.length > 0) f = f.filter((d) => filterYears.includes(d.year));
     if (selectedTicker) f = f.filter((d) => d.ticker === selectedTicker);
     return f;
@@ -59,7 +60,10 @@ export function DividendDashboard({ dividends, hideValues, onRefresh }: Props) {
 
   const byType = useMemo(() => {
     const map: Record<string, number> = {};
-    filtered.forEach((d) => { map[d.type] = (map[d.type] ?? 0) + d.totalValue; });
+    filtered.forEach((d) => {
+      const key = normalizeAssetType(d.type);
+      map[key] = (map[key] ?? 0) + d.totalValue;
+    });
     return Object.entries(map).map(([name, value]) => ({ name, value: Math.round(value * 100) / 100 }));
   }, [filtered]);
 

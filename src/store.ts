@@ -1,6 +1,6 @@
 import type { Asset, PortfolioSummary, DividendRecord, ContributionRecord, TradeRecord, Lot } from "./types";
 import { createSeedData } from "./seed";
-import { detectAssetType } from "./detectType";
+import { detectAssetType, normalizeAssetType } from "./detectType";
 
 const STORAGE_KEY = "gestor-ativos-data";
 const DIVIDEND_KEY = "gestor-ativos-dividendos";
@@ -73,7 +73,13 @@ export function getAssets(): Asset[] {
 export function addAsset(data: Omit<Asset, "id" | "createdAt" | "updatedAt">): Asset {
   const assets = loadAssets();
   const now = new Date().toISOString();
-  const asset: Asset = { id: generateId(), ...data, createdAt: now, updatedAt: now };
+  const asset: Asset = {
+    id: generateId(),
+    ...data,
+    type: normalizeAssetType(data.type),
+    createdAt: now,
+    updatedAt: now,
+  };
   assets.push(asset);
   saveAssets(assets);
   return asset;
@@ -83,7 +89,10 @@ export function updateAsset(id: string, data: Partial<Asset>): Asset | null {
   const assets = loadAssets();
   const idx = assets.findIndex((a) => a.id === id);
   if (idx === -1) return null;
-  assets[idx] = { ...assets[idx], ...data, updatedAt: new Date().toISOString() };
+  const patch: Partial<Asset> = data.type !== undefined
+    ? { ...data, type: normalizeAssetType(data.type) }
+    : data;
+  assets[idx] = { ...assets[idx], ...patch, updatedAt: new Date().toISOString() };
   saveAssets(assets);
   return assets[idx];
 }
@@ -99,7 +108,7 @@ export function importAssets(assets: Omit<Asset, "id" | "createdAt" | "updatedAt
   const now = new Date().toISOString();
   const merged = [
     ...existing,
-    ...assets.map((a) => ({ ...a, id: generateId(), createdAt: now, updatedAt: now })),
+    ...assets.map((a) => ({ ...a, type: normalizeAssetType(a.type), id: generateId(), createdAt: now, updatedAt: now })),
   ];
   saveAssets(merged);
 }
@@ -135,9 +144,48 @@ export function getDividends(): DividendRecord[] {
   return load<DividendRecord>(DIVIDEND_KEY);
 }
 
+// Corrige tipos gravados com variações ("Ação", "ACAO", "fii") para as canônicas
+// "AÇÃO" e "FII", deixando apenas duas classes de ativo.
+export function migrateAssetTypes(): number {
+  let changed = 0;
+
+  const assets = loadAssets();
+  let assetsChanged = false;
+  const fixedAssets = assets.map((a) => {
+    const t = normalizeAssetType(a.type);
+    if (t !== a.type) {
+      assetsChanged = true;
+      changed++;
+      return { ...a, type: t };
+    }
+    return a;
+  });
+  if (assetsChanged) saveAssets(fixedAssets);
+
+  const divs = load<DividendRecord>(DIVIDEND_KEY);
+  let divsChanged = false;
+  const fixedDivs = divs.map((d) => {
+    const t = normalizeAssetType(d.type);
+    if (t !== d.type) {
+      divsChanged = true;
+      changed++;
+      return { ...d, type: t };
+    }
+    return d;
+  });
+  if (divsChanged) save(DIVIDEND_KEY, fixedDivs);
+
+  return changed;
+}
+
 export function addDividend(data: Omit<DividendRecord, "id" | "createdAt">): DividendRecord {
   const list = getDividends();
-  const rec: DividendRecord = { id: generateId(), ...data, createdAt: new Date().toISOString() };
+  const rec: DividendRecord = {
+    id: generateId(),
+    ...data,
+    type: normalizeAssetType(data.type),
+    createdAt: new Date().toISOString(),
+  };
   list.push(rec);
   save(DIVIDEND_KEY, list);
   return rec;
@@ -153,7 +201,10 @@ export function updateDividend(id: string, data: Partial<DividendRecord>): Divid
   const list = getDividends();
   const idx = list.findIndex((d) => d.id === id);
   if (idx === -1) return null;
-  list[idx] = { ...list[idx], ...data };
+  const patch: Partial<DividendRecord> = data.type !== undefined
+    ? { ...data, type: normalizeAssetType(data.type) }
+    : data;
+  list[idx] = { ...list[idx], ...patch };
   save(DIVIDEND_KEY, list);
   return list[idx];
 }
@@ -163,7 +214,7 @@ export function importDividends(rows: Omit<DividendRecord, "id" | "createdAt">[]
   const now = new Date().toISOString();
   const merged = [
     ...existing,
-    ...rows.map((r) => ({ ...r, id: generateId(), createdAt: now })),
+    ...rows.map((r) => ({ ...r, type: normalizeAssetType(r.type), id: generateId(), createdAt: now })),
   ];
   save(DIVIDEND_KEY, merged);
 }
@@ -345,8 +396,8 @@ export function importFullBackup(data: {
   contributions?: ContributionRecord[];
   trades?: TradeRecord[];
 }) {
-  if (data.assets) saveAssets(data.assets);
-  if (data.dividends) save(DIVIDEND_KEY, data.dividends);
+  if (data.assets) saveAssets(data.assets.map((a) => ({ ...a, type: normalizeAssetType(a.type) })));
+  if (data.dividends) save(DIVIDEND_KEY, data.dividends.map((d) => ({ ...d, type: normalizeAssetType(d.type) })));
   if (data.contributions) save(APORTE_KEY, data.contributions);
   if (data.trades) save(TRADE_KEY, data.trades);
 }

@@ -35,6 +35,16 @@ export function detectAssetType(ticker: string): { type: string; sector: string 
   return { type: "ETF", sector: "ETF" };
 }
 
+// Normaliza o tipo do ativo para as canônicas: "AÇÃO" (era "Ação"/"ACAO"/"Ações")
+// e "FII" (era "fii"/"FIIs"). Demais tipos são mantidos como estão.
+export function normalizeAssetType(type: string): string {
+  const raw = (type ?? "").trim();
+  const key = raw.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
+  if (key === "ACAO" || key === "ACOES") return "AÇÃO";
+  if (key === "FII" || key === "FIIS") return "FII";
+  return raw;
+}
+
 export function getTypeColor(type: string): string {
   const map: Record<string, string> = {
     FII: "#10b981",

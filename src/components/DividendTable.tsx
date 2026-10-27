@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import type { DividendRecord } from "../types";
 import { formatCurrency, formatDate } from "../format";
 import { deleteDividend, updateDividend, getDividendStats } from "../store";
+import { normalizeAssetType } from "../detectType";
 import { fetchAssetName } from "../prices";
 import { Trash2, Download, ChevronDown, ChevronUp, X, Pencil, HandCoins } from "lucide-react";
 
@@ -141,7 +142,7 @@ export function DividendTable({ dividends, hideValues, onRefresh }: Props) {
     setEditingDividend(dividend);
     setEditForm({
       ticker: dividend.ticker,
-      type: dividend.type,
+      type: normalizeAssetType(dividend.type),
       name: dividend.name,
       payment: dividend.payment,
       movementType: dividend.movementType,
@@ -296,7 +297,7 @@ export function DividendTable({ dividends, hideValues, onRefresh }: Props) {
                 {sorted.map((d) => (
                   <tr key={d.id} className="hover:bg-card-hover transition-colors">
                     <td className="p-3 font-medium">{d.ticker}</td>
-                    <td className="p-3 text-xs text-muted">{d.type}</td>
+                    <td className="p-3 text-xs text-muted">{normalizeAssetType(d.type)}</td>
                     <td className="p-3 text-xs">{d.monthYear}</td>
                     <td className="p-3 text-xs text-muted max-w-32 truncate">{tickerNames[d.ticker] || d.name}</td>
                     <td className="p-3 text-xs tabular">{formatDate(d.payment)}</td>
