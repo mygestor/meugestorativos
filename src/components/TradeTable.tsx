@@ -2,7 +2,7 @@ import { useState, useMemo, type ReactNode } from "react";
 import type { TradeRecord } from "../types";
 import { formatCurrency, formatDate } from "../format";
 import { deleteTrade, recalculateAndSaveTrades, getTrades, clearTrades } from "../store";
-import { Trash2, ChevronDown, ChevronUp, RefreshCw, Pencil, AlertTriangle } from "lucide-react";
+import { Trash2, ChevronDown, ChevronUp, ChevronRight, RefreshCw, Pencil, AlertTriangle } from "lucide-react";
 import { AssetLogo } from "./AssetLogo";
 import { PasswordConfirm } from "./PasswordConfirm";
 
@@ -22,6 +22,16 @@ export function TradeTable({ trades, hideValues, onRefresh, onEdit }: Props) {
   const [sortAsc, setSortAsc] = useState(false);
   const [filterTicker, setFilterTicker] = useState("");
   const [pwConfirm, setPwConfirm] = useState<{ action: string; onConfirm: () => void } | null>(null);
+  const [collapsedDates, setCollapsedDates] = useState<Set<string>>(new Set());
+
+  function toggleDate(date: string) {
+    setCollapsedDates((prev) => {
+      const next = new Set(prev);
+      if (next.has(date)) next.delete(date);
+      else next.add(date);
+      return next;
+    });
+  }
 
   const calculated = useMemo(() => {
     const sorted = [...trades].sort((a, b) => {
@@ -253,6 +263,33 @@ export function TradeTable({ trades, hideValues, onRefresh, onEdit }: Props) {
                 {dateGroups.map((g, gi) => {
                   // fundo alternado por dia para separar visualmente os grupos
                   const bg = gi % 2 === 1 ? "bg-surface/60" : "";
+                  const isCollapsed = collapsedDates.has(g.date);
+
+                  // Data fechada: apenas a linha-resumo do dia
+                  if (isCollapsed) {
+                    const n = g.rows.length;
+                    return (
+                      <tr key={`group-${g.date}`} className={`transition-colors text-xs ${bg}`}>
+                        <td className="p-2 whitespace-nowrap align-top">
+                          <button
+                            onClick={() => toggleDate(g.date)}
+                            title="Mostrar lançamentos deste dia"
+                            className="flex items-center gap-1 font-medium hover:text-primary transition-colors"
+                          >
+                            <ChevronRight className="size-3.5 text-muted" />
+                            <span className="tabular">{formatDate(g.date)}</span>
+                          </button>
+                          <div className="text-[10px] text-muted font-normal pl-[18px]">
+                            {n} lançamento{n > 1 ? "s" : ""} oculto{n > 1 ? "s" : ""}
+                          </div>
+                        </td>
+                        <td colSpan={9} className="p-2 text-[11px] text-muted">
+                          Clique na data para abrir os lançamentos deste dia
+                        </td>
+                      </tr>
+                    );
+                  }
+
                   return g.rows.map((t, i) =>
                     i === 0
                       ? renderRow(
@@ -261,9 +298,16 @@ export function TradeTable({ trades, hideValues, onRefresh, onEdit }: Props) {
                             rowSpan={g.rows.length}
                             className="p-2 tabular whitespace-nowrap align-top"
                           >
-                            <div className="font-medium">{formatDate(g.date)}</div>
+                            <button
+                              onClick={() => toggleDate(g.date)}
+                              title="Ocultar lançamentos deste dia"
+                              className="flex items-center gap-1 font-medium hover:text-primary transition-colors"
+                            >
+                              <ChevronDown className="size-3.5 text-muted" />
+                              <span>{formatDate(g.date)}</span>
+                            </button>
                             {g.rows.length > 1 && (
-                              <div className="text-[10px] text-muted font-normal">
+                              <div className="text-[10px] text-muted font-normal pl-[18px]">
                                 {g.rows.length} lançamentos
                               </div>
                             )}
