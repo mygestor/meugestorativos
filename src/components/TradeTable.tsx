@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, type ReactNode } from "react";
 import type { TradeRecord } from "../types";
 import { formatCurrency, formatDate } from "../format";
 import { deleteTrade, recalculateAndSaveTrades, getTrades, clearTrades } from "../store";
@@ -100,6 +100,17 @@ export function TradeTable({ trades, hideValues, onRefresh, onEdit }: Props) {
     });
   }, [calculated, sortField, sortAsc, filterTicker]);
 
+  // Agrupa linhas consecutivas com a mesma data (usado quando a ordenação é por data)
+  const dateGroups = useMemo(() => {
+    const groups: { date: string; rows: (typeof calculated)[number][] }[] = [];
+    for (const row of sorted) {
+      const last = groups[groups.length - 1];
+      if (last && last.date === row.date) last.rows.push(row);
+      else groups.push({ date: row.date, rows: [row] });
+    }
+    return groups;
+  }, [sorted]);
+
   function toggleSort(field: keyof TradeRecord) {
     if (sortField === field) setSortAsc(!sortAsc);
     else { setSortField(field); setSortAsc(true); }
@@ -144,6 +155,46 @@ export function TradeTable({ trades, hideValues, onRefresh, onEdit }: Props) {
       .filter(([_, v]) => v.shares > 0)
       .map(([ticker, v]) => ({ ticker, ...v }));
   }, [calculated]);
+
+  type Row = (typeof calculated)[number];
+
+  function renderRow(t: Row, dateCell?: ReactNode | null) {
+    return (
+      <tr key={t.id} className="hover:bg-card-hover transition-colors text-xs">
+        {dateCell !== undefined ? dateCell : <td className="p-2 tabular whitespace-nowrap">{formatDate(t.date)}</td>}
+        <td className="p-2 font-medium">{t.ticker}</td>
+        <td className="p-2 text-right">
+          <span className={`px-1.5 py-0.5 rounded text-[11px] font-medium ${
+            t.operation === "COMPRA" ? "bg-income/10 text-income" : "bg-expense/10 text-expense"
+          }`}>
+            {t.operation === "COMPRA" ? "C" : "V"}
+          </span>
+        </td>
+        <td className="p-2 text-right tabular">{Math.abs(t.quantity)}</td>
+        <td className="p-2 text-right tabular">{mask(t.price, hideValues)}</td>
+        <td className="p-2 text-right tabular hidden sm:table-cell">{mask(t.fees, hideValues)}</td>
+        <td className="p-2 text-right tabular hidden lg:table-cell">{mask(t.totalWithFees, hideValues)}</td>
+        <td className="p-2 text-right tabular hidden lg:table-cell">{t.totalShares}</td>
+        <td className="p-2 text-right tabular hidden lg:table-cell">{mask(t.avgPrice, hideValues)}</td>
+        <td className="p-2 text-right flex gap-1 justify-end">
+          <button
+            onClick={() => onEdit(t)}
+            className="p-1 rounded-lg hover:bg-surface text-muted hover:text-primary transition-colors"
+            title="Editar"
+          >
+            <Pencil className="size-3.5" />
+          </button>
+          <button
+            onClick={() => handleDelete(t.id)}
+            className="p-1 rounded-lg hover:bg-surface text-muted hover:text-expense transition-colors"
+            title="Excluir"
+          >
+            <Trash2 className="size-3.5" />
+          </button>
+        </td>
+      </tr>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -199,41 +250,28 @@ export function TradeTable({ trades, hideValues, onRefresh, onEdit }: Props) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {sorted.map((t) => (
-                  <tr key={t.id} className="hover:bg-card-hover transition-colors text-xs">
-                    <td className="p-2 tabular whitespace-nowrap">{formatDate(t.date)}</td>
-                    <td className="p-2 font-medium">{t.ticker}</td>
-                    <td className="p-2 text-right">
-                      <span className={`px-1.5 py-0.5 rounded text-[11px] font-medium ${
-                        t.operation === "COMPRA" ? "bg-income/10 text-income" : "bg-expense/10 text-expense"
-                      }`}>
-                        {t.operation === "COMPRA" ? "C" : "V"}
-                      </span>
-                    </td>
-                    <td className="p-2 text-right tabular">{Math.abs(t.quantity)}</td>
-                    <td className="p-2 text-right tabular">{mask(t.price, hideValues)}</td>
-                    <td className="p-2 text-right tabular hidden sm:table-cell">{mask(t.fees, hideValues)}</td>
-                    <td className="p-2 text-right tabular hidden lg:table-cell">{mask(t.totalWithFees, hideValues)}</td>
-                    <td className="p-2 text-right tabular hidden lg:table-cell">{t.totalShares}</td>
-                    <td className="p-2 text-right tabular hidden lg:table-cell">{mask(t.avgPrice, hideValues)}</td>
-                     <td className="p-2 text-right flex gap-1 justify-end">
-                       <button
-                         onClick={() => onEdit(t)}
-                         className="p-1 rounded-lg hover:bg-surface text-muted hover:text-primary transition-colors"
-                         title="Editar"
-                       >
-                         <Pencil className="size-3.5" />
-                       </button>
-                       <button
-                         onClick={() => handleDelete(t.id)}
-                         className="p-1 rounded-lg hover:bg-surface text-muted hover:text-expense transition-colors"
-                         title="Excluir"
-                       >
-                         <Trash2 className="size-3.5" />
-                       </button>
-                     </td>
-                  </tr>
-                ))}
+                {sortField === "date"
+                  ? dateGroups.map((g) =>
+                      g.rows.map((t, i) =>
+                        i === 0
+                          ? renderRow(
+                              t,
+                              <td
+                                rowSpan={g.rows.length}
+                                className="p-2 tabular whitespace-nowrap align-top"
+                              >
+                                <div className="font-medium">{formatDate(g.date)}</div>
+                                {g.rows.length > 1 && (
+                                  <div className="text-[10px] text-muted font-normal">
+                                    {g.rows.length} lançamentos
+                                  </div>
+                                )}
+                              </td>
+                            )
+                          : renderRow(t, null)
+                      )
+                    )
+                  : sorted.map((t) => renderRow(t))}
               </tbody>
             </table>
           </div>
