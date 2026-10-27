@@ -158,9 +158,9 @@ export function TradeTable({ trades, hideValues, onRefresh, onEdit }: Props) {
 
   type Row = (typeof calculated)[number];
 
-  function renderRow(t: Row, dateCell?: ReactNode | null) {
+  function renderRow(t: Row, dateCell?: ReactNode | null, bgClass?: string) {
     return (
-      <tr key={t.id} className="hover:bg-card-hover transition-colors text-xs">
+      <tr key={t.id} className={`hover:bg-card-hover transition-colors text-xs ${bgClass ?? ""}`}>
         {dateCell !== undefined ? dateCell : <td className="p-2 tabular whitespace-nowrap">{formatDate(t.date)}</td>}
         <td className="p-2 font-medium">{t.ticker}</td>
         <td className="p-2 text-right">
@@ -250,28 +250,29 @@ export function TradeTable({ trades, hideValues, onRefresh, onEdit }: Props) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {sortField === "date"
-                  ? dateGroups.map((g) =>
-                      g.rows.map((t, i) =>
-                        i === 0
-                          ? renderRow(
-                              t,
-                              <td
-                                rowSpan={g.rows.length}
-                                className="p-2 tabular whitespace-nowrap align-top"
-                              >
-                                <div className="font-medium">{formatDate(g.date)}</div>
-                                {g.rows.length > 1 && (
-                                  <div className="text-[10px] text-muted font-normal">
-                                    {g.rows.length} lançamentos
-                                  </div>
-                                )}
-                              </td>
-                            )
-                          : renderRow(t, null)
-                      )
-                    )
-                  : sorted.map((t) => renderRow(t))}
+                {dateGroups.map((g, gi) => {
+                  // fundo alternado por dia para separar visualmente os grupos
+                  const bg = gi % 2 === 1 ? "bg-surface/60" : "";
+                  return g.rows.map((t, i) =>
+                    i === 0
+                      ? renderRow(
+                          t,
+                          <td
+                            rowSpan={g.rows.length}
+                            className="p-2 tabular whitespace-nowrap align-top"
+                          >
+                            <div className="font-medium">{formatDate(g.date)}</div>
+                            {g.rows.length > 1 && (
+                              <div className="text-[10px] text-muted font-normal">
+                                {g.rows.length} lançamentos
+                              </div>
+                            )}
+                          </td>,
+                          bg
+                        )
+                      : renderRow(t, null, bg)
+                  );
+                })}
               </tbody>
             </table>
           </div>
