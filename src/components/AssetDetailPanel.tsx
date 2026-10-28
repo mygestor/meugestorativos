@@ -3,6 +3,7 @@ import type { Asset, DividendRecord, TradeRecord } from "../types";
 import { formatCurrency, formatDate, formatPercent } from "../format";
 import { X } from "lucide-react";
 import { fetchFundamentals, type FundamentalData } from "../prices";
+import { calcTIRAsset } from "../tir";
 
 interface Props {
   asset: Asset;
@@ -29,6 +30,12 @@ export function AssetDetailPanel({ asset, dividends, trades, onClose }: Props) {
   const gain = currentValue - asset.investedAmount;
   const rentPct = asset.investedAmount > 0 ? (gain / asset.investedAmount) * 100 : 0;
 
+  // TIR do ativo (compras/vendas + dividendos + valor atual)
+  const tir = useMemo(
+    () => calcTIRAsset(asset, trades, dividends),
+    [asset, trades, dividends],
+  );
+
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="dialog-enter bg-card border border-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg max-h-[95vh] sm:max-h-[90vh] overflow-y-auto sm:mx-4 mx-0">
@@ -51,6 +58,12 @@ export function AssetDetailPanel({ asset, dividends, trades, onClose }: Props) {
             <DetailCard label="Valor Atual" value={formatCurrency(currentValue)} valueColor={gain >= 0 ? "text-income" : "text-expense"} />
             <DetailCard label="Lucro/Prejuízo" value={formatCurrency(gain)} valueColor={gain >= 0 ? "text-income" : "text-expense"} />
             <DetailCard label="Rentabilidade" value={formatPercent(rentPct)} valueColor={rentPct >= 0 ? "text-income" : "text-expense"} />
+            <DetailCard
+              label="TIR (Anual)"
+              value={tir ? formatPercent(tir.annual * 100) : "—"}
+              valueColor={tir ? (tir.annual >= 0 ? "text-income" : "text-expense") : undefined}
+            />
+            <DetailCard label="TIR (Mês)" value={tir ? formatPercent(tir.monthly * 100) : "—"} />
             <DetailCard label="Dividendo/Cota" value={formatCurrency(asset.dividendPerShare)} />
             <DetailCard label="Dividendo/Mês" value={formatCurrency(asset.currentDividend)} />
             <DetailCard label="Dividendo/Ano" value={formatCurrency(asset.annualReturn)} />

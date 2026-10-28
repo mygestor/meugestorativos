@@ -6,6 +6,8 @@
 //
 // A TIR é a taxa que faz o VP (valor presente) dos fluxos zerar.
 
+import type { Asset, DividendRecord, TradeRecord } from "./types";
+
 export interface CashFlow {
   date: string; // YYYY-MM-DD
   value: number;
@@ -63,4 +65,36 @@ export function calcTIR(flows: CashFlow[]): { annual: number; monthly: number } 
   const annual = (lo + hi) / 2;
   const monthly = Math.pow(1 + annual, 1 / 12) - 1;
   return { annual, monthly };
+}
+
+/**
+ * TIR de um ativo específico.
+ * Fluxos: compras (saída, com taxas), vendas (entrada, com taxas),
+ * dividendos recebidos do ticker (entrada) e valor atual da posição (final).
+ * Retorna null quando não há operações suficientes.
+ */
+export function calcTIRAsset(
+  asset: Pick<Asset, "ticker" | "currentPrice" | "quantity">,
+  trades: TradeRecord[],
+  dividends: DividendRecord[],
+): { annual: number; monthly: number } | null {
+  const today = new Date().toISOString().slice(0, 10);
+  const ticker = asset.ticker.toUpperCase();
+  const flows: CashFlow[] = [];
+
+  for (const t of trades) {
+    if (t.ticker.toUpperCase() !== ticker || !t.date) continue;
+    const value = t.operation === "COMPRA" ? -Math.abs(t.totalWithFees) : Math.abs(t.totalWithFees);
+    if (value !== 0) flows.push({ date: t.date, value });
+  }
+
+  for (const d of dividends) {
+    if (d.ticker.toUpperCase() !== ticker || !d.payment || d.payment > today) continue;
+    if (d.totalValue) flows.push({ date: d.payment, value: d.totalValue });
+  }
+
+  const currentValue = asset.currentPrice * asset.quantity;
+  if (currentValue > 0) flows.push({ date: today, value: currentValue });
+
+  return calcTIR(flows);
 }

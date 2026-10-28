@@ -9,6 +9,7 @@ import { AssetDetailPanel } from "./AssetDetailPanel";
 import { LotsView } from "./LotsView";
 import { PasswordConfirm } from "./PasswordConfirm";
 import { fetchDY12m, fetchFundamentals, type FundamentalData } from "../prices";
+import { calcTIRAsset } from "../tir";
 
 interface Props {
   assets: Asset[];
@@ -34,6 +35,7 @@ export function AssetTable({ assets, hideValues, onEdit, onRefresh }: Props) {
   const [typeFilter, setTypeFilter] = useState<string | null>(null);
   const [pwConfirm, setPwConfirm] = useState<{ action: string; onConfirm: () => void } | null>(null);
   const allDividends = getDividends();
+  const allTrades = getTrades();
 
   const typeCards = [
     { type: "AÇÃO", label: "Ações", color: "#3b82f6" },
@@ -197,6 +199,7 @@ export function AssetTable({ assets, hideValues, onEdit, onRefresh }: Props) {
                 <th className="p-3 text-right hidden md:table-cell"><SortHeader field="investedAmount" label="Investido" /></th>
                 <th className="p-3 text-right hidden md:table-cell"><span className="text-xs font-medium">Ganho/Perda</span></th>
                 <th className="p-3 text-right hidden lg:table-cell"><span className="text-xs font-medium">P/L</span></th>
+                <th className="p-3 text-right hidden md:table-cell"><span className="text-xs font-medium">TIR<br/><span className="text-[10px] text-muted font-normal">(a.a.)</span></span></th>
                 <th className="p-3 text-right"><span className="text-xs font-medium">DY Anual<br/><span className="text-[10px] text-muted font-normal">(com JCP)</span></span></th>
                 <th className="p-3 text-right w-20" />
               </tr>
@@ -211,6 +214,8 @@ export function AssetTable({ assets, hideValues, onEdit, onRefresh }: Props) {
               const precoJusto = dyAnual > 0 && a.currentPrice > 0
                 ? a.currentPrice * (8 / dyAnual)
                 : 0;
+              // TIR do ativo (compras/vendas + dividendos + valor atual da posição)
+              const tirA = calcTIRAsset(a, allTrades, allDividends);
               return (
                 <tbody key={a.id} className="even:bg-surface/30">
                   <tr
@@ -246,6 +251,15 @@ export function AssetTable({ assets, hideValues, onEdit, onRefresh }: Props) {
                           {fundamentalsMap.get(a.ticker.toUpperCase())!.pe!.toFixed(1)}x
                         </span>
                       ) : "-"}
+                    </td>
+                    <td className="p-3 text-right tabular hidden md:table-cell">
+                      {tirA ? (
+                        <span className={`font-medium ${tirA.annual >= 0 ? "text-green-500" : "text-red-500"}`}>
+                          {formatPercent(tirA.annual * 100)}
+                        </span>
+                      ) : (
+                        <span className="text-muted">-</span>
+                      )}
                     </td>
                     <td className="p-3 text-right tabular">
                       {dyAnual > 0 ? (
@@ -292,7 +306,7 @@ export function AssetTable({ assets, hideValues, onEdit, onRefresh }: Props) {
                   </tr>
                   {isExpanded && (
                     <tr>
-                      <td colSpan={10} className="p-4 bg-surface/50">
+                      <td colSpan={11} className="p-4 bg-surface/50">
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
                           <DetailItem label="Segmento" value={a.sector || a.subtype || a.type} />
                           <DetailItem label="Preço Médio" value={mask(a.avgPrice, hideValues)} />
