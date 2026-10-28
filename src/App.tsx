@@ -17,6 +17,7 @@ import { TradeTable } from "./components/TradeTable";
 import { TradeDialog } from "./components/TradeDialog";
 import { TradeImport } from "./components/TradeImport";
 import { PlanningPage } from "./components/PlanningPage";
+import { RentabilityPage } from "./components/RentabilityPage";
 import { IRPFReport } from "./components/IRPFReport";
 import { DividendAlerts } from "./components/DividendAlerts";
 import { DividendCalendar } from "./components/DividendCalendar";
@@ -27,9 +28,9 @@ import { logoutFirebase, onAuthChange, handleRedirectResult } from "./firebase";
 import { FirebaseLogin } from "./components/FirebaseLogin";
 import { loadUserData, setLocalData, getAllLocalData, scheduleSave, forceSaveNow } from "./sync";
 import { getKnownSector } from "./sectorFetch";
-import { TrendingUp, Plus, Upload, Download, Trash2, Eye, EyeOff, LayoutDashboard, Briefcase, HandCoins, PiggyBank, ArrowLeftRight, Target, FileText, Building2 } from "lucide-react";
+import { TrendingUp, Plus, Upload, Download, Trash2, Eye, EyeOff, LayoutDashboard, Briefcase, HandCoins, PiggyBank, ArrowLeftRight, Target, FileText, Building2, Percent } from "lucide-react";
 
-type Tab = "dashboard" | "assets" | "dividendos" | "aportes" | "trades" | "planejamento" | "analise-fii" | "comparador";
+type Tab = "dashboard" | "assets" | "dividendos" | "aportes" | "trades" | "planejamento" | "rentabilidade" | "analise-fii" | "comparador";
 
 type FirebaseUser = { uid: string; displayName: string | null; email: string | null; photoURL: string | null };
 
@@ -466,6 +467,9 @@ export default function App() {
           <TabButton active={tab === "planejamento"} onClick={() => setTab("planejamento")} icon={Target}>
             Planejamento
           </TabButton>
+          <TabButton active={tab === "rentabilidade"} onClick={() => setTab("rentabilidade")} icon={Percent}>
+            Rentabilidade
+          </TabButton>
           </div>
           <div className="pointer-events-none absolute inset-y-0 left-0 w-8 bg-gradient-to-r from-surface to-transparent sm:hidden" />
           <div className="pointer-events-none absolute inset-y-0 right-0 w-8 bg-gradient-to-l from-surface to-transparent sm:hidden" />
@@ -598,6 +602,9 @@ export default function App() {
         )}
         {tab === "planejamento" && (
           <PlanningPage assets={assets} dividends={dividends} contributions={contributions} trades={trades} hideValues={hideValues} />
+        )}
+        {tab === "rentabilidade" && (
+          <RentabilityPage assets={assets} dividends={dividends} contributions={contributions} trades={trades} hideValues={hideValues} />
         )}
       </div>
 
