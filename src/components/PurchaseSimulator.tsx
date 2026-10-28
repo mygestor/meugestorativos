@@ -27,17 +27,20 @@ export function PurchaseSimulator({ assets, hideValues }: Props) {
 
     let newShares: number;
     let newInvested: number;
+    let investedNow: number; // valor investido nesta simulação
 
     if (mode === "value") {
       const aporte = parseFloat(aporteValue.replace(",", "."));
       if (isNaN(aporte) || aporte <= 0) return null;
       newShares = aporte / price;
       newInvested = currentInvested + aporte;
+      investedNow = aporte;
     } else {
       const qty = parseFloat(qtyValue.replace(",", "."));
       if (isNaN(qty) || qty <= 0) return null;
       newShares = qty;
       newInvested = currentInvested + qty * price;
+      investedNow = qty * price;
     }
 
     const totalShares = currentShares + newShares;
@@ -53,6 +56,8 @@ export function PurchaseSimulator({ assets, hideValues }: Props) {
 
     return {
       totalShares: Math.round(totalShares * 100) / 100,
+      purchaseShares: Math.round(newShares * 100) / 100,
+      requiredValue: Math.round(investedNow * 100) / 100,
       avgPrice: Math.round(avgPrice * 100) / 100,
       newInvested: Math.round(newInvested * 100) / 100,
       newPositionValue: Math.round(newPositionValue * 100) / 100,
@@ -149,8 +154,21 @@ export function PurchaseSimulator({ assets, hideValues }: Props) {
         {result && selected && (
           <div className="bg-surface rounded-xl p-4 space-y-2 text-sm">
             <p className="text-xs text-muted font-medium uppercase tracking-wider mb-2">Resultado da Simulação</p>
+
+            {/* Destaque: valor necessário / cotas a comprar */}
+            <div className="flex items-center justify-between bg-primary/10 border border-primary/30 rounded-xl px-3 py-2.5 mb-2">
+              <span className="text-xs font-semibold text-primary uppercase tracking-wider">
+                {mode === "qty" ? "Valor Necessário p/ Investir" : "Cotas a Comprar"}
+              </span>
+              <span className="text-base font-bold tabular text-primary">
+                {mode === "qty" ? mask(result.requiredValue) : `${result.purchaseShares} cotas`}
+              </span>
+            </div>
+
             <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-xs">
               <ResultRow label="Total de Cotas" value={String(result.totalShares)} />
+              <ResultRow label="Cotas na Compra" value={String(result.purchaseShares)} />
+              <ResultRow label="Valor desta Compra" value={mask(result.requiredValue)} />
               <ResultRow label="Novo Preço Médio" value={mask(result.avgPrice)} />
               <ResultRow label="Total Investido" value={mask(result.newInvested)} />
               <ResultRow label="Posição Atual" value={mask(result.newPositionValue)} />
