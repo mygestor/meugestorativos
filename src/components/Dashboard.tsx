@@ -3,13 +3,15 @@ import type { Asset, PortfolioSummary, ContributionRecord, TradeRecord, Dividend
 import { formatCurrency, formatCompact, formatPercent } from "../format";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Legend } from "recharts";
 import { AssetLogo } from "./AssetLogo";
-import { Wallet, TrendingUp, DollarSign, BarChart3, ChevronDown, Info } from "lucide-react";
+import { calcTIR, type CashFlow } from "../tir";
+import { Wallet, TrendingUp, DollarSign, BarChart3, ChevronDown, Info, Percent } from "lucide-react";
 
 const CARD_INFO: Record<string, string> = {
     patrimonio: "Valor atual de mercado de todos os ativos + todos os dividendos recebidos desde o início.",
   lucro: "Ganho de Capital = (Preço Atual × Quantidade) − Valor Investido. Dividendos = soma dos proventos recebidos nos últimos 12 meses. Lucro Total = Ganho + Dividendos.",
   proventos: "Soma dos dividendos e proventos recebidos nos últimos 12 meses. Total = soma de todos os proventos já recebidos.",
   rentabilidade: "Rentabilidade = ((Valor Atual + Dividendos 12M) − Valor Investido) / Valor Investido × 100.",
+  tir: "TIR (Taxa Interna de Retorno) = a taxa que equilibra seus fluxos de caixa: aportes registrados (saídas), dividendos recebidos (entradas) e o patrimônio atual como valor final. Calculada pelo método XIRR usando as datas reais de cada aporte/dividendo. Quanto maior, melhor foi o retorno do seu investimento no período.",
 };
 
 interface Props {
@@ -163,6 +165,31 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
     return ((filteredMarketValue + totalDividends - filteredTotalValue) / filteredTotalValue) * 100;
   }, [filteredTotalValue, filteredMarketValue, totalDividends]);
 
+  // TIR da carteira (XIRR): aportes = saídas, dividendos recebidos = entradas,
+  // patrimônio atual = valor final. Sempre sobre a carteira inteira.
+  const tir = useMemo(() => {
+    const today = new Date().toISOString().slice(0, 10);
+    const flows: CashFlow[] = [];
+
+    // Aportes (valores negativos = retiradas) entram como saída de caixa
+    for (const c of contributions) {
+      if (c.date && c.value) flows.push({ date: c.date, value: -c.value });
+    }
+
+    // Dividendos já recebidos entram como entrada
+    for (const d of dividends ?? []) {
+      if (d.payment && d.payment <= today && d.totalValue) {
+        flows.push({ date: d.payment, value: d.totalValue });
+      }
+    }
+
+    // Patrimônio atual como valor final (entrada)
+    const marketValue = assets.reduce((s, a) => s + a.currentPrice * a.quantity, 0);
+    if (marketValue > 0) flows.push({ date: today, value: marketValue });
+
+    return calcTIR(flows);
+  }, [contributions, dividends, assets]);
+
   // Evolution data based on time period and type filter
   const evolutionData = useMemo(() => {
     const now = new Date();
@@ -290,7 +317,7 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
   return (
     <div className="space-y-6" onClick={() => openInfo && setOpenInfo(null)}>
       {/* Top Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
         {/* Patrimônio Total */}
         <div className="bg-card border border-border rounded-2xl p-5 relative overflow-visible">
           <div className="flex items-center gap-2 mb-3">
@@ -397,6 +424,38 @@ export function Dashboard({ summary, assets, hideValues, contributions, trades, 
               {formatPercent(rentabilidadeTotal)}
             </p>
           </div>
+        </div>
+
+        {/* TIR — Taxa Interna de Retorno */}
+        <div className="bg-card border border-border rounded-2xl p-5 relative overflow-visible">
+          <div className="flex items-center gap-2 mb-3">
+            <div className="p-2 bg-cyan-500/10 rounded-xl">
+              <Percent className="size-4 text-cyan-500" />
+            </div>
+            <p className="text-xs text-muted font-medium">TIR da Carteira</p>
+            <InfoButton id="tir" openInfo={openInfo} setOpenInfo={setOpenInfo} />
+          </div>
+          {tir ? (
+            <>
+              <p className={`text-2xl font-bold tabular ${tir.annual >= 0 ? "text-emerald-500" : "text-red-500"}`}>
+                {formatPercent(tir.annual * 100)}
+              </p>
+              <div className="mt-2">
+                <p className="text-[10px] text-muted">Equivalente mensal</p>
+                <p className={`text-sm font-bold tabular ${tir.monthly >= 0 ? "text-emerald-500" : "text-red-500"}`}>
+                  {formatPercent(tir.monthly * 100)}
+                </p>
+              </div>
+              <p className="text-[10px] text-muted mt-2">Aportes + Dividendos + Patrimônio</p>
+            </>
+          ) : (
+            <>
+              <p className="text-2xl font-bold tabular text-muted">—</p>
+              <p className="text-[10px] text-muted mt-2 leading-relaxed">
+                Registre aportes (aba Aportes) e dividendos para calcular a TIR
+              </p>
+            </>
+          )}
         </div>
       </div>
 
