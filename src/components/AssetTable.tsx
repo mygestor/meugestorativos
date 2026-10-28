@@ -196,6 +196,7 @@ export function AssetTable({ assets, hideValues, onEdit, onRefresh }: Props) {
                 <th className="p-3 text-left hidden sm:table-cell"><SortHeader field="type" label="Tipo" /></th>
                 <th className="p-3 text-right"><SortHeader field="currentPrice" label="Cotação" /></th>
                 <th className="p-3 text-right"><SortHeader field="quantity" label="Qtd" /></th>
+                <th className="p-3 text-right"><SortHeader field="avgPrice" label="Preço Médio" /></th>
                 <th className="p-3 text-right hidden md:table-cell"><SortHeader field="investedAmount" label="Investido" /></th>
                 <th className="p-3 text-right hidden md:table-cell"><span className="text-xs font-medium">Ganho/Perda</span></th>
                 <th className="p-3 text-right hidden lg:table-cell"><span className="text-xs font-medium">P/L</span></th>
@@ -236,6 +237,9 @@ export function AssetTable({ assets, hideValues, onEdit, onRefresh }: Props) {
                     </td>
                     <td className="p-3 text-right tabular font-medium">{mask(a.currentPrice, hideValues)}</td>
                     <td className="p-3 text-right tabular">{a.quantity}</td>
+                    <td className={`p-3 text-right tabular ${a.avgPrice > 0 ? (a.currentPrice >= a.avgPrice ? "text-income" : "text-expense") : ""}`}>
+                      {mask(a.avgPrice, hideValues)}
+                    </td>
                     <td className="p-3 text-right tabular hidden md:table-cell">{mask(a.investedAmount, hideValues)}</td>
                     <td className="p-3 text-right tabular hidden md:table-cell">
                       <p className={`font-medium ${currentValue >= a.investedAmount ? "text-income" : "text-expense"}`}>
@@ -306,7 +310,7 @@ export function AssetTable({ assets, hideValues, onEdit, onRefresh }: Props) {
                   </tr>
                   {isExpanded && (
                     <tr>
-                      <td colSpan={11} className="p-4 bg-surface/50">
+                      <td colSpan={12} className="p-4 bg-surface/50">
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
                           <DetailItem label="Segmento" value={a.sector || a.subtype || a.type} />
                           <DetailItem label="Preço Médio" value={mask(a.avgPrice, hideValues)} />
